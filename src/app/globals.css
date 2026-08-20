@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+:root {
+  /* Palette */
+  --canvas: #eceef0;
+  --ink: #17181b;
+  --paper: #ffffff;
+  --doc-shell: #0d0e10;
+  --signal-orange: #ff5a1f;
+  --signal-orange-soft: #ff7a45;
+  --lime: #d6f24b;
+  --periwinkle: #7c8cff;
+  --slate: #9aa3ad;
+
+  /* Ink alphas */
+  --ink-100: rgba(23, 24, 27, 1);
+  --ink-60: rgba(23, 24, 27, 0.6);
+  --ink-50: rgba(23, 24, 27, 0.5);
+  --ink-45: rgba(23, 24, 27, 0.45);
+  --ink-20: rgba(23, 24, 27, 0.2);
+  --ink-6: rgba(23, 24, 27, 0.06);
+
+  /* Light-on-dark ink (for the doc-shell surfaces) */
+  --light-100: #f4f5f6;
+  --light-55: rgba(244, 245, 246, 0.55);
+  --light-45: rgba(244, 245, 246, 0.45);
+  --light-40: rgba(244, 245, 246, 0.4);
+
+  /* Glass fills */
+  --glass-42: rgba(255, 255, 255, 0.42);
+  --glass-55: rgba(255, 255, 255, 0.55);
+  --glass-70: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.8);
+
+  /* Radii */
+  --radius-kbd: 7px;
+  --radius-badge: 9px;
+  --radius-nav: 14px;
+  --radius-card: 22px;
+  --radius-panel: 27px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-1: 8px;
+  --space-2: 14px;
+  --space-3: 18px;
+  --space-4: 26px;
+  --space-5: 48px;
+  --space-6: 70px;
+
+  /* Elevation (ink-tinted shadows) */
+  --shadow-card: 0 2px 8px -2px rgba(23, 24, 27, 0.14);
+  --shadow-popover: 0 14px 34px -12px rgba(23, 24, 27, 0.28);
+  --shadow-window: 0 30px 70px -20px rgba(23, 24, 27, 0.45);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-doc-shell: var(--doc-shell);
+  --color-signal: var(--signal-orange);
+  --color-signal-soft: var(--signal-orange-soft);
+  --color-lime: var(--lime);
+  --color-periwinkle: var(--periwinkle);
+  --color-slate: var(--slate);
+  --color-light-100: var(--light-100);
+  --color-light-55: var(--light-55);
+  --color-light-45: var(--light-45);
+  --color-light-40: var(--light-40);
+
+  --radius-kbd: var(--radius-kbd);
+  --radius-badge: var(--radius-badge);
+  --radius-nav: var(--radius-nav);
+  --radius-card: var(--radius-card);
+  --radius-panel: var(--radius-panel);
+
+  --font-sans: var(--font-instrument-sans);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-popover: var(--shadow-popover);
+  --shadow-window: var(--shadow-window);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Type scale */
+.text-display {
+  font-size: 56px;
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 1.02;
+}
+.text-hero {
+  font-size: 52px;
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 1.03;
+}
+.text-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.text-wordmark {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.text-lead {
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+.text-body {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.text-meta {
+  font-size: 11.5px;
+  font-weight: 400;
+}
+.text-eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Glass surfaces — never stack two of these on top of each other */
+.glass-42 {
+  background: var(--glass-42);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+.glass-55 {
+  background: var(--glass-55);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+.glass-70 {
+  background: var(--glass-70);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-42,
+  .glass-55,
+  .glass-70 {
+    background: var(--paper);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(130px);
+}
+
+::selection {
+  background: var(--lime);
+  color: var(--ink);
+}
