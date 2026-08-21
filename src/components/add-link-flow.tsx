@@ -386,7 +386,7 @@ function ReadyForm({
       <div className="flex flex-col gap-3">
         {excerptOnly && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
-            Paywalled — only a summary could be read. Fill in the rest by hand.
+            Only a summary and image could be read — the full page wasn&apos;t accessible. Fill in the rest by hand.
           </div>
         )}
         {failed && (

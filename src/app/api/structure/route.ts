@@ -1,6 +1,10 @@
 import { structureContent, type StructureInput } from "@/lib/structure/structure-content";
 
-export const runtime = "edge";
+// Was `runtime = "edge"` — Vercel now deprecates the Edge Runtime in favor of
+// Node.js functions under Fluid Compute, which get the same low-latency behavior
+// without the Edge Runtime's API restrictions. This route only ever used `fetch`,
+// so the switch is free.
+export const maxDuration = 30;
 
 export async function POST(request: Request) {
   const input = (await request.json().catch(() => null)) as StructureInput | null;

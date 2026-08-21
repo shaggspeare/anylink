@@ -1,5 +1,6 @@
 import { fetchHtml } from "./fetch-page";
 import { fetchHtmlWithBrowser } from "./fetch-page-browser";
+import { fetchMetadataFallback } from "./fetch-metadata-fallback";
 import { parseHtml } from "./parse-page";
 import { CrawlError } from "./errors";
 import { identityForDomain } from "../card-identity";
@@ -34,26 +35,19 @@ export async function crawlUrl(
 ): Promise<CrawlResult | CrawlFailure> {
   const domain = domainFromUrl(url);
 
-  let html: string;
-  let finalUrl: string;
+  let result: CrawlResult;
   try {
-    ({ html, finalUrl } = await fetchHtml(url));
+    const { html, finalUrl } = await fetchHtmlAnyWay(url);
+    onStep("fetch");
+    result = parseHtml(html, finalUrl);
   } catch (err) {
-    // A plain fetch getting blocked is exactly what a real browser can get past —
-    // anything else (DNS failure, timeout, non-HTML) a browser won't fix either.
-    if (err instanceof CrawlError && err.reason === "blocked") {
-      try {
-        ({ html, finalUrl } = await fetchHtmlWithBrowser(url));
-      } catch (browserErr) {
-        console.error("browser fallback failed:", browserErr);
-        return {
-          failed: true,
-          domain,
-          ...identityForDomain(domain),
-          reason: browserErr instanceof CrawlError ? browserErr.reason : "network",
-        };
-      }
-    } else {
+    // Both plain fetch and a real headless browser got blocked — last resort is a
+    // third party (microlink) whose IP reputation isn't tied to ours. Metadata
+    // and an image only, no article body, which is the accepted floor for sites
+    // blocked this hard (see PLAN.md risks).
+    onStep("fetch");
+    const metadataResult = await fetchMetadataFallback(url);
+    if (!metadataResult) {
       return {
         failed: true,
         domain,
@@ -61,10 +55,8 @@ export async function crawlUrl(
         reason: err instanceof CrawlError ? err.reason : "network",
       };
     }
+    result = metadataResult;
   }
-  onStep("fetch");
-
-  const result = parseHtml(html, finalUrl);
   onStep("parse");
 
   // Hero image download/resize/re-host happens later, at save time (createLink) —
@@ -74,6 +66,20 @@ export async function crawlUrl(
   await enrichWithLLM(result);
   onStep("tags");
   return result;
+}
+
+/** Plain fetch, falling back to a real headless browser if that gets blocked —
+ * anything else (DNS failure, timeout, non-HTML) a browser won't fix either, so
+ * it throws straight through. */
+async function fetchHtmlAnyWay(url: string): Promise<{ html: string; finalUrl: string }> {
+  try {
+    return await fetchHtml(url);
+  } catch (err) {
+    if (err instanceof CrawlError && err.reason === "blocked") {
+      return await fetchHtmlWithBrowser(url);
+    }
+    throw err;
+  }
 }
 
 /** Runs on every crawl: cleans up the extracted article text and, when the
