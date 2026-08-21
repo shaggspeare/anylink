@@ -1,6 +1,6 @@
 import { crawlUrl, type CrawlStep } from "@/lib/crawler";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 function isValidHttpUrl(value: string) {
   try {

@@ -1,7 +1,9 @@
 import { fetchHtml } from "./fetch-page";
+import { fetchHtmlWithBrowser } from "./fetch-page-browser";
 import { parseHtml } from "./parse-page";
 import { CrawlError } from "./errors";
 import { identityForDomain } from "../card-identity";
+import { structureContent } from "../structure/structure-content";
 import type { CrawlResult, CrawlStep } from "./types";
 
 export { CrawlError } from "./errors";
@@ -36,24 +38,89 @@ export async function crawlUrl(
   let finalUrl: string;
   try {
     ({ html, finalUrl } = await fetchHtml(url));
-    onStep("fetch");
   } catch (err) {
-    const identity = identityForDomain(domain);
-    return {
-      failed: true,
-      domain,
-      ...identity,
-      reason: err instanceof CrawlError ? err.reason : "network",
-    };
+    // A plain fetch getting blocked is exactly what a real browser can get past —
+    // anything else (DNS failure, timeout, non-HTML) a browser won't fix either.
+    if (err instanceof CrawlError && err.reason === "blocked") {
+      try {
+        ({ html, finalUrl } = await fetchHtmlWithBrowser(url));
+      } catch (browserErr) {
+        console.error("browser fallback failed:", browserErr);
+        return {
+          failed: true,
+          domain,
+          ...identityForDomain(domain),
+          reason: browserErr instanceof CrawlError ? browserErr.reason : "network",
+        };
+      }
+    } else {
+      return {
+        failed: true,
+        domain,
+        ...identityForDomain(domain),
+        reason: err instanceof CrawlError ? err.reason : "network",
+      };
+    }
   }
+  onStep("fetch");
 
   const result = parseHtml(html, finalUrl);
   onStep("parse");
 
-  // No image pipeline yet (PLAN.md §3 step 4) — the crawled hero URL is hotlinked
-  // for now instead of downloaded/resized/re-hosted.
+  // Hero image download/resize/re-host happens later, at save time (createLink) —
+  // not here, so an abandoned crawl never uploads anything.
   onStep("images");
 
+  await enrichWithLLM(result);
   onStep("tags");
   return result;
+}
+
+/** Runs on every crawl: cleans up the extracted article text and, when the
+ * regex/JSON-LD parsing came up weak, has the model take a pass at metadata
+ * (title/type/tags/product fields) instead. Best-effort — never fails the crawl. */
+async function enrichWithLLM(result: CrawlResult): Promise<void> {
+  const rawText = result.articleText.join("\n\n") || result.excerpt;
+  if (!rawText) return;
+
+  const structured = await structureContent({
+    url: result.canonicalUrl,
+    domain: result.domain,
+    title: result.title,
+    excerpt: result.excerpt,
+    rawText,
+    contentTypeGuess: result.contentType,
+    existingProduct: result.product
+      ? { price: result.product.price, currency: result.product.currency, inStock: result.product.inStock }
+      : undefined,
+  });
+  if (!structured) return;
+
+  result.title = structured.title;
+  result.excerpt = structured.excerpt;
+  if (structured.articleText.length > 0) result.articleText = structured.articleText;
+  if (structured.tags.length > 0) result.suggestedTags = structured.tags;
+
+  result.contentType = structured.contentType;
+  if (structured.contentType === "product") {
+    const identity = identityForDomain(result.domain);
+    result.product ??= {
+      retailer: result.domain,
+      retailerInitial: identity.initial,
+      retailerColor: identity.tint,
+      currency: "$",
+      variants: [],
+      specs: [],
+      totalSpecCount: 0,
+      priceHistory: [],
+    };
+    if (structured.product?.price !== undefined) result.product.price = structured.product.price;
+    if (structured.product?.currency) result.product.currency = structured.product.currency;
+    if (structured.product?.inStock !== undefined) result.product.inStock = structured.product.inStock;
+    if (result.product.priceHistory.length === 0 && result.product.price !== undefined) {
+      result.product.priceHistory = [
+        { date: new Date().toISOString().slice(0, 10), price: result.product.price },
+      ];
+    }
+  }
 }
