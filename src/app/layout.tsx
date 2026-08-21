@@ -5,6 +5,7 @@ import { LibraryProvider } from "@/lib/store";
 import { CommandPalette } from "@/components/command-palette";
 import { AddLinkFlow } from "@/components/add-link-flow";
 import { GlobalCaptureListener } from "@/components/global-capture-listener";
+import { getLibraryData } from "@/lib/db/queries";
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
@@ -17,11 +18,17 @@ export const metadata: Metadata = {
   description: "Paste anything. We read the rest.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Every route reads the live library from Postgres via the root layout —
+// none of it can be statically prerendered at build time.
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { links, collections } = await getLibraryData();
+
   return (
     <html lang="en" className={`${instrumentSans.variable} h-full`}>
       <body className="min-h-full antialiased">
-        <LibraryProvider>
+        <LibraryProvider initialLinks={links} initialCollections={collections}>
           {children}
           <AddLinkFlow />
           <CommandPalette />

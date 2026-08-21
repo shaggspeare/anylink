@@ -9,11 +9,12 @@ export function ProductPanel({ link }: { link: LinkItem }) {
   const product = link.product!;
   const { setAlertThreshold } = useLibrary();
   const [showAllSpecs, setShowAllSpecs] = useState(false);
-  const [threshold, setThreshold] = useState(product.alertThreshold ?? product.price);
+  const [threshold, setThreshold] = useState(product.alertThreshold ?? product.price ?? 0);
 
-  const changePct = product.previousPrice
-    ? Math.round(((product.price - product.previousPrice) / product.previousPrice) * 100)
-    : 0;
+  const changePct =
+    product.previousPrice && product.price
+      ? Math.round(((product.price - product.previousPrice) / product.previousPrice) * 100)
+      : 0;
   const specsToShow = showAllSpecs ? product.specs : product.specs.slice(0, 8);
 
   return (
@@ -35,36 +36,43 @@ export function ProductPanel({ link }: { link: LinkItem }) {
                 {product.retailerInitial}
               </span>
               <span className="text-[11.5px] text-ink/50">
-                {product.retailer} · code {product.code}
+                {product.retailer}
+                {product.code ? ` · code ${product.code}` : ""}
               </span>
             </div>
             <div className="text-[26px] font-semibold leading-[1.1] tracking-[-.04em] text-ink text-pretty sm:text-[28px]">
               {link.title}
             </div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-[28px] font-semibold tracking-[-.04em] text-ink sm:text-[30px]">
-                {product.currency}
-                {product.price.toLocaleString()}
-              </span>
-              {product.previousPrice && (
-                <span className="text-[15px] text-ink/40 line-through">
+            {product.price !== undefined && (
+              <div className="flex items-baseline gap-3">
+                <span className="text-[28px] font-semibold tracking-[-.04em] text-ink sm:text-[30px]">
                   {product.currency}
-                  {product.previousPrice.toLocaleString()}
+                  {product.price.toLocaleString()}
                 </span>
-              )}
-              {changePct !== 0 && (
-                <span className="rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-bold text-ink">
-                  {changePct}% since saved
-                </span>
-              )}
-            </div>
+                {product.previousPrice && (
+                  <span className="text-[15px] text-ink/40 line-through">
+                    {product.currency}
+                    {product.previousPrice.toLocaleString()}
+                  </span>
+                )}
+                {changePct !== 0 && (
+                  <span className="rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-bold text-ink">
+                    {changePct}% since saved
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
-              <StatusChip active>{product.inStock ? "In stock" : "Out of stock"}</StatusChip>
-              <StatusChip>{product.delivery}</StatusChip>
-              <StatusChip>
-                {product.rating} ★ · {product.reviewCount.toLocaleString()} reviews
-              </StatusChip>
-              <StatusChip>{product.warranty}</StatusChip>
+              {product.inStock !== undefined && (
+                <StatusChip active={product.inStock}>{product.inStock ? "In stock" : "Out of stock"}</StatusChip>
+              )}
+              {product.delivery && <StatusChip>{product.delivery}</StatusChip>}
+              {product.rating !== undefined && (
+                <StatusChip>
+                  {product.rating} ★{product.reviewCount ? ` · ${product.reviewCount.toLocaleString()} reviews` : ""}
+                </StatusChip>
+              )}
+              {product.warranty && <StatusChip>{product.warranty}</StatusChip>}
             </div>
             {product.variants.length > 0 && (
               <div className="mt-0.5 flex gap-1.5">
@@ -84,28 +92,32 @@ export function ProductPanel({ link }: { link: LinkItem }) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 p-5 sm:p-6">
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-periwinkle" />
-            <span className="text-eyebrow text-ink/45">Specs AnyLink pulled</span>
-            <button
-              type="button"
-              onClick={() => setShowAllSpecs((v) => !v)}
-              className="ml-auto text-[11.5px] text-ink/45"
-            >
-              {specsToShow.length} of {product.totalSpecCount} shown ·{" "}
-              <span className="font-semibold text-ink">{showAllSpecs ? "show less" : "show all"}</span>
-            </button>
+        {product.specs.length > 0 && (
+          <div className="flex flex-col gap-3 p-5 sm:p-6">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-periwinkle" />
+              <span className="text-eyebrow text-ink/45">Specs AnyLink pulled</span>
+              {product.specs.length > 8 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllSpecs((v) => !v)}
+                  className="ml-auto text-[11.5px] text-ink/45"
+                >
+                  {specsToShow.length} of {product.totalSpecCount} shown ·{" "}
+                  <span className="font-semibold text-ink">{showAllSpecs ? "show less" : "show all"}</span>
+                </button>
+              )}
+            </div>
+            <div className="grid gap-x-6 sm:grid-cols-2">
+              {specsToShow.map((s) => (
+                <div key={s.label} className="flex items-center justify-between gap-3.5 border-b border-ink/6 py-2.5 text-[13px]">
+                  <span className="text-ink/55">{s.label}</span>
+                  <span className="text-right font-semibold text-ink">{s.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-x-6 sm:grid-cols-2">
-            {specsToShow.map((s) => (
-              <div key={s.label} className="flex items-center justify-between gap-3.5 border-b border-ink/6 py-2.5 text-[13px]">
-                <span className="text-ink/55">{s.label}</span>
-                <span className="text-right font-semibold text-ink">{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </article>
 
       <aside className="flex w-full flex-none flex-col gap-4 lg:w-[320px]">
@@ -114,7 +126,13 @@ export function ProductPanel({ link }: { link: LinkItem }) {
           style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", backdropFilter: "blur(20px) saturate(1.4)" }}
         >
           <span className="text-eyebrow text-ink/40">Price history</span>
-          <PriceChart history={product.priceHistory} currency={product.currency} />
+          {product.priceHistory.length >= 2 ? (
+            <PriceChart history={product.priceHistory} currency={product.currency} />
+          ) : (
+            <p className="text-body text-ink/45">
+              Checked twice daily — history will show up after the next check.
+            </p>
+          )}
           <div className="flex flex-col gap-1.5 border-t border-ink/6 pt-3">
             <span className="text-[12px] font-medium text-ink/60">Alert me under</span>
             <div className="flex items-center gap-2">

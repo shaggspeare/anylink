@@ -2,21 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLibrary } from "@/lib/store";
-import { mockCrawl, type CrawlResult } from "@/lib/mock-crawl";
+import type { CrawlFailure, CrawlResult, CrawlStep } from "@/lib/crawler";
 import type { CardSize } from "@/lib/types";
 import { AmbientOrbs } from "./ambient-orbs";
 
 type Phase = "idle" | "crawling" | "ready";
+type ReadyResult = CrawlResult | CrawlFailure;
 
-const STEP_LABELS = ["Fetching page", "Reading content", "Saving images", "Suggesting tags"];
+const STEP_ORDER: CrawlStep[] = ["fetch", "parse", "images", "tags"];
+const STEP_LABELS: Record<CrawlStep, string> = {
+  fetch: "Fetching page",
+  parse: "Reading content",
+  images: "Saving images",
+  tags: "Suggesting tags",
+};
 
 export function AddLinkFlow() {
   const { addLinkOpen, addLinkPrefillUrl, closeAddLink, addLink, collections } = useLibrary();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState("");
-  const [step, setStep] = useState(0);
-  const [result, setResult] = useState<CrawlResult | null>(null);
+  const [step, setStep] = useState(-1);
+  const [result, setResult] = useState<ReadyResult | null>(null);
   const [clipboardHint, setClipboardHint] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -24,42 +31,83 @@ export function AddLinkFlow() {
   const [collectionId, setCollectionId] = useState("");
   const [size, setSize] = useState<CardSize>("M");
   const [touched, setTouched] = useState<{ collection?: boolean; size?: boolean }>({});
+  const [saving, setSaving] = useState(false);
 
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const reset = () => {
+    abortRef.current?.abort();
     setPhase("idle");
     setUrl("");
-    setStep(0);
+    setStep(-1);
     setResult(null);
     setTitle("");
     setExcerpt("");
     setCollectionId("");
     setSize("M");
+    setSaving(false);
     setTouched({});
     setClipboardHint(null);
-    if (timerRef.current) clearTimeout(timerRef.current);
   };
 
-  const runCrawl = (targetUrl: string) => {
+  const runCrawl = async (targetUrl: string) => {
     setUrl(targetUrl);
     setPhase("crawling");
-    setStep(0);
-    const advance = (n: number) => {
-      timerRef.current = setTimeout(() => {
-        if (n < STEP_LABELS.length - 1) {
-          setStep(n + 1);
-          advance(n + 1);
-        } else {
-          const crawlResult = mockCrawl(targetUrl);
-          setResult(crawlResult);
-          setTitle(crawlResult.title);
-          setExcerpt(crawlResult.excerpt);
-          setPhase("ready");
+    setStep(-1);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const res = await fetch("/api/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
+        signal: controller.signal,
+      });
+      if (!res.body) throw new Error("No response body");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line);
+          if (msg.type === "step") {
+            setStep(STEP_ORDER.indexOf(msg.step));
+          } else if (msg.type === "done") {
+            setResult(msg.result);
+            setTitle(msg.result.title);
+            setExcerpt(msg.result.excerpt);
+            setPhase("ready");
+          } else if (msg.type === "failed") {
+            const failure: CrawlFailure = msg;
+            setResult(failure);
+            setTitle("");
+            setExcerpt("");
+            setPhase("ready");
+          }
         }
-      }, 550);
-    };
-    advance(0);
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      setResult({
+        failed: true,
+        domain: targetUrl,
+        tint: "#9aa3ad",
+        stripe: "#ffffff",
+        initial: "?",
+        reason: err instanceof Error ? err.message : "network",
+      });
+      setPhase("ready");
+    }
   };
 
   useEffect(() => {
@@ -104,23 +152,27 @@ export function AddLinkFlow() {
   const collectionError = touched.collection && !collectionId;
   const canSave = Boolean(collectionId) && Boolean(size);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setTouched({ collection: true, size: true });
-    if (!canSave || !result) return;
-    addLink({
+    if (!canSave || !result || saving) return;
+    setSaving(true);
+    const crawled = "failed" in result ? null : result;
+    await addLink({
       url,
       domain: result.domain,
       title: title || result.domain,
       excerpt,
-      heroImage: result.heroImage,
+      articleText: crawled?.articleText,
+      heroImage: crawled?.heroImage,
       tint: result.tint,
       stripe: result.stripe,
       initial: result.initial,
-      contentType: result.contentType,
-      readingTimeMinutes: result.readingTimeMinutes,
+      contentType: crawled?.contentType ?? "article",
+      readingTimeMinutes: crawled?.readingTimeMinutes,
       collectionId,
-      tags: result.suggestedTags,
+      tags: crawled?.suggestedTags ?? [],
       size,
+      product: crawled?.product,
     });
     handleClose();
   };
@@ -236,32 +288,32 @@ export function AddLinkFlow() {
                       Reading the page…
                     </div>
                     <div className="ml-auto font-mono text-[13px] font-semibold text-lime tabular-nums">
-                      {Math.round(((step + 1) / STEP_LABELS.length) * 100)}%
+                      {Math.round(((step + 1) / STEP_ORDER.length) * 100)}%
                     </div>
                   </div>
                   <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
                     <div
                       className="h-full rounded-full bg-lime transition-[width] duration-500"
-                      style={{ width: `${((step + 1) / STEP_LABELS.length) * 100}%` }}
+                      style={{ width: `${((step + 1) / STEP_ORDER.length) * 100}%` }}
                     />
                   </div>
                   <div className="flex flex-col gap-3">
-                    {STEP_LABELS.map((label, i) => (
+                    {STEP_ORDER.map((s, i) => (
                       <div
-                        key={label}
+                        key={s}
                         className="flex items-center gap-2.5 text-[13px]"
                         style={{ color: i <= step ? "#f4f5f6" : "rgba(244,245,246,.4)" }}
                       >
                         <span
                           className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full text-[10px] font-bold"
                           style={{
-                            color: i < step ? "#17181b" : i === step ? "#17181b" : "rgba(244,245,246,.5)",
+                            color: i <= step ? "#17181b" : "rgba(244,245,246,.5)",
                             background: i <= step ? "#d6f24b" : "rgba(255,255,255,.1)",
                           }}
                         >
                           {i < step ? "✓" : i + 1}
                         </span>
-                        {label}
+                        {STEP_LABELS[s]}
                       </div>
                     ))}
                   </div>
@@ -283,6 +335,7 @@ export function AddLinkFlow() {
                   collectionError={collectionError}
                   onCollectionBlur={() => setTouched((t) => ({ ...t, collection: true }))}
                   onSave={handleSave}
+                  saving={saving}
                 />
               )}
             </div>
@@ -307,8 +360,9 @@ function ReadyForm({
   collectionError,
   onCollectionBlur,
   onSave,
+  saving,
 }: {
-  result: CrawlResult;
+  result: ReadyResult;
   title: string;
   setTitle: (v: string) => void;
   excerpt: string;
@@ -321,25 +375,30 @@ function ReadyForm({
   collectionError?: boolean;
   onCollectionBlur: () => void;
   onSave: () => void;
+  saving: boolean;
 }) {
+  const failed = "failed" in result;
+  const heroImage = failed ? undefined : result.heroImage;
+  const excerptOnly = !failed && result.excerptOnly;
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <div className="flex flex-col gap-3">
-        {result.excerptOnly && (
+        {excerptOnly && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
             Paywalled — only a summary could be read. Fill in the rest by hand.
           </div>
         )}
-        {result.failed && (
+        {failed && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
-            Crawl failed — the page blocked the fetch. Add the details manually below.
+            Crawl failed ({result.reason}) — add the details manually below.
           </div>
         )}
         <div className="overflow-hidden rounded-[22px]" style={{ background: "rgba(255,255,255,.62)", border: "1px solid rgba(255,255,255,.75)" }}>
-          <div className="relative h-[170px] w-full" style={{ background: result.heroImage ? undefined : result.tint }}>
-            {result.heroImage && (
+          <div className="relative h-[170px] w-full" style={{ background: heroImage ? undefined : result.tint }}>
+            {heroImage && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={result.heroImage} alt="" className="h-full w-full object-cover" />
+              <img src={heroImage} alt="" className="h-full w-full object-cover" />
             )}
           </div>
           <div className="flex flex-col gap-1.5 px-4 py-3.5">
@@ -359,7 +418,7 @@ function ReadyForm({
         </div>
         <div className="flex items-center gap-1.5 text-[12px] text-lime">
           <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-ink">✓</span>
-          <span className="text-light-55">Crawled — check the details</span>
+          <span className="text-light-55">{failed ? "Fill in the details manually" : "Crawled — check the details"}</span>
         </div>
       </div>
 
@@ -429,9 +488,10 @@ function ReadyForm({
         <button
           type="button"
           onClick={onSave}
-          className="mt-1 h-[46px] rounded-full bg-signal text-[13.5px] font-semibold text-[#111214]"
+          disabled={saving}
+          className="mt-1 h-[46px] rounded-full bg-signal text-[13.5px] font-semibold text-[#111214] disabled:opacity-60"
         >
-          Save to library
+          {saving ? "Saving…" : "Save to library"}
         </button>
       </div>
     </div>
