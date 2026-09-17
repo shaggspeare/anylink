@@ -6,6 +6,7 @@ import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
 import { reuploadHeroImage, deleteHeroImage } from "../storage/upload-hero-image";
 import { crawlUrl } from "../crawler";
+import { cleanUrl } from "../crawler/url";
 import type { CardSize, LinkItem, ProductDetails } from "../types";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
@@ -30,6 +31,10 @@ async function tagIdsFor(names: string[]): Promise<string[]> {
 }
 
 export async function createLink(input: NewLinkInput): Promise<LinkItem> {
+  // Last stop before the DB: every save path (add-link form, bookmark import)
+  // lands here, so the tracking-param strip belongs here rather than per caller.
+  const url = cleanUrl(input.url);
+
   const productJson: Partial<ProductDetails> | null = input.product
     ? {
         retailer: input.product.retailer,
@@ -51,7 +56,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     .values({
       userId: CURRENT_USER_ID,
       collectionId: input.collectionId,
-      url: input.url,
+      url,
       domain: input.domain,
       title: input.title,
       excerpt: input.excerpt,
@@ -87,7 +92,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
   let heroImage = input.heroImage;
   if (heroImage) {
-    const rehosted = await reuploadHeroImage(heroImage, row.id);
+    const rehosted = await reuploadHeroImage(heroImage, row.id, url);
     if (rehosted) {
       heroImage = rehosted;
       await db.update(schema.links).set({ heroImage: rehosted }).where(eq(schema.links.id, row.id));
@@ -96,6 +101,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
   return {
     ...input,
+    url,
     id: row.id,
     createdAt: row.createdAt.toISOString(),
     status: row.status,
@@ -221,7 +227,8 @@ export async function importBookmark(
   }
 
   const link = await createLink({
-    url,
+    // the page's own canonical, not the (often stale, often redirecting) bookmark
+    url: result.canonicalUrl,
     domain: result.domain,
     title: result.title || fallbackTitle,
     excerpt: result.excerpt,

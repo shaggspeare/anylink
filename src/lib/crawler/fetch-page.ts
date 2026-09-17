@@ -1,6 +1,6 @@
 import { CrawlError } from "./errors";
 
-const USER_AGENT =
+export const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 AnyLinkBot/0.1";
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 5;

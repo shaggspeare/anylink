@@ -4,37 +4,20 @@ import { fetchMetadataFallback } from "./fetch-metadata-fallback";
 import { parseHtml } from "./parse-page";
 import { CrawlError } from "./errors";
 import { identityForDomain } from "../card-identity";
+import { failureFor, type CrawlFailure } from "./url";
 import { structureContent } from "../structure/structure-content";
 import type { CrawlResult, CrawlStep } from "./types";
 
 export { CrawlError } from "./errors";
 export type { CrawlResult, CrawlStep } from "./types";
 export { CRAWL_STEPS } from "./types";
-
-export type CrawlFailure = {
-  failed: true;
-  domain: string;
-  tint: string;
-  stripe: string;
-  initial: string;
-  reason: string;
-};
-
-function domainFromUrl(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
+export type { CrawlFailure } from "./url";
 
 /** Runs the full crawl pipeline, invoking onStep as each phase completes. */
 export async function crawlUrl(
   url: string,
   onStep: (step: CrawlStep) => void
 ): Promise<CrawlResult | CrawlFailure> {
-  const domain = domainFromUrl(url);
-
   let result: CrawlResult;
   try {
     const { html, finalUrl } = await fetchHtmlAnyWay(url);
@@ -48,12 +31,7 @@ export async function crawlUrl(
     onStep("fetch");
     const metadataResult = await fetchMetadataFallback(url);
     if (!metadataResult) {
-      return {
-        failed: true,
-        domain,
-        ...identityForDomain(domain),
-        reason: err instanceof CrawlError ? err.reason : "network",
-      };
+      return failureFor(url, err instanceof CrawlError ? err.reason : "network");
     }
     result = metadataResult;
   }

@@ -1,15 +1,30 @@
 import sharp from "sharp";
 import { supabaseAdmin, HERO_IMAGES_BUCKET } from "./client";
+import { USER_AGENT } from "../crawler/fetch-page";
 
 const MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_WIDTH = 1600;
 
 /** Downloads a crawled hero image, resizes it, and re-hosts it in Supabase Storage.
  * Returns undefined (leaving the original hotlinked URL in place) on any failure —
- * a missing hero image is not worth failing the save over. */
-export async function reuploadHeroImage(sourceUrl: string, linkId: string): Promise<string | undefined> {
+ * a missing hero image is not worth failing the save over.
+ *
+ * `pageUrl` goes out as the Referer: CDNs with hotlink protection 403 a bare
+ * request but serve the image to the page it belongs to. */
+export async function reuploadHeroImage(
+  sourceUrl: string,
+  linkId: string,
+  pageUrl?: string
+): Promise<string | undefined> {
   try {
-    const res = await fetch(sourceUrl, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(sourceUrl, {
+      signal: AbortSignal.timeout(8000),
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        ...(pageUrl ? { Referer: pageUrl } : {}),
+      },
+    });
     if (!res.ok) return undefined;
 
     const contentType = res.headers.get("content-type") ?? "";

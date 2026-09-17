@@ -1,6 +1,7 @@
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import { identityForDomain } from "../card-identity";
+import { cleanUrl } from "./url";
 import type { ContentType, ProductDetails } from "../types";
 import type { CrawlResult } from "./types";
 
@@ -175,7 +176,9 @@ export function parseHtml(html: string, url: string): CrawlResult {
 
   return {
     domain,
-    canonicalUrl: canonical ? new URL(canonical, url).toString() : url,
+    // `url` is already post-redirect; rel=canonical collapses the rest (session
+    // ids, variant params, AMP copies) onto the page's own preferred URL.
+    canonicalUrl: cleanUrl(canonical ? new URL(canonical, url).toString() : url),
     title,
     excerpt: ogDescription || article?.excerpt || "",
     articleText: paragraphs,

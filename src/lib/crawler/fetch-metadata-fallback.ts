@@ -1,4 +1,5 @@
 import { identityForDomain } from "../card-identity";
+import { cleanUrl } from "./url";
 import type { CrawlResult } from "./types";
 
 /** Last-resort metadata-only fallback for sites that block both a plain fetch and
@@ -26,7 +27,7 @@ export async function fetchMetadataFallback(url: string): Promise<CrawlResult | 
 
     return {
       domain,
-      canonicalUrl: typeof data.url === "string" ? data.url : url,
+      canonicalUrl: cleanUrl(typeof data.url === "string" ? data.url : url),
       title: data.title || domain,
       excerpt: data.description || "",
       articleText: [],

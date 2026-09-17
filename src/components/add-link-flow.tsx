@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLibrary } from "@/lib/store";
-import type { CrawlFailure, CrawlResult, CrawlStep } from "@/lib/crawler";
+import type { CrawlResult, CrawlStep } from "@/lib/crawler";
+import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
 import type { CardSize } from "@/lib/types";
 import { AmbientOrbs } from "./ambient-orbs";
 
@@ -90,7 +91,9 @@ export function AddLinkFlow() {
           } else if (msg.type === "failed") {
             const failure: CrawlFailure = msg;
             setResult(failure);
-            setTitle("");
+            // Failure is a fill-in state, not an error screen: seed the form with
+            // what the URL itself gives away so there's something to correct.
+            setTitle(failure.suggestedTitle ?? "");
             setExcerpt("");
             setPhase("ready");
           }
@@ -98,14 +101,9 @@ export function AddLinkFlow() {
       }
     } catch (err) {
       if (controller.signal.aborted) return;
-      setResult({
-        failed: true,
-        domain: targetUrl,
-        tint: "#9aa3ad",
-        stripe: "#ffffff",
-        initial: "?",
-        reason: err instanceof Error ? err.message : "network",
-      });
+      const failure = failureFor(targetUrl, err instanceof Error ? err.message : "network");
+      setResult(failure);
+      setTitle(failure.suggestedTitle);
       setPhase("ready");
     }
   };
@@ -158,7 +156,8 @@ export function AddLinkFlow() {
     setSaving(true);
     const crawled = "failed" in result ? null : result;
     await addLink({
-      url,
+      // store what the page calls itself, not what happened to be on the clipboard
+      url: crawled?.canonicalUrl ?? url,
       domain: result.domain,
       title: title || result.domain,
       excerpt,
@@ -391,7 +390,8 @@ function ReadyForm({
         )}
         {failed && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
-            Crawl failed ({result.reason}) — add the details manually below.
+            The page wouldn&apos;t open ({result.reason}) — the title is guessed from the link.
+            Edit it and save; nothing else is needed.
           </div>
         )}
         <div className="overflow-hidden rounded-[22px]" style={{ background: "rgba(255,255,255,.62)", border: "1px solid rgba(255,255,255,.75)" }}>
@@ -418,7 +418,7 @@ function ReadyForm({
         </div>
         <div className="flex items-center gap-1.5 text-[12px] text-lime">
           <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-ink">✓</span>
-          <span className="text-light-55">{failed ? "Fill in the details manually" : "Crawled — check the details"}</span>
+          <span className="text-light-55">{failed ? "Filled in from the link — check it" : "Crawled — check the details"}</span>
         </div>
       </div>
 
