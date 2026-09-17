@@ -51,7 +51,12 @@ export type LinkItem = {
   size: CardSize;
   status: LinkStatus;
   createdAt: string;
+  note?: string;
+  favorite?: boolean;
+  /** null/undefined = never checked, 0 = unreachable, else the last HTTP status. */
+  httpStatus?: number;
   archived?: boolean;
+  deleted?: boolean;
   highlights?: Highlight[];
   product?: ProductDetails;
 };
@@ -62,4 +67,5 @@ export type Collection = {
   color: string;
   isSmart?: boolean;
   smartQuery?: string;
+  isInbox?: boolean;
 };

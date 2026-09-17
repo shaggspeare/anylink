@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
+import { searchLinks } from "@/lib/search";
 
-type ResultKind = "link" | "tag" | "collection";
+type ResultKind = "link" | "tag" | "collection" | "query";
 type Result = { kind: ResultKind; id: string; label: string; sub?: string };
 
 function Highlighted({ text, query }: { text: string; query: string }) {
@@ -42,24 +43,19 @@ export function CommandPalette() {
 
   const q = query.trim().toLowerCase();
 
-  const linkResults: Result[] = useMemo(() => {
-    if (!q) return links.slice(0, 6).map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain }));
-    return links
-      .filter(
-        (l) =>
-          l.title.toLowerCase().includes(q) ||
-          l.excerpt.toLowerCase().includes(q) ||
-          l.domain.toLowerCase().includes(q) ||
-          l.tags.some((t) => t.toLowerCase().includes(q))
-      )
-      .slice(0, 6)
-      .map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain }));
-  }, [links, q]);
+  // Same parser the sidebar filters and smart collections use, so `type:video -#work`
+  // works here without the palette knowing what any of those operators mean.
+  const matches = useMemo(() => searchLinks(links, q), [links, q]);
+  const linkResults: Result[] = useMemo(
+    () => matches.slice(0, 6).map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain })),
+    [matches]
+  );
 
   const tagResults: Result[] = useMemo(() => {
     if (!q) return [];
+    const term = q.replace(/^[-#]+/, "");
     return tags
-      .filter((t) => t.toLowerCase().includes(q))
+      .filter((t) => term.length > 0 && t.toLowerCase().includes(term))
       .slice(0, 4)
       .map((t) => ({ kind: "tag" as const, id: t, label: t }));
   }, [tags, q]);
@@ -69,10 +65,17 @@ export function CommandPalette() {
     return source.slice(0, 4).map((c) => ({ kind: "collection" as const, id: c.id, label: c.name }));
   }, [collections, q]);
 
-  const flat = [...linkResults, ...tagResults, ...collectionResults];
+  const allResults: Result[] =
+    q && matches.length > linkResults.length
+      ? [{ kind: "query", id: "all", label: `Show all ${matches.length} matches` }]
+      : [];
+
+  const flat = [...linkResults, ...allResults, ...tagResults, ...collectionResults];
 
   const openResult = (r: Result, openOriginal = false) => {
-    if (r.kind === "link") {
+    if (r.kind === "query") {
+      router.push(`/?q=${encodeURIComponent(q)}`);
+    } else if (r.kind === "link") {
       if (openOriginal) {
         const link = links.find((l) => l.id === r.id);
         if (link) window.open(link.url, "_blank", "noopener,noreferrer");
@@ -82,7 +85,7 @@ export function CommandPalette() {
     } else if (r.kind === "collection") {
       router.push(`/collections/${r.id}`);
     } else if (r.kind === "tag") {
-      setQuery(r.label);
+      setQuery(`#${r.label}`);
       return;
     }
     closePalette();
@@ -133,7 +136,7 @@ export function CommandPalette() {
                 setActiveIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search links, tags, collections…"
+              placeholder="Search — or filter with type: #tag -word is:favorite"
               className="flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink/40"
             />
           </div>
@@ -155,6 +158,16 @@ export function CommandPalette() {
                 ))}
               </ResultGroup>
             )}
+            {allResults.map((r) => (
+              <ResultRow
+                key="all"
+                active={flat[activeIndex]?.kind === "query"}
+                onClick={() => openResult(r)}
+              >
+                <span className="text-ink/70">{r.label}</span>
+                <span className="ml-auto flex-none text-meta text-ink/40">in the library</span>
+              </ResultRow>
+            ))}
             {(tagResults.length > 0 || collectionResults.length > 0) && (
               <ResultGroup label="Tags & collections">
                 {tagResults.map((r) => (

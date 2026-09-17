@@ -41,11 +41,11 @@ export function BookmarksImportButton() {
 }
 
 function BookmarksImportModal({ onClose }: { onClose: () => void }) {
-  const { collections, importBookmark } = useLibrary();
+  const { collections, importBookmark, inbox } = useLibrary();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [bookmarks, setBookmarks] = useState<Bookmark[] | null>(null);
-  const [collectionId, setCollectionId] = useState("");
+  const [collectionId, setCollectionId] = useState(inbox?.id ?? "");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<ResultRow[]>([]);
@@ -137,7 +137,7 @@ function BookmarksImportModal({ onClose }: { onClose: () => void }) {
                   Found <span className="font-semibold text-[#f4f5f6]">{bookmarks.length}</span> links.
                 </p>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-eyebrow text-light-40">Save into *</span>
+                  <span className="text-eyebrow text-light-40">Save into</span>
                   <select
                     value={collectionId}
                     onChange={(e) => setCollectionId(e.target.value)}

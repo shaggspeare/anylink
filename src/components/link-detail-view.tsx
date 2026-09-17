@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLibrary } from "@/lib/store";
@@ -8,9 +9,10 @@ import { ReaderPanel } from "./reader-panel";
 import { ProductPanel } from "./product-panel";
 
 export function LinkDetailView({ linkId }: { linkId: string }) {
-  const { links, collections, moveLinks } = useLibrary();
+  const { links, collections, moveLinks, setFavorite, setNote } = useLibrary();
   const router = useRouter();
   const link = links.find((l) => l.id === linkId);
+  const [noteOpen, setNoteOpen] = useState(Boolean(link?.note));
 
   if (!link) notFound();
 
@@ -61,6 +63,27 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setFavorite(link.id, !link.favorite)}
+              aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
+              title="Favorite"
+              className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/90 bg-white/70 text-[15px] ${
+                link.favorite ? "text-signal" : "text-ink/35"
+              }`}
+            >
+              ★
+            </button>
+            <button
+              type="button"
+              onClick={() => setNoteOpen((open) => !open)}
+              title="Note"
+              className={`flex h-9 items-center rounded-full border border-white/90 bg-white/70 px-4 text-[12.5px] font-semibold ${
+                link.note ? "text-ink" : "text-ink/45"
+              }`}
+            >
+              Note
+            </button>
+            <button
+              type="button"
               onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
               className="flex h-9 items-center gap-2 rounded-full border border-white/90 bg-white/70 px-4 text-[12.5px] font-semibold text-ink"
             >
@@ -101,6 +124,19 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
             </details>
           </div>
         </header>
+
+        {noteOpen && (
+          <div className="border-b border-white/60 bg-white/45 px-4 py-3 sm:px-6">
+            <textarea
+              autoFocus
+              defaultValue={link.note ?? ""}
+              onBlur={(e) => setNote(link.id, e.target.value)}
+              placeholder="Why you saved this, what to do with it…"
+              rows={3}
+              className="w-full resize-y rounded-[14px] border border-white/90 bg-white/70 px-3.5 py-2.5 text-body text-ink outline-none placeholder:text-ink/35"
+            />
+          </div>
+        )}
 
         {isProduct && link.product ? (
           <ProductPanel link={link} />

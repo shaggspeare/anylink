@@ -14,7 +14,13 @@ export async function GET(request: Request) {
   const products = await db
     .select({ id: schema.links.id, url: schema.links.url })
     .from(schema.links)
-    .where(and(eq(schema.links.contentType, "product"), isNull(schema.links.archivedAt)));
+    .where(
+      and(
+        eq(schema.links.contentType, "product"),
+        isNull(schema.links.archivedAt),
+        isNull(schema.links.deletedAt)
+      )
+    );
 
   let checked = 0;
   let recorded = 0;

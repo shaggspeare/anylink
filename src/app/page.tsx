@@ -1,14 +1,20 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { CardMosaic } from "@/components/card-mosaic";
 import { AmbientOrbs } from "@/components/ambient-orbs";
+import { searchLinks } from "@/lib/search";
 
 export default function LibraryPage() {
   const { links, openAddLink, openPalette } = useLibrary();
-  const visible = links.filter((l) => !l.archived);
+  const router = useRouter();
+  // Every sidebar filter and saved search lands here as `?q=…` — one query language,
+  // no per-filter view state. searchLinks also drops archived links on its own.
+  const query = useSearchParams().get("q") ?? "";
+  const visible = searchLinks(links, query);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -19,8 +25,24 @@ export default function LibraryPage() {
           <h1 className="text-hero text-[30px] sm:text-title lg:text-[30px]">All links</h1>
           <div className="flex items-center gap-2 pb-1.5">
             <span className="text-meta text-ink/50">{visible.length} links</span>
-            <span className="h-1 w-1 rounded-full bg-ink/25" />
-            <span className="hidden text-meta text-ink/50 sm:inline">drag a card corner to resize</span>
+            {query ? (
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                title="Clear filter"
+                className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] text-[#f4f5f6]"
+              >
+                {query}
+                <span className="text-[#f4f5f6]/60">✕</span>
+              </button>
+            ) : (
+              <>
+                <span className="h-1 w-1 rounded-full bg-ink/25" />
+                <span className="hidden text-meta text-ink/50 sm:inline">
+                  drag a card corner to resize
+                </span>
+              </>
+            )}
           </div>
           <div className="ml-auto flex items-center gap-2 pb-1">
             <button

@@ -10,7 +10,7 @@ import { AmbientOrbs } from "@/components/ambient-orbs";
 import { CollectionMarker } from "@/components/collection-marker";
 import { Chip } from "@/components/chip";
 import { BulkActionBar } from "@/components/bulk-action-bar";
-import type { LinkItem } from "@/lib/types";
+import { searchLinks } from "@/lib/search";
 
 type Sort = "newest" | "oldest" | "az";
 
@@ -25,10 +25,11 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
 
   const scoped = useMemo(() => {
     if (!collection) return [];
-    const base = collection.isSmart
-      ? links.filter((l) => matchesQuery(l, collection.smartQuery ?? ""))
-      : links.filter((l) => l.collectionId === collectionId);
-    return base.filter((l) => !l.archived);
+    // A smart collection is its saved query, re-run through the same operator-aware
+    // matcher the palette and sidebar use; searchLinks drops archived links either way.
+    return collection.isSmart
+      ? searchLinks(links, collection.smartQuery ?? "")
+      : searchLinks(links.filter((l) => l.collectionId === collectionId), "");
   }, [links, collection, collectionId]);
 
   const availableTags = useMemo(() => {
@@ -125,15 +126,5 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
       />
       <BottomTabBar />
     </div>
-  );
-}
-
-function matchesQuery(link: LinkItem, query: string) {
-  const q = query.toLowerCase();
-  return (
-    link.title.toLowerCase().includes(q) ||
-    link.excerpt.toLowerCase().includes(q) ||
-    link.domain.toLowerCase().includes(q) ||
-    link.tags.some((t) => t.toLowerCase().includes(q))
   );
 }

@@ -11,17 +11,24 @@ type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | 
 
 type LibraryContextValue = {
   links: LinkItem[];
+  trashed: LinkItem[];
   collections: Collection[];
+  inbox: Collection | undefined;
   addLink: (input: NewLinkInput) => Promise<LinkItem>;
   setLinkSize: (id: string, size: CardSize) => void;
   moveLinks: (ids: string[], collectionId: string) => void;
   tagLinks: (ids: string[], tag: string) => void;
   archiveLinks: (ids: string[]) => void;
   deleteLinks: (ids: string[]) => void;
+  restoreLinks: (ids: string[]) => void;
+  purgeLinks: (ids: string[]) => void;
+  setFavorite: (id: string, favorite: boolean) => void;
+  setNote: (id: string, note: string) => void;
   addCollection: (name: string, color: string) => Promise<Collection>;
   saveSmartCollection: (query: string) => Promise<Collection>;
   renameCollection: (id: string, name: string) => void;
   deleteCollection: (id: string) => Promise<void>;
+  deleteEmptyCollections: () => Promise<number>;
   countForCollection: (collectionId: string) => number;
   addHighlight: (linkId: string, quote: string) => void;
   setAlertThreshold: (linkId: string, threshold: number) => void;
@@ -48,13 +55,16 @@ function nextId(prefix: string) {
 export function LibraryProvider({
   children,
   initialLinks,
+  initialTrashed,
   initialCollections,
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
+  initialTrashed: LinkItem[];
   initialCollections: Collection[];
 }) {
   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
+  const [trashed, setTrashed] = useState<LinkItem[]>(initialTrashed);
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [addLinkPrefillUrl, setAddLinkPrefillUrl] = useState<string | undefined>(undefined);
@@ -63,7 +73,9 @@ export function LibraryProvider({
   const value = useMemo<LibraryContextValue>(
     () => ({
       links,
+      trashed,
       collections,
+      inbox: collections.find((c) => c.isInbox),
       addLink: async (input) => {
         const link = await actions.createLink(input);
         setLinks((prev) => [link, ...prev]);
@@ -94,8 +106,32 @@ export function LibraryProvider({
       },
       deleteLinks: (ids) => {
         const idSet = new Set(ids);
+        const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true }));
         setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
+        setTrashed((prev) => [...moving, ...prev]);
         actions.deleteLinks(ids).catch(console.error);
+      },
+      restoreLinks: (ids) => {
+        const idSet = new Set(ids);
+        const moving = trashed.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: false }));
+        setTrashed((prev) => prev.filter((l) => !idSet.has(l.id)));
+        setLinks((prev) =>
+          [...moving, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        );
+        actions.restoreLinks(ids).catch(console.error);
+      },
+      purgeLinks: (ids) => {
+        const idSet = new Set(ids);
+        setTrashed((prev) => prev.filter((l) => !idSet.has(l.id)));
+        actions.purgeLinks(ids).catch(console.error);
+      },
+      setFavorite: (id, favorite) => {
+        setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, favorite } : l)));
+        actions.setFavorite(id, favorite).catch(console.error);
+      },
+      setNote: (id, note) => {
+        setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, note: note.trim() || undefined } : l)));
+        actions.setNote(id, note).catch(console.error);
       },
       addCollection: async (name, color) => {
         const collection = await actions.createCollection(name, color);
@@ -112,8 +148,18 @@ export function LibraryProvider({
         actions.renameCollection(id, name).catch(console.error);
       },
       deleteCollection: async (id) => {
-        await actions.deleteCollection(id);
+        const { trashedIds } = await actions.deleteCollection(id);
+        const idSet = new Set(trashedIds);
+        const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true }));
+        setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
+        setTrashed((prev) => [...moving, ...prev]);
         setCollections((prev) => prev.filter((c) => c.id !== id));
+      },
+      deleteEmptyCollections: async () => {
+        const deletedIds = await actions.deleteEmptyCollections();
+        const idSet = new Set(deletedIds);
+        setCollections((prev) => prev.filter((c) => !idSet.has(c.id)));
+        return deletedIds.length;
       },
       countForCollection: (collectionId) => {
         if (collectionId === ALL_COLLECTION_ID) return links.filter((l) => !l.archived).length;
@@ -159,7 +205,7 @@ export function LibraryProvider({
       openPalette: () => setPaletteOpen(true),
       closePalette: () => setPaletteOpen(false),
     }),
-    [links, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen]
+    [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen]
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

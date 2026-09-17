@@ -40,6 +40,10 @@ export const collections = pgTable(
     color: text("color").notNull(),
     isSmart: boolean("is_smart").notNull().default(false),
     smartQuery: text("smart_query"),
+    // The inbox links land in when you save without picking a collection. Exactly one
+    // per user, created on first library read — a flag rather than a reserved name so
+    // renaming it doesn't quietly spawn a second one.
+    isInbox: boolean("is_inbox").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -87,7 +91,14 @@ export const links = pgTable(
     // normalized table given how much they vary per site — see PLAN.md's product-parsing
     // risk note. Price itself stays relational, in price_snapshots/price_alerts below.
     productData: jsonb("product_data"),
+    note: text("note"),
+    favorite: boolean("favorite").notNull().default(false),
+    // Last link check: null = never checked, 0 = unreachable, otherwise the HTTP status.
+    httpStatus: integer("http_status"),
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    // Trash. Rows stay put until purged so a mis-click is recoverable.
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

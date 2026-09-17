@@ -23,12 +23,16 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { links, collections } = await getLibraryData();
+  const { links, trashed, collections } = await getLibraryData();
 
   return (
     <html lang="en" className={`${instrumentSans.variable} h-full`}>
       <body className="min-h-full antialiased">
-        <LibraryProvider initialLinks={links} initialCollections={collections}>
+        <LibraryProvider
+          initialLinks={links}
+          initialTrashed={trashed}
+          initialCollections={collections}
+        >
           {children}
           <AddLinkFlow />
           <CommandPalette />

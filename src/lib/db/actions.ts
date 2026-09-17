@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
@@ -141,7 +141,38 @@ export async function archiveLinks(ids: string[]) {
     .where(inArray(schema.links.id, ids));
 }
 
+export async function setFavorite(id: string, favorite: boolean) {
+  await db
+    .update(schema.links)
+    .set({ favorite, updatedAt: new Date() })
+    .where(eq(schema.links.id, id));
+}
+
+export async function setNote(id: string, note: string) {
+  await db
+    .update(schema.links)
+    .set({ note: note.trim() || null, updatedAt: new Date() })
+    .where(eq(schema.links.id, id));
+}
+
+/** Delete means Trash. Nothing leaves the database until purgeLinks. */
 export async function deleteLinks(ids: string[]) {
+  if (ids.length === 0) return;
+  await db
+    .update(schema.links)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(inArray(schema.links.id, ids));
+}
+
+export async function restoreLinks(ids: string[]) {
+  if (ids.length === 0) return;
+  await db
+    .update(schema.links)
+    .set({ deletedAt: null, updatedAt: new Date() })
+    .where(inArray(schema.links.id, ids));
+}
+
+export async function purgeLinks(ids: string[]) {
   if (ids.length === 0) return;
   await db.delete(schema.links).where(inArray(schema.links.id, ids));
   await Promise.all(ids.map((id) => deleteHeroImage(id).catch(() => {})));
@@ -176,24 +207,50 @@ export async function renameCollection(id: string, name: string) {
     .where(eq(schema.collections.id, id));
 }
 
-export async function deleteCollection(id: string) {
+/** Deleting a collection trashes the links inside it rather than refusing — they're
+ * restorable from Trash, so there's no reason to make the user empty it by hand first. */
+export async function deleteCollection(id: string): Promise<{ trashedIds: string[] }> {
   const [collection] = await db
-    .select({ isSmart: schema.collections.isSmart })
+    .select({ isSmart: schema.collections.isSmart, isInbox: schema.collections.isInbox })
     .from(schema.collections)
     .where(eq(schema.collections.id, id));
-  if (!collection) return;
+  if (!collection) return { trashedIds: [] };
+  if (collection.isInbox) throw new Error("The inbox can't be deleted.");
 
+  let trashedIds: string[] = [];
   if (!collection.isSmart) {
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.links)
-      .where(eq(schema.links.collectionId, id));
-    if (count > 0) {
-      throw new Error(`Move or delete the ${count} link${count > 1 ? "s" : ""} in this collection first.`);
-    }
+    const trashed = await db
+      .update(schema.links)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(schema.links.collectionId, id), isNull(schema.links.deletedAt)))
+      .returning({ id: schema.links.id });
+    trashedIds = trashed.map((l) => l.id);
   }
 
   await db.delete(schema.collections).where(eq(schema.collections.id, id));
+  return { trashedIds };
+}
+
+/** Housekeeping for the collections that pile up after a reorganisation. */
+export async function deleteEmptyCollections(): Promise<string[]> {
+  const nonEmpty = await db
+    .selectDistinct({ collectionId: schema.links.collectionId })
+    .from(schema.links)
+    .where(and(eq(schema.links.userId, CURRENT_USER_ID), isNull(schema.links.deletedAt)));
+  const keep = nonEmpty.map((r) => r.collectionId);
+
+  const deleted = await db
+    .delete(schema.collections)
+    .where(
+      and(
+        eq(schema.collections.userId, CURRENT_USER_ID),
+        eq(schema.collections.isSmart, false),
+        eq(schema.collections.isInbox, false),
+        keep.length > 0 ? notInArray(schema.collections.id, keep) : sql`true`
+      )
+    )
+    .returning({ id: schema.collections.id });
+  return deleted.map((c) => c.id);
 }
 
 export async function addHighlight(linkId: string, quote: string) {

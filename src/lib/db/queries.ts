@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
@@ -9,11 +9,33 @@ type ProductJson = Pick<
   "retailer" | "retailerInitial" | "retailerColor" | "code" | "delivery" | "rating" | "reviewCount" | "warranty" | "variants" | "specs" | "totalSpecCount"
 >;
 
-export async function getLibraryData(): Promise<{ links: LinkItem[]; collections: Collection[] }> {
+/** Every user has exactly one inbox; created lazily on first read so there's no separate
+ * provisioning step to keep in sync. */
+async function ensureInbox() {
+  const [existing] = await db
+    .select({ id: schema.collections.id })
+    .from(schema.collections)
+    .where(and(eq(schema.collections.userId, CURRENT_USER_ID), eq(schema.collections.isInbox, true)));
+  if (existing) return;
+
+  await db
+    .insert(schema.collections)
+    .values({ userId: CURRENT_USER_ID, name: "Unsorted", color: "#9aa3ad", isInbox: true });
+}
+
+export async function getLibraryData(): Promise<{
+  links: LinkItem[];
+  trashed: LinkItem[];
+  collections: Collection[];
+}> {
+  await ensureInbox();
+
   const collectionRows = await db
     .select()
     .from(schema.collections)
-    .where(eq(schema.collections.userId, CURRENT_USER_ID));
+    .where(eq(schema.collections.userId, CURRENT_USER_ID))
+    // Inbox first — it's where unfiled links land, so it's the one opened most.
+    .orderBy(desc(schema.collections.isInbox), asc(schema.collections.createdAt));
 
   const linkRows = await db
     .select()
@@ -23,7 +45,7 @@ export async function getLibraryData(): Promise<{ links: LinkItem[]; collections
 
   const linkIds = linkRows.map((l) => l.id);
   if (linkIds.length === 0) {
-    return { links: [], collections: collectionRows.map(toCollection) };
+    return { links: [], trashed: [], collections: collectionRows.map(toCollection) };
   }
 
   const [tagRows, highlightRows, snapshotRows, alertRows] = await Promise.all([
@@ -55,45 +77,53 @@ export async function getLibraryData(): Promise<{ links: LinkItem[]; collections
   // snapshotRows is ascending by capturedAt, so the last set() per key is the latest snapshot.
   const latestSnapshotByLink = new Map(snapshotRows.map((r) => [r.linkId, r]));
 
+  const allLinks: LinkItem[] = linkRows.map((row) => {
+    const product = row.productData as ProductJson | null;
+    const latest = latestSnapshotByLink.get(row.id);
+    const alert = alertByLink.get(row.id);
+
+    return {
+      id: row.id,
+      url: row.url,
+      domain: row.domain,
+      title: row.title,
+      excerpt: row.excerpt,
+      articleText: row.articleText ?? undefined,
+      heroImage: row.heroImage ?? undefined,
+      tint: row.tint,
+      stripe: row.stripe,
+      initial: row.initial,
+      contentType: row.contentType,
+      readingTimeMinutes: row.readingTimeMinutes ?? undefined,
+      collectionId: row.collectionId,
+      tags: tagsByLink.get(row.id) ?? [],
+      size: row.size,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      note: row.note ?? undefined,
+      favorite: row.favorite,
+      httpStatus: row.httpStatus ?? undefined,
+      archived: row.archivedAt !== null,
+      deleted: row.deletedAt !== null,
+      highlights: highlightsByLink.get(row.id),
+      product: product
+        ? {
+            ...product,
+            currency: latest?.currency ?? "$",
+            price: latest ? Number(latest.price) : undefined,
+            inStock: latest?.inStock ?? undefined,
+            priceHistory: snapshotsByLink.get(row.id) ?? [],
+            alertThreshold: alert ? Number(alert.thresholdPrice) : undefined,
+          }
+        : undefined,
+    };
+  });
+
+  // Trashed links travel separately so no existing view has to learn to skip them.
   return {
     collections: collectionRows.map(toCollection),
-    links: linkRows.map((row) => {
-      const product = row.productData as ProductJson | null;
-      const latest = latestSnapshotByLink.get(row.id);
-      const alert = alertByLink.get(row.id);
-
-      return {
-        id: row.id,
-        url: row.url,
-        domain: row.domain,
-        title: row.title,
-        excerpt: row.excerpt,
-        articleText: row.articleText ?? undefined,
-        heroImage: row.heroImage ?? undefined,
-        tint: row.tint,
-        stripe: row.stripe,
-        initial: row.initial,
-        contentType: row.contentType,
-        readingTimeMinutes: row.readingTimeMinutes ?? undefined,
-        collectionId: row.collectionId,
-        tags: tagsByLink.get(row.id) ?? [],
-        size: row.size,
-        status: row.status,
-        createdAt: row.createdAt.toISOString(),
-        archived: row.archivedAt !== null,
-        highlights: highlightsByLink.get(row.id),
-        product: product
-          ? {
-              ...product,
-              currency: latest?.currency ?? "$",
-              price: latest ? Number(latest.price) : undefined,
-              inStock: latest?.inStock ?? undefined,
-              priceHistory: snapshotsByLink.get(row.id) ?? [],
-              alertThreshold: alert ? Number(alert.thresholdPrice) : undefined,
-            }
-          : undefined,
-      };
-    }),
+    links: allLinks.filter((l) => !l.deleted),
+    trashed: allLinks.filter((l) => l.deleted),
   };
 }
 
@@ -104,6 +134,7 @@ function toCollection(row: typeof schema.collections.$inferSelect): Collection {
     color: row.color,
     isSmart: row.isSmart,
     smartQuery: row.smartQuery ?? undefined,
+    isInbox: row.isInbox,
   };
 }
 

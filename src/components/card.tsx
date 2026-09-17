@@ -25,7 +25,7 @@ export function Card({
   onSelectClick?: (e: React.MouseEvent) => void;
 }) {
   const router = useRouter();
-  const { setLinkSize } = useLibrary();
+  const { setLinkSize, setFavorite } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
   const geo = CARD_GEOMETRY[link.size];
   const cols = Math.min(geo.cols, columnCount);
@@ -152,8 +152,21 @@ export function Card({
               {link.initial}
             </span>
             <span className="text-[11.5px] text-ink/50">{link.domain}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFavorite(link.id, !link.favorite);
+              }}
+              aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
+              className={`ml-auto text-[13px] leading-none transition-opacity ${
+                link.favorite ? "text-signal" : "text-ink/30 opacity-0 group-hover:opacity-100"
+              }`}
+            >
+              ★
+            </button>
             <svg
-              className="ml-auto opacity-0 transition-opacity group-hover:opacity-100"
+              className="ml-1.5 opacity-0 transition-opacity group-hover:opacity-100"
               width="13"
               height="13"
               viewBox="0 0 24 24"

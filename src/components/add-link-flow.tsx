@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLibrary } from "@/lib/store";
 import type { CrawlResult, CrawlStep } from "@/lib/crawler";
 import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
-import type { CardSize } from "@/lib/types";
+import type { CardSize, Collection } from "@/lib/types";
 import { AmbientOrbs } from "./ambient-orbs";
 
 type Phase = "idle" | "crawling" | "ready";
@@ -19,7 +19,8 @@ const STEP_LABELS: Record<CrawlStep, string> = {
 };
 
 export function AddLinkFlow() {
-  const { addLinkOpen, addLinkPrefillUrl, closeAddLink, addLink, collections } = useLibrary();
+  const { addLinkOpen, addLinkPrefillUrl, closeAddLink, addLink, collections, inbox } =
+    useLibrary();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState("");
@@ -29,7 +30,8 @@ export function AddLinkFlow() {
 
   const [title, setTitle] = useState("");
   const [excerpt, setExcerpt] = useState("");
-  const [collectionId, setCollectionId] = useState("");
+  // Defaults to the inbox: filing is a separate, later decision, not a gate on saving.
+  const [collectionId, setCollectionId] = useState(inbox?.id ?? "");
   const [size, setSize] = useState<CardSize>("M");
   const [touched, setTouched] = useState<{ collection?: boolean; size?: boolean }>({});
   const [saving, setSaving] = useState(false);
@@ -44,7 +46,7 @@ export function AddLinkFlow() {
     setResult(null);
     setTitle("");
     setExcerpt("");
-    setCollectionId("");
+    setCollectionId(inbox?.id ?? "");
     setSize("M");
     setSaving(false);
     setTouched({});
@@ -370,7 +372,7 @@ function ReadyForm({
   setCollectionId: (v: string) => void;
   size: CardSize;
   setSize: (v: CardSize) => void;
-  collections: { id: string; name: string; color: string }[];
+  collections: Collection[];
   collectionError?: boolean;
   onCollectionBlur: () => void;
   onSave: () => void;
@@ -443,7 +445,7 @@ function ReadyForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-light-40">Collection *</span>
+          <span className="text-eyebrow text-light-40">Collection</span>
           <select
             value={collectionId}
             onChange={(e) => setCollectionId(e.target.value)}
@@ -457,11 +459,13 @@ function ReadyForm({
             <option value="" disabled>
               Choose a collection
             </option>
-            {collections.map((c) => (
-              <option key={c.id} value={c.id} className="bg-[#111214]">
-                {c.name}
-              </option>
-            ))}
+            {collections
+              .filter((c) => !c.isSmart)
+              .map((c) => (
+                <option key={c.id} value={c.id} className="bg-[#111214]">
+                  {c.name}
+                </option>
+              ))}
           </select>
           {collectionError && <span className="text-[11px] text-signal-soft">Pick a collection to save into.</span>}
         </label>
