@@ -63,6 +63,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
+              data-tour="favorite"
               onClick={() => setFavorite(link.id, !link.favorite)}
               aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
               title="Favorite"
@@ -74,6 +75,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
             </button>
             <button
               type="button"
+              data-tour="note"
               onClick={() => setNoteOpen((open) => !open)}
               title="Note"
               className={`flex h-9 items-center rounded-full border border-white/90 bg-white/70 px-4 text-[12.5px] font-semibold ${
@@ -84,6 +86,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
             </button>
             <button
               type="button"
+              data-tour="open-original"
               onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
               className="flex h-9 items-center gap-2 rounded-full border border-white/90 bg-white/70 px-4 text-[12.5px] font-semibold text-ink"
             >
@@ -92,7 +95,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
               </svg>
               Open {isProduct ? `on ${link.product?.retailer.split(".")[0]}` : "original"}
             </button>
-            <details className="relative">
+            <details data-tour="move" className="relative">
               <summary
                 className="flex h-9 w-9 list-none items-center justify-center rounded-full border border-white/90 bg-white/70"
                 style={{ cursor: "pointer" }}

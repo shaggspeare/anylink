@@ -29,6 +29,7 @@ export function BookmarksImportButton() {
     <>
       <button
         type="button"
+        data-tour="import"
         onClick={() => setOpen(true)}
         className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
       >

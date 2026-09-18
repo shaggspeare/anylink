@@ -36,6 +36,7 @@ export function CardMosaic({
 
   return (
     <div
+      data-tour="mosaic"
       className="grid px-4 pb-6 sm:px-5"
       style={{
         gridTemplateColumns: `repeat(${columnCount}, 1fr)`,

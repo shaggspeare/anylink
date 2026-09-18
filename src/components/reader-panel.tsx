@@ -72,6 +72,7 @@ export function ReaderPanel({
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-start">
       <article
+        data-tour="reader"
         className="relative flex-1 overflow-hidden rounded-[28px]"
         style={{ background: "rgba(255,255,255,.72)", border: "1px solid rgba(255,255,255,.85)", backdropFilter: "blur(22px)" }}
       >
@@ -90,6 +91,7 @@ export function ReaderPanel({
 
         <div
           ref={articleRef}
+          data-tour="article"
           onMouseUp={handleMouseUp}
           className="relative mx-auto max-w-[600px] px-6 py-8 text-[15px] leading-[1.7] text-ink/80 sm:px-8"
         >

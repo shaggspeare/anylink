@@ -20,6 +20,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-start">
       <article
+        data-tour="product"
         className="flex-1 overflow-hidden rounded-[28px]"
         style={{ background: "rgba(255,255,255,.72)", border: "1px solid rgba(255,255,255,.85)", backdropFilter: "blur(22px)" }}
       >
@@ -122,6 +123,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
 
       <aside className="flex w-full flex-none flex-col gap-4 lg:w-[320px]">
         <div
+          data-tour="price-history"
           className="flex flex-col gap-3 rounded-[22px] p-4"
           style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", backdropFilter: "blur(20px) saturate(1.4)" }}
         >
@@ -133,7 +135,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
               Checked twice daily — history will show up after the next check.
             </p>
           )}
-          <div className="flex flex-col gap-1.5 border-t border-ink/6 pt-3">
+          <div data-tour="price-alert" className="flex flex-col gap-1.5 border-t border-ink/6 pt-3">
             <span className="text-[12px] font-medium text-ink/60">Alert me under</span>
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-ink/50">{product.currency}</span>

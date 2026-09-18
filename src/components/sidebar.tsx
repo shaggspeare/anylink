@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { CollectionMarker } from "./collection-marker";
 import { BookmarksImportButton } from "./bookmarks-import";
+import { TourButton } from "./tour";
 import { ALL_COLLECTION_ID } from "@/lib/mock-data";
 import { searchLinks } from "@/lib/search";
 import type { Collection } from "@/lib/types";
@@ -74,7 +75,7 @@ export function Sidebar() {
         <span className="text-wordmark">AnyLink</span>
       </div>
 
-      <nav className="mt-4 flex flex-col gap-0.5">
+      <nav data-tour="sidebar" className="mt-4 flex flex-col gap-0.5">
         <Link
           href="/"
           className="flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body transition-colors"
@@ -112,7 +113,7 @@ export function Sidebar() {
         <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
 
         {filters.length > 0 && (
-          <>
+          <div data-tour="filters">
             <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Filters</div>
             {filters.map((f) => (
               <FilterRow
@@ -123,11 +124,11 @@ export function Sidebar() {
                 active={activeQuery === f.query}
               />
             ))}
-          </>
+          </div>
         )}
 
         {tags.length > 0 && (
-          <>
+          <div data-tour="tags">
             <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Tags</div>
             {tags.map(([tag, count]) => (
               <FilterRow
@@ -138,11 +139,12 @@ export function Sidebar() {
                 active={activeQuery === `#${tag}`}
               />
             ))}
-          </>
+          </div>
         )}
 
         {trashed.length > 0 && (
           <Link
+            data-tour="trash"
             href="/trash"
             className="mt-4 flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-body text-ink/55 hover:bg-ink/6 hover:text-ink"
             style={{ background: pathname === "/trash" ? "rgba(23,24,27,.06)" : undefined }}
@@ -154,7 +156,11 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-2 rounded-[14px] bg-ink/6 px-3 py-2.5 text-meta text-ink/50">
+      <div className="mt-3 flex flex-col gap-2">
+        <TourButton />
+      </div>
+
+      <div className="mt-2 flex items-center gap-2 rounded-[14px] bg-ink/6 px-3 py-2.5 text-meta text-ink/50">
         <kbd className="rounded-[7px] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-ink/70 shadow-sm">
           ⌘V
         </kbd>
@@ -193,6 +199,7 @@ function CleanUpCollectionsButton({ onRun }: { onRun: () => Promise<number> }) {
   return (
     <button
       type="button"
+      data-tour="cleanup"
       onClick={async () => setRemoved(await onRun())}
       className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
     >
@@ -321,7 +328,11 @@ function CollectionRow({
   }
 
   return (
-    <div className="group relative flex items-center rounded-[14px]" style={{ background: active ? "rgba(23,24,27,.06)" : "transparent" }}>
+    <div
+      data-tour={collection.isInbox ? "inbox" : undefined}
+      className="group relative flex items-center rounded-[14px]"
+      style={{ background: active ? "rgba(23,24,27,.06)" : "transparent" }}
+    >
       <Link href={`/collections/${collection.id}`} className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-body">
         <CollectionMarker color={collection.color} />
         <span className="flex-1 truncate">{collection.name}</span>

@@ -80,12 +80,12 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
       <Sidebar />
       <div className="relative lg:pl-[250px]">
         <header className="flex flex-col gap-3 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
-          <div className="flex items-center gap-3">
+          <div data-tour="collection-header" className="flex items-center gap-3">
             <CollectionMarker color={collection.color} size={14} />
             <h1 className="text-title text-[26px]">{collection.name}</h1>
             <span className="text-meta text-ink/50">{scoped.length} links</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div data-tour="collection-filters" className="flex flex-wrap items-center gap-2">
             <Chip active={tagFilter === null} onClick={() => setTagFilter(null)}>
               All
             </Chip>

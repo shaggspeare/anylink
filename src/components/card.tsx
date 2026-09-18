@@ -73,6 +73,7 @@ export function Card({
     <div style={{ position: "relative", gridColumn: `span ${cols}`, gridRow: `span ${rows}` }}>
       <div
         ref={cardRef}
+        data-tour="card"
         onClick={handleOpen}
         role="button"
         tabIndex={0}
@@ -88,6 +89,7 @@ export function Card({
         {selectable && (
           <button
             type="button"
+            data-tour="card-select"
             onClick={(e) => {
               e.stopPropagation();
               onSelectClick?.(e);
@@ -154,6 +156,7 @@ export function Card({
             <span className="text-[11.5px] text-ink/50">{link.domain}</span>
             <button
               type="button"
+              data-tour="card-favorite"
               onClick={(e) => {
                 e.stopPropagation();
                 setFavorite(link.id, !link.favorite);
@@ -202,6 +205,7 @@ export function Card({
         </div>
 
         <div
+          data-tour="card-size"
           className="absolute right-4 top-4 flex gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity group-hover:opacity-100"
           style={{ background: "rgba(255,255,255,.72)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
           onClick={(e) => e.stopPropagation()}

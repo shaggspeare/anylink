@@ -47,6 +47,7 @@ export default function LibraryPage() {
           <div className="ml-auto flex items-center gap-2 pb-1">
             <button
               type="button"
+              data-tour="search"
               onClick={openPalette}
               className="hidden h-10 items-center gap-2 rounded-full border border-white/80 bg-white/70 px-4 text-body text-ink/60 sm:flex"
             >
@@ -59,6 +60,7 @@ export default function LibraryPage() {
             </button>
             <button
               type="button"
+              data-tour="add"
               onClick={() => openAddLink()}
               className="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 text-body font-semibold text-[#f4f5f6]"
             >

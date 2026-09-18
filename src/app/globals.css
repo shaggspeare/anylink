@@ -188,3 +188,62 @@ button {
   background: var(--lime);
   color: var(--ink);
 }
+
+/* Guided tour (driver.js). The app hides controls until hover — while one is being
+   explained it has to stay visible, hence the opacity override. */
+.driver-active-element,
+.driver-active-element * {
+  opacity: 1 !important;
+}
+
+.driver-popover.anylink-tour {
+  max-width: 340px;
+  border-radius: 18px;
+  padding: 18px 18px 14px;
+  background: var(--paper, #fff);
+  box-shadow: var(--shadow-popover, 0 18px 50px -18px rgba(23, 24, 27, 0.45));
+}
+
+.driver-popover.anylink-tour .driver-popover-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.driver-popover.anylink-tour .driver-popover-description {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(23, 24, 27, 0.65);
+}
+
+.driver-popover.anylink-tour .driver-popover-description code {
+  border-radius: 5px;
+  background: rgba(23, 24, 27, 0.07);
+  padding: 1px 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.driver-popover.anylink-tour .driver-popover-progress-text {
+  font-size: 11.5px;
+  color: rgba(23, 24, 27, 0.4);
+}
+
+.driver-popover.anylink-tour .driver-popover-navigation-btns button {
+  border-radius: 999px;
+  border: 0;
+  background: rgba(23, 24, 27, 0.07);
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-shadow: none;
+  color: var(--ink);
+}
+
+.driver-popover.anylink-tour .driver-popover-navigation-btns button:last-child {
+  background: var(--ink);
+  color: #f4f5f6;
+}

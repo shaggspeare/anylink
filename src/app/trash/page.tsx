@@ -46,6 +46,7 @@ export default function TrashPage() {
           {trashed.map((link) => (
             <div
               key={link.id}
+              data-tour="trash-item"
               className="flex items-center gap-3 rounded-[16px] border border-white/75 bg-white/62 px-4 py-3"
             >
               <span

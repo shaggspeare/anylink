@@ -5,6 +5,7 @@ import { LibraryProvider } from "@/lib/store";
 import { CommandPalette } from "@/components/command-palette";
 import { AddLinkFlow } from "@/components/add-link-flow";
 import { GlobalCaptureListener } from "@/components/global-capture-listener";
+import { TourRunner } from "@/components/tour";
 import { getLibraryData } from "@/lib/db/queries";
 
 const instrumentSans = Instrument_Sans({
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <AddLinkFlow />
           <CommandPalette />
           <GlobalCaptureListener />
+          <TourRunner />
         </LibraryProvider>
       </body>
     </html>
