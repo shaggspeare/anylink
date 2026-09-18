@@ -1,6 +1,6 @@
+import { chatJson } from "../llm";
 import type { ContentType } from "../types";
 
-const MODEL = "gpt-5.6-luna";
 const MAX_INPUT_CHARS = 20_000;
 
 export type StructureInput = {
@@ -53,49 +53,26 @@ function truncate(text: string): { head: string; tail: string } {
 /** Best-effort LLM cleanup/enrichment — returns null on any failure so the caller
  * can fall back to the plain regex/JSON-LD extraction it already has. */
 export async function structureContent(input: StructureInput): Promise<StructureResult | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
   const { head, tail } = truncate(input.rawText);
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        response_format: { type: "json_object" },
-        max_completion_tokens: 4000,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: JSON.stringify({
-              url: input.url,
-              domain: input.domain,
-              title: input.title,
-              excerpt: input.excerpt,
-              contentTypeGuess: input.contentTypeGuess,
-              existingProduct: input.existingProduct,
-              rawText: head,
-            }),
-          },
-        ],
-      }),
-      signal: AbortSignal.timeout(25_000),
+    const parsed = await chatJson<{
+      title?: string;
+      excerpt?: string;
+      articleText?: unknown;
+      contentType?: ContentType;
+      tags?: unknown;
+      product?: { price?: number; currency?: string; inStock?: boolean };
+    }>(SYSTEM_PROMPT, {
+      url: input.url,
+      domain: input.domain,
+      title: input.title,
+      excerpt: input.excerpt,
+      contentTypeGuess: input.contentTypeGuess,
+      existingProduct: input.existingProduct,
+      rawText: head,
     });
-
-    if (!res.ok) {
-      console.error("structureContent: OpenAI request failed", res.status, await res.text().catch(() => ""));
-      return null;
-    }
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== "string") return null;
-
-    const parsed = JSON.parse(content);
-    if (!parsed || typeof parsed !== "object") return null;
+    if (!parsed) return null;
 
     const articleText = Array.isArray(parsed.articleText)
       ? parsed.articleText.filter((p: unknown): p is string => typeof p === "string")
@@ -110,9 +87,10 @@ export async function structureContent(input: StructureInput): Promise<Structure
       );
     }
 
-    const contentType: ContentType = ["article", "video", "product"].includes(parsed.contentType)
-      ? parsed.contentType
-      : input.contentTypeGuess;
+    const contentType: ContentType =
+      parsed.contentType && ["article", "video", "product"].includes(parsed.contentType)
+        ? parsed.contentType
+        : input.contentTypeGuess;
 
     const product =
       contentType === "product" && parsed.product && typeof parsed.product === "object"

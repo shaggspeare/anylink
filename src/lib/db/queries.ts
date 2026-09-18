@@ -2,7 +2,14 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
-import type { Collection, Highlight, LinkItem, PriceSnapshot, ProductDetails } from "../types";
+import type {
+  Collection,
+  Highlight,
+  ImportMeta,
+  LinkItem,
+  PriceSnapshot,
+  ProductDetails,
+} from "../types";
 
 type ProductJson = Pick<
   ProductDetails,
@@ -10,17 +17,19 @@ type ProductJson = Pick<
 >;
 
 /** Every user has exactly one inbox; created lazily on first read so there's no separate
- * provisioning step to keep in sync. */
-async function ensureInbox() {
+ * provisioning step to keep in sync. Returns its id — imports need somewhere to land. */
+export async function ensureInbox(): Promise<string> {
   const [existing] = await db
     .select({ id: schema.collections.id })
     .from(schema.collections)
     .where(and(eq(schema.collections.userId, CURRENT_USER_ID), eq(schema.collections.isInbox, true)));
-  if (existing) return;
+  if (existing) return existing.id;
 
-  await db
+  const [created] = await db
     .insert(schema.collections)
-    .values({ userId: CURRENT_USER_ID, name: "Unsorted", color: "#9aa3ad", isInbox: true });
+    .values({ userId: CURRENT_USER_ID, name: "Unsorted", color: "#9aa3ad", isInbox: true })
+    .returning({ id: schema.collections.id });
+  return created.id;
 }
 
 export async function getLibraryData(): Promise<{
@@ -101,6 +110,8 @@ export async function getLibraryData(): Promise<{
       position: row.position,
       status: row.status,
       createdAt: row.createdAt.toISOString(),
+      source: row.source,
+      importMeta: (row.importMeta as ImportMeta | null) ?? undefined,
       note: row.note ?? undefined,
       favorite: row.favorite,
       httpStatus: row.httpStatus ?? undefined,
@@ -136,6 +147,8 @@ function toCollection(row: typeof schema.collections.$inferSelect): Collection {
     isSmart: row.isSmart,
     smartQuery: row.smartQuery ?? undefined,
     isInbox: row.isInbox,
+    reasoning: row.reasoning ?? undefined,
+    createdBy: row.createdBy,
   };
 }
 

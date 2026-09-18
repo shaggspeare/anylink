@@ -4,6 +4,8 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 import { ALL_COLLECTION_ID } from "./mock-data";
 import * as actions from "./db/actions";
 import { searchLinks } from "./search";
+import type { ImportedLink } from "./import/parse";
+import type { Priorities } from "./rank/group-links";
 import type { CardSize, Collection, LinkItem } from "./types";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
@@ -37,7 +39,11 @@ type LibraryContextValue = {
   countForCollection: (collectionId: string) => number;
   addHighlight: (linkId: string, quote: string) => void;
   setAlertThreshold: (linkId: string, threshold: number) => void;
-  importBookmark: (url: string, title: string, collectionId: string) => Promise<actions.ImportBookmarkResult>;
+  /** Bulk import from an export file — no crawl, so the whole file lands at once. */
+  importLinks: (items: ImportedLink[]) => Promise<actions.ImportLinksResult>;
+  /** Onboarding's payoff: files everything unsorted into named collections. */
+  groupInbox: (priorities: Priorities) => Promise<actions.GroupedResult[]>;
+  logSignal: (action: string, options?: { linkId?: string; collectionId?: string; payload?: unknown }) => void;
 
   addLinkOpen: boolean;
   addLinkPrefillUrl: string | undefined;
@@ -102,6 +108,9 @@ export function LibraryProvider({
         const idSet = new Set(ids);
         setLinks((prev) => prev.map((l) => (idSet.has(l.id) ? { ...l, collectionId } : l)));
         actions.moveLinks(ids, collectionId).catch(console.error);
+        // Every move is calibration data, wherever in the app it came from — which is
+        // why it's logged here rather than at each call site.
+        actions.logSignal("move", { linkIds: ids, collectionId }).catch(console.error);
       },
       tagLinks: (ids, tag) => {
         const idSet = new Set(ids);
@@ -202,10 +211,24 @@ export function LibraryProvider({
         );
         actions.setAlertThreshold(linkId, threshold, currency).catch(console.error);
       },
-      importBookmark: async (url, title, collectionId) => {
-        const result = await actions.importBookmark(url, title, collectionId);
-        if (result.ok) setLinks((prev) => [result.link, ...prev]);
+      importLinks: async (items) => {
+        const result = await actions.importLinks(items);
+        setLinks((prev) => [...result.links, ...prev]);
         return result;
+      },
+      groupInbox: async (priorities) => {
+        const results = await actions.groupInbox(priorities);
+        const moves = new Map(
+          results.flatMap((r) => r.linkIds.map((id) => [id, r.collection.id] as const))
+        );
+        setCollections((prev) => [...prev, ...results.map((r) => r.collection)]);
+        setLinks((prev) =>
+          prev.map((l) => (moves.has(l.id) ? { ...l, collectionId: moves.get(l.id)! } : l))
+        );
+        return results;
+      },
+      logSignal: (action, options) => {
+        actions.logSignal(action, options).catch(console.error);
       },
       addLinkOpen,
       addLinkPrefillUrl,

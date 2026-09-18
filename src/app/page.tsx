@@ -77,9 +77,25 @@ export default function LibraryPage() {
           </div>
         </header>
 
-        {/* ponytail: one position per link, so dragging inside a filtered view reshuffles
-            the global order too. Per-view ordering would need a row per (view, link). */}
-        <CardMosaic links={visible} onReorder={sort === "manual" ? reorderLinks : undefined} />
+        {links.length === 0 ? (
+          <div className="glass-55 mx-4 flex flex-col items-start gap-3 rounded-[27px] p-7 sm:mx-5 lg:mx-6.5">
+            <h2 className="text-title">Start with the links you already have</h2>
+            <p className="max-w-[440px] text-lead text-ink/55">
+              Import your browser bookmarks or your Telegram saved messages. Dead links get
+              stripped out and the rest come back grouped by what you actually care about.
+            </p>
+            <a
+              href="/start"
+              className="flex h-11 items-center rounded-full bg-ink px-5 text-body font-semibold text-light-100"
+            >
+              Import my links
+            </a>
+          </div>
+        ) : (
+          /* ponytail: one position per link, so dragging inside a filtered view reshuffles
+             the global order too. Per-view ordering would need a row per (view, link). */
+          <CardMosaic links={visible} onReorder={sort === "manual" ? reorderLinks : undefined} />
+        )}
         <div className="h-24 lg:hidden" />
       </div>
       <BottomTabBar />

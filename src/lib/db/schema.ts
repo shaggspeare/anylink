@@ -44,6 +44,11 @@ export const collections = pgTable(
     // per user, created on first library read — a flag rather than a reserved name so
     // renaming it doesn't quietly spawn a second one.
     isInbox: boolean("is_inbox").notNull().default(false),
+    // Why these links belong together, in the grouper's own words — shown on the card
+    // so an auto-made collection can explain itself. Null for collections a human made.
+    reasoning: text("reasoning"),
+    // 'user' | 'system'. Text rather than an enum so a third author doesn't need a migration.
+    createdBy: text("created_by").notNull().default("user"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -94,6 +99,12 @@ export const links = pgTable(
     // normalized table given how much they vary per site — see PLAN.md's product-parsing
     // risk note. Price itself stays relational, in price_snapshots/price_alerts below.
     productData: jsonb("product_data"),
+    // Where the link came in from: 'manual' | 'chrome' | 'telegram'. Text, not an enum,
+    // so the next import source is a parser and nothing else.
+    source: text("source").notNull().default("manual"),
+    // Whatever the export file said about it — bookmark folder path, Telegram message
+    // text and date. Free grouping signal, and the only context an unimported link has.
+    importMeta: jsonb("import_meta"),
     note: text("note"),
     favorite: boolean("favorite").notNull().default(false),
     // Last link check: null = never checked, 0 = unreachable, otherwise the HTTP status.
@@ -167,6 +178,28 @@ export const priceSnapshots = pgTable(
     capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("price_snapshots_link_id_captured_at_idx").on(t.linkId, t.capturedAt)]
+);
+
+/** Every accept/reject/move the user makes on what the grouper decided, plus the
+ * onboarding answers. Written and never read in v1 — it's the training set for the
+ * calibration phase, so the references are `set null`: the signal outlives the link
+ * or collection it was about. */
+export const userSignals = pgTable(
+  "user_signals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    linkId: uuid("link_id").references(() => links.id, { onDelete: "set null" }),
+    collectionId: uuid("collection_id").references(() => collections.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").notNull(),
+    payload: jsonb("payload"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("user_signals_user_id_idx").on(t.userId)]
 );
 
 export const crawlJobs = pgTable("crawl_jobs", {

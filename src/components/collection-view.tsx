@@ -88,6 +88,13 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
               <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
             )}
           </div>
+          {/* Only collections AnyLink built have one — it's the "grouped because…" line
+              from the import, kept where the collection lives rather than shown once. */}
+          {collection.reasoning && (
+            <p data-tour="collection-reasoning" className="max-w-[560px] text-lead text-ink/50">
+              {collection.reasoning}
+            </p>
+          )}
           <div data-tour="collection-filters" className="flex flex-wrap items-center gap-2">
             <Chip active={tagFilter === null} onClick={() => setTagFilter(null)}>
               All

@@ -33,6 +33,12 @@ export type ProductDetails = {
   alertThreshold?: number;
 };
 
+export type ImportMeta = {
+  folder?: string;
+  savedAt?: string;
+  context?: string;
+};
+
 export type LinkItem = {
   id: string;
   url: string;
@@ -53,6 +59,10 @@ export type LinkItem = {
   position?: number;
   status: LinkStatus;
   createdAt: string;
+  /** 'manual' | 'chrome' | 'telegram' — where the link entered the library. */
+  source?: string;
+  /** What the export file knew: bookmark folder, Telegram message text, saved date. */
+  importMeta?: ImportMeta;
   note?: string;
   favorite?: boolean;
   /** null/undefined = never checked, 0 = unreachable, else the last HTTP status. */
@@ -70,4 +80,7 @@ export type Collection = {
   isSmart?: boolean;
   smartQuery?: string;
   isInbox?: boolean;
+  /** Why the grouper put these links together. Only set on `createdBy: 'system'`. */
+  reasoning?: string;
+  createdBy?: string;
 };

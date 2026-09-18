@@ -5,9 +5,13 @@ import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
 import { reuploadHeroImage, deleteHeroImage } from "../storage/upload-hero-image";
-import { crawlUrl } from "../crawler";
-import { cleanUrl } from "../crawler/url";
-import type { CardSize, LinkItem, ProductDetails } from "../types";
+import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
+import { identityForDomain } from "../card-identity";
+import { isDeadStatus } from "../link-health";
+import { groupByMetadata, groupLinks, type Priorities } from "../rank/group-links";
+import { ensureInbox } from "./queries";
+import type { ImportedLink } from "../import/parse";
+import type { CardSize, Collection, LinkItem, ProductDetails } from "../types";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
   status?: LinkItem["status"];
@@ -285,40 +289,194 @@ export async function setAlertThreshold(linkId: string, threshold: number, curre
     });
 }
 
-export type ImportBookmarkResult =
-  | { ok: true; link: LinkItem }
-  | { ok: false; url: string; title: string; reason: string };
+/** Postgres caps a statement at 65535 bind parameters; at ~14 columns a row, 500 rows
+ * a statement stays an order of magnitude clear of it. */
+const INSERT_CHUNK = 500;
 
-/** One bookmark at a time, from the client — keeps each import within a single
- * request's timeout and gives the UI real per-item progress instead of one big batch. */
-export async function importBookmark(
-  url: string,
-  fallbackTitle: string,
-  collectionId: string
-): Promise<ImportBookmarkResult> {
-  const result = await crawlUrl(url, () => {});
-  if ("failed" in result) {
-    return { ok: false, url, title: fallbackTitle, reason: result.reason };
+export type ImportLinksResult = {
+  links: LinkItem[];
+  /** Already in the library — counted so the import screen can say so. */
+  skipped: number;
+};
+
+/** Bulk import: the export file's own title and URL go straight in, no crawl.
+ *
+ * Crawling here is what made importing a real bookmarks file unusable — a fetch, a
+ * possible headless-browser retry and an LLM call per link, serially. The export
+ * already carries a title, a folder and a date, which is enough to check, rank and
+ * group on; enrichment is a background job afterwards (see V1-DECLUTTER-RANK.md). */
+export async function importLinks(items: ImportedLink[]): Promise<ImportLinksResult> {
+  if (items.length === 0) return { links: [], skipped: 0 };
+
+  const collectionId = await ensureInbox();
+
+  // No unique index on (user_id, url): duplicates are a thing this app deliberately
+  // surfaces (`is:duplicate`), so the import filters rather than the database.
+  const existing = await db
+    .select({ url: schema.links.url })
+    .from(schema.links)
+    .where(eq(schema.links.userId, CURRENT_USER_ID));
+  const known = new Set(existing.map((row) => row.url));
+
+  const rows = [];
+  for (const item of items) {
+    const url = cleanUrl(item.url);
+    if (known.has(url)) continue;
+    known.add(url);
+
+    const domain = domainFromUrl(url);
+    const identity = identityForDomain(domain);
+    // The date the user saved it, not the date they got round to importing — so a
+    // freshly imported library still reads newest-first in a way that means something.
+    const savedAt = item.meta.savedAt ? new Date(item.meta.savedAt) : null;
+    rows.push({
+      userId: CURRENT_USER_ID,
+      collectionId,
+      url,
+      domain,
+      title: item.title || titleFromUrl(url),
+      tint: identity.tint,
+      stripe: identity.stripe,
+      initial: identity.initial,
+      source: item.source,
+      importMeta: item.meta,
+      ...(savedAt && !Number.isNaN(savedAt.getTime()) ? { createdAt: savedAt } : {}),
+    });
   }
 
-  const link = await createLink({
-    // the page's own canonical, not the (often stale, often redirecting) bookmark
-    url: result.canonicalUrl,
-    domain: result.domain,
-    title: result.title || fallbackTitle,
-    excerpt: result.excerpt,
-    articleText: result.articleText,
-    heroImage: result.heroImage,
-    tint: result.tint,
-    stripe: result.stripe,
-    initial: result.initial,
-    contentType: result.contentType,
-    readingTimeMinutes: result.readingTimeMinutes,
-    collectionId,
-    tags: result.suggestedTags,
-    size: "M",
-    product: result.product,
+  const inserted: (typeof schema.links.$inferSelect)[] = [];
+  for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
+    inserted.push(...(await db.insert(schema.links).values(rows.slice(i, i + INSERT_CHUNK)).returning()));
+  }
+
+  return {
+    links: inserted.map((row) => ({
+      id: row.id,
+      url: row.url,
+      domain: row.domain,
+      title: row.title,
+      excerpt: row.excerpt,
+      tint: row.tint,
+      stripe: row.stripe,
+      initial: row.initial,
+      contentType: row.contentType,
+      collectionId: row.collectionId,
+      tags: [],
+      size: row.size,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      source: row.source,
+      importMeta: (row.importMeta as ImportedLink["meta"] | null) ?? undefined,
+    })),
+    skipped: items.length - rows.length,
+  };
+}
+
+/** Cycled through as system collections are created, so a fresh result screen doesn't
+ * come out all one colour. Straight from the design tokens. */
+const SYSTEM_COLORS = ["#ff5a1f", "#7c8cff", "#d6f24b", "#e0855a", "#9aa3ad", "#17181b"];
+
+/** Links the grouper is allowed to look at in one pass. Past this they stay in the
+ * inbox — see MAX_BATCHES in group-links.ts. */
+const GROUP_LIMIT = 600;
+
+export type GroupedResult = { collection: Collection; linkIds: string[]; reasoning: string };
+
+/** The onboarding payoff: everything sitting unsorted gets read against what the user
+ * said matters and comes back as a few named collections. Dead links are left out —
+ * they've already been checked by this point and nobody wants them ranked. */
+export async function groupInbox(priorities: Priorities): Promise<GroupedResult[]> {
+  const inboxId = await ensureInbox();
+
+  const rows = await db
+    .select({
+      id: schema.links.id,
+      title: schema.links.title,
+      domain: schema.links.domain,
+      importMeta: schema.links.importMeta,
+      httpStatus: schema.links.httpStatus,
+    })
+    .from(schema.links)
+    .where(
+      and(
+        eq(schema.links.userId, CURRENT_USER_ID),
+        eq(schema.links.collectionId, inboxId),
+        isNull(schema.links.deletedAt)
+      )
+    )
+    .limit(GROUP_LIMIT);
+
+  const alive = rows.filter((row) => row.httpStatus === null || !isDeadStatus(row.httpStatus));
+  if (alive.length === 0) return [];
+
+  const input = alive.map((row, i) => {
+    const meta = (row.importMeta as ImportedLink["meta"] | null) ?? {};
+    return { i, title: row.title, domain: row.domain, note: meta.folder ?? meta.context };
   });
 
-  return { ok: true, link };
+  // No model, no key, or a response that didn't survive validation: the export's own
+  // folders and domains still make a usable library, which beats showing nothing.
+  const grouped = (await groupLinks(input, priorities)) ?? groupByMetadata(input);
+
+  const results: GroupedResult[] = [];
+  for (const [i, group] of grouped.entries()) {
+    const linkIds = group.indices.map((index) => alive[index].id);
+    if (linkIds.length === 0) continue;
+
+    const [row] = await db
+      .insert(schema.collections)
+      .values({
+        userId: CURRENT_USER_ID,
+        name: group.name,
+        color: SYSTEM_COLORS[i % SYSTEM_COLORS.length],
+        reasoning: group.reasoning,
+        createdBy: "system",
+      })
+      .returning();
+
+    await db
+      .update(schema.links)
+      .set({ collectionId: row.id, updatedAt: new Date() })
+      .where(inArray(schema.links.id, linkIds));
+
+    results.push({
+      collection: {
+        id: row.id,
+        name: row.name,
+        color: row.color,
+        reasoning: row.reasoning ?? undefined,
+        createdBy: row.createdBy,
+      },
+      linkIds,
+      reasoning: group.reasoning,
+    });
+  }
+
+  await logSignal("calibrate", { payload: { ...priorities, collections: results.length } });
+  return results;
+}
+
+/** Write-only in v1: the record of what the user accepted, rejected and moved, for the
+ * calibration phase to learn from later. Never blocks the action it's recording. */
+export async function logSignal(
+  action: string,
+  {
+    linkId,
+    linkIds,
+    collectionId,
+    payload,
+  }: { linkId?: string; linkIds?: string[]; collectionId?: string; payload?: unknown } = {}
+) {
+  // A bulk move is one signal per link, not one per gesture — whatever reads this later
+  // wants to know about the links, and reconstructing them from a payload is worse.
+  const targets = linkIds?.length ? linkIds : [linkId ?? null];
+  await db.insert(schema.userSignals).values(
+    targets.map((id) => ({
+      userId: CURRENT_USER_ID,
+      linkId: id,
+      collectionId: collectionId ?? null,
+      action,
+      payload: (payload ?? null) as object | null,
+    }))
+  );
 }

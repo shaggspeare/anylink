@@ -1,3 +1,4 @@
+import { isBrokenStatus } from "./link-health.ts";
 import type { LinkItem } from "./types";
 
 /** One query language for the ⌘K palette, the sidebar filters, the library view and
@@ -83,9 +84,8 @@ function unquote(value: string) {
     : value;
 }
 
-/** null = never checked. 0 = unreachable (DNS failure, timeout) — see check-link.ts. */
 export function isBroken(link: LinkItem) {
-  return link.httpStatus !== undefined && (link.httpStatus === 0 || link.httpStatus >= 400);
+  return isBrokenStatus(link.httpStatus);
 }
 
 /** Same page saved twice: compare URLs ignoring the trailing slash and case. */

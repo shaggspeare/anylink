@@ -19,7 +19,7 @@ export const TOUR_STEPS: TourStep[] = [
     page: "library",
     title: "Welcome to AnyLink",
     description:
-      "Paste a link — AnyLink reads the page, pulls out what matters and files it for you. This tour covers everything the app does today. Use the arrow keys or the buttons; Esc leaves at any point.",
+      "Paste a link and AnyLink reads the page, pulls out what matters and files it for you — or arrive with a thousand bookmarks you saved elsewhere and let it clear out the dead ones and group the rest. This tour covers everything the app does today. Use the arrow keys or the buttons; Esc leaves at any point.",
   },
   {
     page: "library",
@@ -101,7 +101,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=filters]",
     title: "Filters that build themselves",
     description:
-      "Favorites, articles, videos, products, notes, untagged, duplicates, broken links, archive. A filter only appears once something matches it, so this list always mirrors the library. Each one is just a saved query.",
+      "Favorites, articles, videos, products, notes, untagged, duplicates, broken links, archive. A filter only appears once something matches it, so this list always mirrors the library. Each one is just a saved query. <em>Broken links</em> stays current on its own: links are re-checked nightly, oldest first, not only when they arrive.",
     side: "right",
   },
   {
@@ -131,9 +131,25 @@ export const TOUR_STEPS: TourStep[] = [
   {
     page: "library",
     element: "[data-tour=import]",
-    title: "Bring your bookmarks",
+    title: "Bring the pile you already have",
     description:
-      "Drop in the HTML export from any browser. Every bookmark runs through the same crawler, so you get summaries and images for links you saved years ago.",
+      "Two sources: the HTML bookmarks export any browser produces, and the <code>result.json</code> from Telegram's Saved Messages export. Drop in both at once — anything saved in both places is merged into one link. Nothing is crawled at this point, so a few hundred bookmarks land in seconds, keeping their folder names and whatever you typed around them in Telegram.",
+    side: "right",
+  },
+  {
+    page: "library",
+    element: "[data-tour=import]",
+    title: "Then the dead ones come out",
+    description:
+      "Every imported link gets a request. Anything gone — a 404, a domain that no longer answers, a page that's turned into a squatter's \"buy this domain\" — is listed for you and moves to Trash in one click. Sites that merely refuse robots are left alone: a 403 or a rate limit means the page is fine in a browser, and throwing those away would cost you real links.",
+    side: "right",
+  },
+  {
+    page: "library",
+    element: "[data-tour=import]",
+    title: "And the rest gets sorted",
+    description:
+      "Four short questions — what you're working on, which of your own topics still interest you, keep-or-bin on a handful of links, anything you'd rather never see again. What survives comes back as a few named collections, ranked by how close they are to what you just said.",
     side: "right",
   },
   {
@@ -156,6 +172,15 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=collection-header]",
     title: "Inside a collection",
     description: "The same mosaic, scoped to one collection.",
+    side: "bottom",
+    align: "start",
+  },
+  {
+    page: "collection",
+    element: "[data-tour=collection-reasoning]",
+    title: "Collections that say why they exist",
+    description:
+      "A collection AnyLink built during an import keeps its reasoning — what these links have in common, and why that matched what you said you were working on. Hand-made collections don't have one, because you already know.",
     side: "bottom",
     align: "start",
   },
@@ -260,6 +285,6 @@ export const TOUR_STEPS: TourStep[] = [
     page: "library",
     title: "That's AnyLink",
     description:
-      "Capture with one paste, enrich automatically, find it again with one query language across search, filters and smart collections — and nothing you save is ever one click from being lost.",
+      "Arrive with a mess and leave with a library, capture the next one with a single paste, find any of it again with one query language across search, filters and smart collections — and nothing you save is ever one click from being lost.",
   },
 ];

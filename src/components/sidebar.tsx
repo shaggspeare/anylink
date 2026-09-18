@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { CollectionMarker } from "./collection-marker";
-import { BookmarksImportButton } from "./bookmarks-import";
 import { TourButton } from "./tour";
 import { ALL_COLLECTION_ID } from "@/lib/mock-data";
 import { searchLinks } from "@/lib/search";
@@ -153,7 +152,16 @@ export function Sidebar() {
             New collection
           </button>
         )}
-        <BookmarksImportButton />
+        {/* A full page load: /start imports, checks and re-groups, so the library it
+            comes back to has to be read fresh from the database. */}
+        <a
+          href="/start"
+          data-tour="import"
+          className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
+        >
+          <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">↓</span>
+          Import links
+        </a>
         <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
 
         {filters.length > 0 && (

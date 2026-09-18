@@ -6,6 +6,7 @@ import { driver, type Driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useLibrary } from "@/lib/store";
 import { TOUR_STEPS, type TourPage, type TourStep } from "@/lib/tour";
+import type { Collection } from "@/lib/types";
 
 const STORAGE_KEY = "anylink:tour";
 const TOUR_EVENT = "anylink:tour-start";
@@ -36,9 +37,12 @@ export function TourRunner() {
   // Pages the demo can actually visit right now: a collection that has links, an
   // article, a product, a non-empty trash. Steps for the rest are dropped.
   const steps = useMemo<ResolvedStep[]>(() => {
-    const collection = collections.find(
-      (c) => !c.isSmart && links.some((l) => l.collectionId === c.id)
-    );
+    // A collection AnyLink built wins the slot when there is one: it demos the same
+    // mosaic plus the reasoning step, which a hand-made collection can't.
+    const withLinks = (c: Collection) => links.some((l) => l.collectionId === c.id);
+    const collection =
+      collections.find((c) => c.reasoning && withLinks(c)) ??
+      collections.find((c) => !c.isSmart && withLinks(c));
     const article = links.find((l) => l.contentType !== "product");
     const product = links.find((l) => l.contentType === "product");
     const hrefs: Record<TourPage, string | null> = {
