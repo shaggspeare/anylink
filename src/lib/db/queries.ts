@@ -98,6 +98,7 @@ export async function getLibraryData(): Promise<{
       collectionId: row.collectionId,
       tags: tagsByLink.get(row.id) ?? [],
       size: row.size,
+      position: row.position,
       status: row.status,
       createdAt: row.createdAt.toISOString(),
       note: row.note ?? undefined,

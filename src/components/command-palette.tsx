@@ -22,8 +22,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 export function CommandPalette() {
-  const { paletteOpen, closePalette, links, tags, collections, saveSmartCollection } =
-    useLibraryWithTags();
+  const { paletteOpen, closePalette, links, tags, collections, saveSmartCollection } = useLibrary();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -104,7 +103,10 @@ export function CommandPalette() {
       if (r) openResult(r, e.metaKey || e.ctrlKey);
     } else if (e.key === "s" && (e.metaKey || e.ctrlKey) && q) {
       e.preventDefault();
-      saveSmartCollection(q);
+      // Named on the way in — a saved filter you can't recognise in the sidebar is dead weight.
+      const name = window.prompt("Name this filter", q);
+      if (name === null) return;
+      saveSmartCollection(q, name);
       closePalette();
     }
   };
@@ -208,7 +210,7 @@ export function CommandPalette() {
             </span>
             {q && (
               <span className="ml-auto flex items-center gap-1.5">
-                <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘S</kbd> save as smart collection
+                <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘S</kbd> save as a custom filter
               </span>
             )}
           </div>
@@ -246,14 +248,4 @@ function ResultRow({
       {children}
     </button>
   );
-}
-
-function useLibraryWithTags() {
-  const lib = useLibrary();
-  const tags = useMemo(() => {
-    const set = new Set<string>();
-    lib.links.forEach((l) => l.tags.forEach((t) => set.add(t)));
-    return Array.from(set);
-  }, [lib.links]);
-  return { ...lib, tags };
 }

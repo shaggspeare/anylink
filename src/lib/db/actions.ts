@@ -133,6 +133,22 @@ export async function tagLinks(ids: string[], tag: string) {
     .onConflictDoNothing();
 }
 
+/** Manual order, as dropped by the mosaic: `ids` is the list in its new order.
+ *
+ * One statement for the whole list on purpose — the client dispatches server actions one
+ * at a time, so a call per card would serialize into a roundtrip per card.
+ * ponytail: rewrites a position for every card in view on each drop. Fine at personal
+ * scale; fractional indexing is the upgrade if a collection ever grows enough to feel it. */
+export async function reorderLinks(ids: string[]) {
+  if (ids.length === 0) return;
+  const rows = ids.map((id, i) => sql`(${id}::uuid, ${i}::int)`);
+  await db.execute(sql`
+    update ${schema.links} set position = v.position
+    from (values ${sql.join(rows, sql`, `)}) as v(id, position)
+    where ${schema.links.id} = v.id and ${schema.links.userId} = ${CURRENT_USER_ID}::uuid
+  `);
+}
+
 export async function archiveLinks(ids: string[]) {
   if (ids.length === 0) return;
   await db
@@ -186,12 +202,14 @@ export async function createCollection(name: string, color: string) {
   return { id: row.id, name: row.name, color: row.color };
 }
 
-export async function createSmartCollection(query: string) {
+/** A custom filter: a saved query under a name of the user's choosing. Unnamed ones keep
+ * the raw query as their label, which is what the palette used to save. */
+export async function createSmartCollection(query: string, name?: string) {
   const [row] = await db
     .insert(schema.collections)
     .values({
       userId: CURRENT_USER_ID,
-      name: query,
+      name: name?.trim() || query,
       color: "#7c8cff",
       isSmart: true,
       smartQuery: query,

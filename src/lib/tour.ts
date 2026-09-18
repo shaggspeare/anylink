@@ -35,7 +35,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=search]",
     title: "Search everything, ⌘K",
     description:
-      "Searches titles, summaries, notes, tags, domains and the full article text. The same box takes filters: <code>type:video</code>, <code>#design</code>, <code>-superman</code>, <code>\"exact phrase\"</code>, <code>is:favorite</code>, <code>created:&gt;2026-01</code>, <code>match:OR</code>. Press ⌘S to save any query as a smart collection that re-runs itself.",
+      "Searches titles, summaries, notes, tags, domains and the full article text. The same box takes filters: <code>type:video</code>, <code>#design</code>, <code>-superman</code>, <code>\"exact phrase\"</code>, <code>is:favorite</code>, <code>created:&gt;2026-01</code>, <code>match:OR</code>. Press ⌘S to save any query as a named custom filter that re-runs itself.",
     side: "bottom",
     align: "end",
   },
@@ -73,6 +73,15 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     page: "library",
+    element: "[data-tour=sort]",
+    title: "Sort it your way",
+    description:
+      "Newest, oldest, title or site — or pick <em>My order</em> and drag cards into whatever arrangement makes sense to you. Manual order is saved with the links, so it survives a reload.",
+    side: "bottom",
+    align: "end",
+  },
+  {
+    page: "library",
     element: "[data-tour=sidebar]",
     title: "Collections",
     description:
@@ -97,10 +106,26 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     page: "library",
+    element: "[data-tour=custom-filters]",
+    title: "Your own filters",
+    description:
+      "Any search can become a permanent filter: press ⌘S in the palette, give it a name, and it lives here re-running itself as the library grows.",
+    side: "right",
+  },
+  {
+    page: "library",
+    element: "[data-tour=themes]",
+    title: "Collections that suggest themselves",
+    description:
+      "When enough links share a tag, that's a theme — AnyLink offers it as a ready-made collection. One click to keep it, one to wave it off.",
+    side: "right",
+  },
+  {
+    page: "library",
     element: "[data-tour=tags]",
     title: "Tags",
     description:
-      "Tags are suggested at save time and listed here by how often you use them. One click filters the library.",
+      "Tags are suggested at save time from the page's own metadata and from the words you already use, and listed here by how often you use them. One click filters the library.",
     side: "right",
   },
   {
@@ -139,7 +164,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=collection-filters]",
     title: "Narrow it down",
     description:
-      "Filter by any tag used in this collection, and sort by newest, oldest or title.",
+      "Filter by any tag used in this collection, and sort by date, title, site — or by hand.",
     side: "bottom",
     align: "start",
   },

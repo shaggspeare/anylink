@@ -6,6 +6,7 @@ import type { Collection } from "@/lib/types";
 export function BulkActionBar({
   count,
   collections,
+  tags,
   onMove,
   onTag,
   onArchive,
@@ -14,6 +15,8 @@ export function BulkActionBar({
 }: {
   count: number;
   collections: Collection[];
+  /** Every tag already in the library, offered as completions on the tag field. */
+  tags: string[];
   onMove: (collectionId: string) => void;
   onTag: (tag: string) => void;
   onArchive: () => void;
@@ -46,11 +49,14 @@ export function BulkActionBar({
           <option value="" disabled>
             Move to…
           </option>
-          {collections.map((c) => (
-            <option key={c.id} value={c.id} className="bg-[#17181b]">
-              {c.name}
-            </option>
-          ))}
+          {/* Custom filters aren't places links can live in, so they're not move targets. */}
+          {collections
+            .filter((c) => !c.isSmart)
+            .map((c) => (
+              <option key={c.id} value={c.id} className="bg-[#17181b]">
+                {c.name}
+              </option>
+            ))}
         </select>
 
         {tagOpen ? (
@@ -65,12 +71,18 @@ export function BulkActionBar({
           >
             <input
               autoFocus
+              list="library-tags"
               value={tagValue}
               onChange={(e) => setTagValue(e.target.value)}
               onBlur={() => setTagOpen(false)}
               placeholder="tag name"
               className="h-8 w-28 rounded-full bg-white/10 px-3 text-[12.5px] outline-none placeholder:text-white/40"
             />
+            <datalist id="library-tags">
+              {tags.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
           </form>
         ) : (
           <button

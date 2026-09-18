@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useColumnCount } from "@/lib/geometry";
+import { moveBefore } from "@/lib/organize";
 import { Card } from "./card";
 import type { LinkItem } from "@/lib/types";
 
@@ -9,13 +11,18 @@ export function CardMosaic({
   selectable = false,
   selectedIds,
   onToggleSelect,
+  onReorder,
 }: {
   links: LinkItem[];
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string, e: React.MouseEvent) => void;
+  /** Passed only in manual order: receives the visible ids in their new order. */
+  onReorder?: (ids: string[]) => void;
 }) {
   const columnCount = useColumnCount();
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   if (links.length === 0) {
     return (
@@ -33,6 +40,12 @@ export function CardMosaic({
       </div>
     );
   }
+
+  const drop = () => {
+    if (dragId && overId) onReorder?.(moveBefore(links.map((l) => l.id), dragId, overId));
+    setDragId(null);
+    setOverId(null);
+  };
 
   return (
     <div
@@ -53,6 +66,19 @@ export function CardMosaic({
           selectionActive={Boolean(selectedIds && selectedIds.size > 0)}
           selected={selectedIds?.has(link.id)}
           onSelectClick={(e) => onToggleSelect?.(link.id, e)}
+          drag={
+            onReorder && {
+              dragging: dragId === link.id,
+              over: Boolean(dragId) && overId === link.id && dragId !== link.id,
+              onStart: () => setDragId(link.id),
+              onOver: () => setOverId(link.id),
+              onDrop: drop,
+              onEnd: () => {
+                setDragId(null);
+                setOverId(null);
+              },
+            }
+          }
         />
       ))}
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLibrary } from "@/lib/store";
+import { suggestTags } from "@/lib/organize";
 import type { CrawlResult, CrawlStep } from "@/lib/crawler";
 import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
 import type { CardSize, Collection } from "@/lib/types";
@@ -19,8 +20,15 @@ const STEP_LABELS: Record<CrawlStep, string> = {
 };
 
 export function AddLinkFlow() {
-  const { addLinkOpen, addLinkPrefillUrl, closeAddLink, addLink, collections, inbox } =
-    useLibrary();
+  const {
+    addLinkOpen,
+    addLinkPrefillUrl,
+    closeAddLink,
+    addLink,
+    collections,
+    tags: libraryTags,
+    inbox,
+  } = useLibrary();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState("");
@@ -30,6 +38,7 @@ export function AddLinkFlow() {
 
   const [title, setTitle] = useState("");
   const [excerpt, setExcerpt] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   // Defaults to the inbox: filing is a separate, later decision, not a gate on saving.
   const [collectionId, setCollectionId] = useState(inbox?.id ?? "");
   const [size, setSize] = useState<CardSize>("M");
@@ -46,6 +55,7 @@ export function AddLinkFlow() {
     setResult(null);
     setTitle("");
     setExcerpt("");
+    setTags([]);
     setCollectionId(inbox?.id ?? "");
     setSize("M");
     setSaving(false);
@@ -89,6 +99,8 @@ export function AddLinkFlow() {
             setResult(msg.result);
             setTitle(msg.result.title);
             setExcerpt(msg.result.excerpt);
+            // Pre-ticked, not silently applied — the form is where you drop the wrong ones.
+            setTags(msg.result.suggestedTags ?? []);
             setPhase("ready");
           } else if (msg.type === "failed") {
             const failure: CrawlFailure = msg;
@@ -171,7 +183,7 @@ export function AddLinkFlow() {
       contentType: crawled?.contentType ?? "article",
       readingTimeMinutes: crawled?.readingTimeMinutes,
       collectionId,
-      tags: crawled?.suggestedTags ?? [],
+      tags,
       size,
       product: crawled?.product,
     });
@@ -328,6 +340,13 @@ export function AddLinkFlow() {
                   setTitle={setTitle}
                   excerpt={excerpt}
                   setExcerpt={setExcerpt}
+                  tags={tags}
+                  setTags={setTags}
+                  suggestions={suggestTags(
+                    "failed" in result ? [] : result.suggestedTags,
+                    libraryTags,
+                    `${title} ${excerpt} ${result.domain}`
+                  )}
                   collectionId={collectionId}
                   setCollectionId={setCollectionId}
                   size={size}
@@ -353,6 +372,9 @@ function ReadyForm({
   setTitle,
   excerpt,
   setExcerpt,
+  tags,
+  setTags,
+  suggestions,
   collectionId,
   setCollectionId,
   size,
@@ -368,6 +390,9 @@ function ReadyForm({
   setTitle: (v: string) => void;
   excerpt: string;
   setExcerpt: (v: string) => void;
+  tags: string[];
+  setTags: (v: string[]) => void;
+  suggestions: string[];
   collectionId: string;
   setCollectionId: (v: string) => void;
   size: CardSize;
@@ -445,6 +470,10 @@ function ReadyForm({
             style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
           />
         </label>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-eyebrow text-light-40">Tags</span>
+          <TagPicker value={tags} suggestions={suggestions} onChange={setTags} />
+        </div>
         <label className="flex flex-col gap-1.5">
           <span className="text-eyebrow text-light-40">Collection</span>
           <select
@@ -499,6 +528,77 @@ function ReadyForm({
           {saving ? "Saving…" : "Save to library"}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Picked tags, plus the ones worth offering: what the crawler found and what the rest of
+ * the library already calls pages like this one. Typing wins over both. */
+function TagPicker({
+  value,
+  suggestions,
+  onChange,
+}: {
+  value: string[];
+  suggestions: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const unpicked = suggestions.filter((t) => !value.includes(t));
+
+  const add = (tag: string) => {
+    const clean = tag.trim();
+    if (clean && !value.includes(clean)) onChange([...value, clean]);
+    setDraft("");
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {value.map((tag) => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => onChange(value.filter((t) => t !== tag))}
+            title="Remove"
+            className="inline-flex items-center gap-1.5 rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-medium text-ink"
+          >
+            {tag}
+            <span className="text-ink/45">✕</span>
+          </button>
+        ))}
+        {value.length === 0 && <span className="text-[12px] text-light-40">No tags yet</span>}
+      </div>
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add(draft);
+          }
+        }}
+        onBlur={() => add(draft)}
+        placeholder="Add a tag, then Enter"
+        className="h-[38px] rounded-[12px] border px-3.5 text-[13px] text-[#f4f5f6] outline-none placeholder:text-light-40"
+        style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
+      />
+      {unpicked.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {unpicked.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => add(tag)}
+              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] text-light-55 hover:text-[#f4f5f6]"
+              style={{ borderColor: "rgba(255,255,255,.16)" }}
+            >
+              <span className="text-lime">+</span>
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

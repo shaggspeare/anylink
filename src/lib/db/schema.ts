@@ -87,6 +87,9 @@ export const links = pgTable(
     readingTimeMinutes: integer("reading_time_minutes"),
     status: linkStatusEnum("status").notNull().default("ready"),
     size: cardSizeEnum("size").notNull().default("M"),
+    // Manual drag-and-drop order. 0 means "never dragged", and sorting falls back to
+    // newest-first on ties, so a fresh library already reads in a sensible order.
+    position: integer("position").notNull().default(0),
     // Sparse, retailer-specific fields (variants, specs, rating...) that don't earn a
     // normalized table given how much they vary per site — see PLAN.md's product-parsing
     // risk note. Price itself stays relational, in price_snapshots/price_alerts below.

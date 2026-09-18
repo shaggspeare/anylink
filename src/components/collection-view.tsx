@@ -10,12 +10,13 @@ import { AmbientOrbs } from "@/components/ambient-orbs";
 import { CollectionMarker } from "@/components/collection-marker";
 import { Chip } from "@/components/chip";
 import { BulkActionBar } from "@/components/bulk-action-bar";
+import { SortSelect } from "@/components/sort-select";
 import { searchLinks } from "@/lib/search";
-
-type Sort = "newest" | "oldest" | "az";
+import { sortLinks, type Sort } from "@/lib/organize";
 
 export function CollectionView({ collectionId }: { collectionId: string }) {
-  const { links, collections, moveLinks, tagLinks, archiveLinks, deleteLinks } = useLibrary();
+  const { links, collections, tags, moveLinks, tagLinks, archiveLinks, deleteLinks, reorderLinks } =
+    useLibrary();
   const collection = collections.find((c) => c.id === collectionId);
 
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -38,16 +39,10 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
     return Array.from(set);
   }, [scoped]);
 
-  const visible = useMemo(() => {
-    let result = tagFilter ? scoped.filter((l) => l.tags.includes(tagFilter)) : scoped;
-    result = [...result].sort((a, b) => {
-      if (sort === "az") return a.title.localeCompare(b.title);
-      const da = new Date(a.createdAt).getTime();
-      const db = new Date(b.createdAt).getTime();
-      return sort === "newest" ? db - da : da - db;
-    });
-    return result;
-  }, [scoped, tagFilter, sort]);
+  const visible = useMemo(
+    () => sortLinks(tagFilter ? scoped.filter((l) => l.tags.includes(tagFilter)) : scoped, sort),
+    [scoped, tagFilter, sort]
+  );
 
   if (!collection) notFound();
 
@@ -84,6 +79,14 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
             <CollectionMarker color={collection.color} size={14} />
             <h1 className="text-title text-[26px]">{collection.name}</h1>
             <span className="text-meta text-ink/50">{scoped.length} links</span>
+            {collection.isSmart && (
+              <span className="rounded-full bg-ink/6 px-2.5 py-1 font-mono text-[11px] text-ink/55">
+                {collection.smartQuery}
+              </span>
+            )}
+            {sort === "manual" && (
+              <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
+            )}
           </div>
           <div data-tour="collection-filters" className="flex flex-wrap items-center gap-2">
             <Chip active={tagFilter === null} onClick={() => setTagFilter(null)}>
@@ -94,15 +97,9 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
                 {t}
               </Chip>
             ))}
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
-              className="ml-auto h-8 rounded-full bg-ink/6 px-3 text-[12px] font-medium text-ink/65 outline-none"
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="az">Title A–Z</option>
-            </select>
+            <span className="ml-auto">
+              <SortSelect value={sort} onChange={setSort} />
+            </span>
           </div>
         </header>
 
@@ -111,6 +108,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
           selectable
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
+          onReorder={sort === "manual" ? reorderLinks : undefined}
         />
         <div className="h-24 lg:hidden" />
       </div>
@@ -118,6 +116,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
       <BulkActionBar
         count={selectedIds.size}
         collections={collections}
+        tags={tags}
         onMove={(id) => withClear((ids) => moveLinks(ids, id))}
         onTag={(tag) => withClear((ids) => tagLinks(ids, tag))}
         onArchive={() => withClear(archiveLinks)}

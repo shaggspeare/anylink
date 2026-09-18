@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { ALL_COLLECTION_ID } from "./mock-data";
 import * as actions from "./db/actions";
+import { searchLinks } from "./search";
 import type { CardSize, Collection, LinkItem } from "./types";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
@@ -13,9 +14,13 @@ type LibraryContextValue = {
   links: LinkItem[];
   trashed: LinkItem[];
   collections: Collection[];
+  /** Every tag in use, for suggestions and the palette. */
+  tags: string[];
   inbox: Collection | undefined;
   addLink: (input: NewLinkInput) => Promise<LinkItem>;
   setLinkSize: (id: string, size: CardSize) => void;
+  /** `ids` in their new manual order — the drag-and-drop mosaic's only write. */
+  reorderLinks: (ids: string[]) => void;
   moveLinks: (ids: string[], collectionId: string) => void;
   tagLinks: (ids: string[], tag: string) => void;
   archiveLinks: (ids: string[]) => void;
@@ -25,7 +30,7 @@ type LibraryContextValue = {
   setFavorite: (id: string, favorite: boolean) => void;
   setNote: (id: string, note: string) => void;
   addCollection: (name: string, color: string) => Promise<Collection>;
-  saveSmartCollection: (query: string) => Promise<Collection>;
+  saveSmartCollection: (query: string, name?: string) => Promise<Collection>;
   renameCollection: (id: string, name: string) => void;
   deleteCollection: (id: string) => Promise<void>;
   deleteEmptyCollections: () => Promise<number>;
@@ -75,6 +80,7 @@ export function LibraryProvider({
       links,
       trashed,
       collections,
+      tags: Array.from(new Set(links.flatMap((l) => l.tags))).sort((a, b) => a.localeCompare(b)),
       inbox: collections.find((c) => c.isInbox),
       addLink: async (input) => {
         const link = await actions.createLink(input);
@@ -84,6 +90,13 @@ export function LibraryProvider({
       setLinkSize: (id, size) => {
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, size } : l)));
         actions.setLinkSize(id, size).catch(console.error);
+      },
+      reorderLinks: (ids) => {
+        const positions = new Map(ids.map((id, i) => [id, i]));
+        setLinks((prev) =>
+          prev.map((l) => (positions.has(l.id) ? { ...l, position: positions.get(l.id) } : l))
+        );
+        actions.reorderLinks(ids).catch(console.error);
       },
       moveLinks: (ids, collectionId) => {
         const idSet = new Set(ids);
@@ -138,8 +151,8 @@ export function LibraryProvider({
         setCollections((prev) => [...prev, collection]);
         return collection;
       },
-      saveSmartCollection: async (query) => {
-        const collection = await actions.createSmartCollection(query);
+      saveSmartCollection: async (query, name) => {
+        const collection = await actions.createSmartCollection(query, name);
         setCollections((prev) => [...prev, collection]);
         return collection;
       },
@@ -163,6 +176,9 @@ export function LibraryProvider({
       },
       countForCollection: (collectionId) => {
         if (collectionId === ALL_COLLECTION_ID) return links.filter((l) => !l.archived).length;
+        // A custom filter holds no links of its own — its count is whatever its query matches.
+        const collection = collections.find((c) => c.id === collectionId);
+        if (collection?.isSmart) return searchLinks(links, collection.smartQuery ?? "").length;
         return links.filter((l) => l.collectionId === collectionId && !l.archived).length;
       },
       addHighlight: (linkId, quote) => {

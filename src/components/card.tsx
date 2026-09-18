@@ -9,6 +9,16 @@ import type { CardSize, LinkItem } from "@/lib/types";
 
 const SIZES: CardSize[] = ["S", "M", "L"];
 
+/** Present only while the mosaic is in manual order — that's what turns a card draggable. */
+export type CardDrag = {
+  dragging: boolean;
+  over: boolean;
+  onStart: () => void;
+  onOver: () => void;
+  onDrop: () => void;
+  onEnd: () => void;
+};
+
 export function Card({
   link,
   columnCount,
@@ -16,6 +26,7 @@ export function Card({
   selectionActive = false,
   selected = false,
   onSelectClick,
+  drag,
 }: {
   link: LinkItem;
   columnCount: number;
@@ -23,6 +34,7 @@ export function Card({
   selectionActive?: boolean;
   selected?: boolean;
   onSelectClick?: (e: React.MouseEvent) => void;
+  drag?: CardDrag;
 }) {
   const router = useRouter();
   const { setLinkSize, setFavorite } = useLibrary();
@@ -70,7 +82,33 @@ export function Card({
   };
 
   return (
-    <div style={{ position: "relative", gridColumn: `span ${cols}`, gridRow: `span ${rows}` }}>
+    <div
+      style={{
+        position: "relative",
+        gridColumn: `span ${cols}`,
+        gridRow: `span ${rows}`,
+        opacity: drag?.dragging ? 0.35 : 1,
+      }}
+      // Native HTML5 drag — the resize handle calls preventDefault on pointerdown, so
+      // grabbing the corner still resizes instead of starting a drag.
+      draggable={Boolean(drag)}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", link.url);
+        drag?.onStart();
+      }}
+      onDragOver={(e) => {
+        if (!drag) return;
+        e.preventDefault();
+        drag.onOver();
+      }}
+      onDrop={(e) => {
+        if (!drag) return;
+        e.preventDefault();
+        drag.onDrop();
+      }}
+      onDragEnd={() => drag?.onEnd()}
+    >
       <div
         ref={cardRef}
         data-tour="card"
@@ -80,7 +118,11 @@ export function Card({
         className="group absolute inset-1.5 flex cursor-pointer flex-col overflow-hidden rounded-[22px] transition-[box-shadow,transform] hover:-translate-y-0.5 sm:inset-[7px]"
         style={{
           background: "rgba(255,255,255,.62)",
-          border: selected ? "2px solid var(--ink)" : "1px solid rgba(255,255,255,.75)",
+          border: drag?.over
+            ? "2px dashed rgba(23,24,27,.55)"
+            : selected
+              ? "2px solid var(--ink)"
+              : "1px solid rgba(255,255,255,.75)",
           backdropFilter: "blur(22px) saturate(1.35)",
           WebkitBackdropFilter: "blur(22px) saturate(1.35)",
           boxShadow: "var(--shadow-card)",

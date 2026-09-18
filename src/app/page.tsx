@@ -1,20 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { CardMosaic } from "@/components/card-mosaic";
 import { AmbientOrbs } from "@/components/ambient-orbs";
+import { SortSelect } from "@/components/sort-select";
 import { searchLinks } from "@/lib/search";
+import { sortLinks, type Sort } from "@/lib/organize";
 
 export default function LibraryPage() {
-  const { links, openAddLink, openPalette } = useLibrary();
+  const { links, reorderLinks, openAddLink, openPalette } = useLibrary();
   const router = useRouter();
+  const [sort, setSort] = useState<Sort>("newest");
   // Every sidebar filter and saved search lands here as `?q=…` — one query language,
   // no per-filter view state. searchLinks also drops archived links on its own.
   const query = useSearchParams().get("q") ?? "";
-  const visible = searchLinks(links, query);
+  const visible = sortLinks(searchLinks(links, query), sort);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -39,12 +43,13 @@ export default function LibraryPage() {
               <>
                 <span className="h-1 w-1 rounded-full bg-ink/25" />
                 <span className="hidden text-meta text-ink/50 sm:inline">
-                  drag a card corner to resize
+                  {sort === "manual" ? "drag cards to arrange them" : "drag a card corner to resize"}
                 </span>
               </>
             )}
           </div>
           <div className="ml-auto flex items-center gap-2 pb-1">
+            <SortSelect value={sort} onChange={setSort} />
             <button
               type="button"
               data-tour="search"
@@ -72,7 +77,9 @@ export default function LibraryPage() {
           </div>
         </header>
 
-        <CardMosaic links={visible} />
+        {/* ponytail: one position per link, so dragging inside a filtered view reshuffles
+            the global order too. Per-view ordering would need a row per (view, link). */}
+        <CardMosaic links={visible} onReorder={sort === "manual" ? reorderLinks : undefined} />
         <div className="h-24 lg:hidden" />
       </div>
       <BottomTabBar />

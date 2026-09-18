@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
@@ -9,6 +9,7 @@ import { BookmarksImportButton } from "./bookmarks-import";
 import { TourButton } from "./tour";
 import { ALL_COLLECTION_ID } from "@/lib/mock-data";
 import { searchLinks } from "@/lib/search";
+import { suggestThemes } from "@/lib/organize";
 import type { Collection } from "@/lib/types";
 
 const SWATCHES = ["#ff5a1f", "#d6f24b", "#7c8cff", "#9aa3ad", "#e0855a"];
@@ -28,15 +29,58 @@ const FILTERS: { label: string; query: string }[] = [
 ];
 
 const MAX_SIDEBAR_TAGS = 12;
+const DISMISSED_THEMES_KEY = "anylink:dismissed-themes";
+
+/** Theme suggestions you've waved off, kept in localStorage. useSyncExternalStore because
+ * the server can't read it — a render-time read would be a hydration mismatch. */
+const dismissedListeners = new Set<() => void>();
+
+function useDismissedThemes(): [string[], (name: string) => void] {
+  const raw = useSyncExternalStore(
+    (notify) => {
+      dismissedListeners.add(notify);
+      return () => {
+        dismissedListeners.delete(notify);
+      };
+    },
+    () => localStorage.getItem(DISMISSED_THEMES_KEY) ?? "",
+    () => ""
+  );
+
+  const dismiss = (name: string) => {
+    localStorage.setItem(DISMISSED_THEMES_KEY, [raw, name].filter(Boolean).join(","));
+    dismissedListeners.forEach((notify) => notify());
+  };
+
+  return [useMemo(() => raw.split(",").filter(Boolean), [raw]), dismiss];
+}
 
 export function Sidebar() {
-  const { links, trashed, collections, countForCollection, addCollection, deleteEmptyCollections } =
-    useLibrary();
+  const {
+    links,
+    trashed,
+    collections,
+    countForCollection,
+    addCollection,
+    saveSmartCollection,
+    deleteEmptyCollections,
+  } = useLibrary();
   const pathname = usePathname();
   const activeQuery = useSearchParams().get("q") ?? "";
   const [creating, setCreating] = useState(false);
+  const [dismissedThemes, dismissTheme] = useDismissedThemes();
 
   const isAllActive = pathname === "/" && !activeQuery;
+
+  // A real collection holds links; a smart one is a saved query. They read as different
+  // things in the sidebar, so they're listed apart.
+  const folders = collections.filter((c) => !c.isSmart);
+  const customFilters = collections.filter((c) => c.isSmart);
+
+  const themes = useMemo(
+    () => suggestThemes(links, collections).filter((t) => !dismissedThemes.includes(t.name)),
+    [links, collections, dismissedThemes]
+  );
 
   const filters = useMemo(
     () =>
@@ -85,7 +129,7 @@ export function Sidebar() {
           <span className="flex-1 truncate">All links</span>
           <span className="text-meta text-ink/45">{countForCollection(ALL_COLLECTION_ID)}</span>
         </Link>
-        {collections.map((c) => (
+        {folders.map((c) => (
           <CollectionRow key={c.id} collection={c} count={countForCollection(c.id)} active={pathname === `/collections/${c.id}`} />
         ))}
       </nav>
@@ -123,6 +167,51 @@ export function Sidebar() {
                 count={f.count}
                 active={activeQuery === f.query}
               />
+            ))}
+          </div>
+        )}
+
+        {customFilters.length > 0 && (
+          <div data-tour="custom-filters">
+            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Custom filters</div>
+            {customFilters.map((c) => (
+              <CollectionRow
+                key={c.id}
+                collection={c}
+                count={countForCollection(c.id)}
+                active={pathname === `/collections/${c.id}`}
+              />
+            ))}
+          </div>
+        )}
+
+        {themes.length > 0 && (
+          <div data-tour="themes">
+            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Suggested collections</div>
+            {themes.map((theme) => (
+              <div
+                key={theme.query}
+                className="group flex items-center gap-2 rounded-[14px] px-3 py-2 text-body text-ink/65 hover:bg-ink/6"
+              >
+                <span className="min-w-0 flex-1 truncate">{theme.name}</span>
+                <span className="text-meta text-ink/45 group-hover:hidden">{theme.count}</span>
+                <button
+                  type="button"
+                  onClick={() => saveSmartCollection(theme.query, theme.name)}
+                  title={`Collect the ${theme.count} links tagged ${theme.query}`}
+                  className="hidden rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold text-[#f4f5f6] group-hover:block"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissTheme(theme.name)}
+                  aria-label={`Dismiss ${theme.name}`}
+                  className="hidden h-5 w-5 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-white hover:text-ink group-hover:flex"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
           </div>
         )}

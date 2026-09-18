@@ -49,6 +49,8 @@ export type LinkItem = {
   collectionId: string;
   tags: string[];
   size: CardSize;
+  /** Manual sort order; 0 until the card is dragged somewhere. */
+  position?: number;
   status: LinkStatus;
   createdAt: string;
   note?: string;
