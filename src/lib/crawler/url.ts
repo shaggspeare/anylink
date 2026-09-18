@@ -1,6 +1,7 @@
 // explicit extension so `node --test src/lib/crawler/url.test.ts` resolves this
 // without a bundler or a test framework in the way
 import { identityForDomain } from "../card-identity.ts";
+import type { CrawlResult } from "./types";
 
 /** Pure URL helpers — no jsdom/node deps, so client components can import this. */
 
@@ -76,6 +77,43 @@ export function titleFromUrl(raw: string): string {
   } catch {
     return domain;
   }
+}
+
+const CHALLENGE_TITLE =
+  /just a moment|attention required|access denied|access to this page|verify (you|your)|are you a (human|robot)|robot check|enable javascript|unusual traffic|captcha|forbidden|blocked|page not found|not found|page (is )?unavailable/i;
+
+/** "Just a moment…", "Access Denied", "Page Not Found" — the page is about the
+ * refusal, not about anything worth saving. */
+export const isChallengeTitle = (title: string) => CHALLENGE_TITLE.test(title);
+
+/** True when what we parsed is a bot wall or error shell rather than a page.
+ * Sites serve these with a 200 as often as a 403, so status alone can't tell —
+ * the tell is a challenge title, or nothing extractable at all. */
+export function looksBlocked(page: {
+  title: string;
+  excerpt: string;
+  articleText: string[];
+  heroImage?: string;
+}): boolean {
+  if (isChallengeTitle(page.title)) return true;
+  return page.articleText.length === 0 && !page.excerpt && !page.heroImage;
+}
+
+/** Last floor: the site gave us nothing, but the user still wants the link saved.
+ * Everything here comes from the URL itself; the LLM pass makes it presentable. */
+export function metadataFloor(url: string): CrawlResult {
+  const domain = domainFromUrl(url);
+  return {
+    domain,
+    canonicalUrl: cleanUrl(url),
+    title: titleFromUrl(url),
+    excerpt: "",
+    articleText: [],
+    ...identityForDomain(domain),
+    contentType: "article",
+    suggestedTags: [],
+    excerptOnly: true,
+  };
 }
 
 export function failureFor(url: string, reason: string): CrawlFailure {

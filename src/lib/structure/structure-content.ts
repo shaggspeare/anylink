@@ -37,6 +37,12 @@ extracted text and whatever metadata was already found, return strict JSON with 
     contentType is "product" — omit entirely otherwise, and omit any sub-field you're not
     confident about rather than guessing)
 }
+When "rawText" is empty the page refused to be crawled and all you have is its
+metadata and URL. Then: return "articleText": [], clean the title into something a
+human would write (drop the site name, SEO padding, ALL-CAPS and marketing noise),
+and base the excerpt only on the title, description, domain and URL — say what the
+page evidently is, and keep it to one sentence when that is all you can honestly
+support. Never invent page content that was not given to you.
 Return ONLY the JSON object, no other text.`;
 
 function truncate(text: string): { head: string; tail: string } {

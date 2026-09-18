@@ -387,7 +387,8 @@ function ReadyForm({
       <div className="flex flex-col gap-3">
         {excerptOnly && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
-            Only a summary and image could be read — the full page wasn&apos;t accessible. Fill in the rest by hand.
+            The site wouldn&apos;t give up the full page — this card is built from its metadata and
+            written up by AI. Worth a glance before you save.
           </div>
         )}
         {failed && (

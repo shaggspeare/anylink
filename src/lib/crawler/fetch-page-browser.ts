@@ -56,7 +56,10 @@ export async function fetchHtmlWithBrowser(url: string): Promise<{ html: string;
     }
 
     if (!response || !response.ok()) {
-      throw new CrawlError(`Browser fetch failed with status ${response?.status()}`, "blocked");
+      // Even a refused page is a rendered DOM by now — hand it up so the crawl
+      // can still mine metadata out of it instead of coming back empty.
+      const html = await page.content().catch(() => undefined);
+      throw new CrawlError(`Browser fetch failed with status ${response?.status()}`, "blocked", html);
     }
 
     const html = await page.content();
