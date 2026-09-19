@@ -69,7 +69,7 @@ export function Sidebar() {
   const [creating, setCreating] = useState(false);
   const [dismissedThemes, dismissTheme] = useDismissedThemes();
 
-  const isAllActive = pathname === "/" && !activeQuery;
+  const isAllActive = pathname === "/app" && !activeQuery;
 
   // A real collection holds links; a smart one is a saved query. They read as different
   // things in the sidebar, so they're listed apart.
@@ -120,7 +120,7 @@ export function Sidebar() {
 
       <nav data-tour="sidebar" className="mt-4 flex flex-col gap-0.5">
         <Link
-          href="/"
+          href="/app"
           className="flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body transition-colors"
           style={{ background: isAllActive ? "rgba(23,24,27,.06)" : "transparent" }}
         >
@@ -280,7 +280,7 @@ function FilterRow({
 }) {
   return (
     <Link
-      href={`/?q=${encodeURIComponent(query)}`}
+      href={`/app?q=${encodeURIComponent(query)}`}
       className="flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-body text-ink/65 hover:bg-ink/6 hover:text-ink"
       style={{ background: active ? "rgba(23,24,27,.06)" : "transparent" }}
     >
@@ -396,7 +396,7 @@ function CollectionRow({
     setError(null);
     try {
       await deleteCollection(collection.id);
-      if (pathname === `/collections/${collection.id}`) router.push("/");
+      if (pathname === `/collections/${collection.id}`) router.push("/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't delete this collection.");
     }

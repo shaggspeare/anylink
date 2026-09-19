@@ -52,7 +52,7 @@ export default function LandingPage() {
             <span className="text-wordmark">AnyLink</span>
           </span>
           <Link
-            href="/"
+            href="/app"
             className="flex h-9 items-center rounded-full bg-ink px-4 text-body font-semibold text-light-100"
           >
             Open library
@@ -79,7 +79,7 @@ export default function LandingPage() {
               Import my links
             </Link>
             <Link
-              href="/"
+              href="/app"
               className="glass-55 flex h-12 items-center rounded-full px-7 text-body font-semibold text-ink/70"
             >
               See the library
@@ -166,7 +166,7 @@ export default function LandingPage() {
 
         <footer className="flex items-center justify-between py-8 text-meta text-ink/45">
           <span>AnyLink</span>
-          <Link href="/">Open library</Link>
+          <Link href="/app">Open library</Link>
         </footer>
       </div>
     </div>

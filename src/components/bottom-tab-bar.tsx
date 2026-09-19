@@ -15,7 +15,7 @@ function TabIcon({ d }: { d: string }) {
 export function BottomTabBar() {
   const pathname = usePathname();
   const { openAddLink, openPalette } = useLibrary();
-  const isLibrary = pathname === "/";
+  const isLibrary = pathname === "/app";
 
   const itemClass = (active: boolean) =>
     `flex h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-3 ${
@@ -33,7 +33,7 @@ export function BottomTabBar() {
         boxShadow: "var(--shadow-popover)",
       }}
     >
-      <Link href="/" className={itemClass(isLibrary)} aria-label="Library">
+      <Link href="/app" className={itemClass(isLibrary)} aria-label="Library">
         <TabIcon d="M4 6h16M4 12h16M4 18h16" />
       </Link>
       <button type="button" onClick={openPalette} className={itemClass(false)} aria-label="Search">

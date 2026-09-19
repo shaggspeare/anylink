@@ -32,7 +32,7 @@ export default function LibraryPage() {
             {query ? (
               <button
                 type="button"
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/app")}
                 title="Clear filter"
                 className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] text-[#f4f5f6]"
               >

@@ -27,7 +27,7 @@ export default function TrashPage() {
                 if (!confirmingEmpty) return setConfirmingEmpty(true);
                 purgeLinks(trashed.map((l) => l.id));
                 setConfirmingEmpty(false);
-                router.push("/");
+                router.push("/app");
               }}
               onBlur={() => setConfirmingEmpty(false)}
               className="mb-1 ml-auto flex h-9 items-center rounded-full border border-white/90 bg-white/70 px-4 text-[12.5px] font-semibold text-ink"

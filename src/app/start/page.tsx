@@ -596,8 +596,7 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
         {/* A full page load, not a client navigation: the store was seeded once, so a
             soft navigation would keep showing pre-check link health. Reloading re-reads
             every link from Postgres, which is the cheapest way to end up consistent. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a href="/" className={PRIMARY}>
+        <a href="/app" className={PRIMARY}>
           Open my library
         </a>
       </Panel>

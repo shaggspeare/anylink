@@ -73,7 +73,7 @@ export function CommandPalette() {
 
   const openResult = (r: Result, openOriginal = false) => {
     if (r.kind === "query") {
-      router.push(`/?q=${encodeURIComponent(q)}`);
+      router.push(`/app?q=${encodeURIComponent(q)}`);
     } else if (r.kind === "link") {
       if (openOriginal) {
         const link = links.find((l) => l.id === r.id);

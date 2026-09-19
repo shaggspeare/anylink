@@ -46,7 +46,7 @@ export function TourRunner() {
     const article = links.find((l) => l.contentType !== "product");
     const product = links.find((l) => l.contentType === "product");
     const hrefs: Record<TourPage, string | null> = {
-      library: "/",
+      library: "/app",
       collection: collection ? `/collections/${collection.id}` : null,
       link: article ? `/links/${article.id}` : null,
       product: product ? `/links/${product.id}` : null,
