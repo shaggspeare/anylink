@@ -37,7 +37,7 @@ export function Card({
   drag?: CardDrag;
 }) {
   const router = useRouter();
-  const { setLinkSize, setFavorite } = useLibrary();
+  const { setLinkSize, setFavorite, deleteLinks } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
   const geo = CARD_GEOMETRY[link.size];
@@ -257,6 +257,21 @@ export function Card({
                 <path d="M7 17 17 7M9 7h8v8" />
               </svg>
             </a>
+            {/* Soft delete — the link lands in Trash, same as the bulk action. */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteLinks([link.id]);
+              }}
+              title="Move to trash"
+              aria-label={`Move ${link.title} to trash`}
+              className="ml-0.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-ink/8 group-hover:opacity-100"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.55)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+              </svg>
+            </button>
           </div>
           <div
             className="overflow-hidden font-semibold leading-[1.12] text-ink"
