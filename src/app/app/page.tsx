@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { CardMosaic } from "@/components/card-mosaic";
 import { AmbientOrbs } from "@/components/ambient-orbs";
+import { PasteHint } from "@/components/paste-hint";
 import { SortSelect } from "@/components/sort-select";
 import { searchLinks } from "@/lib/search";
 import { sortLinks, type Sort } from "@/lib/organize";
@@ -94,7 +95,10 @@ export default function LibraryPage() {
         ) : (
           /* ponytail: one position per link, so dragging inside a filtered view reshuffles
              the global order too. Per-view ordering would need a row per (view, link). */
-          <CardMosaic links={visible} onReorder={sort === "manual" ? reorderLinks : undefined} />
+          <>
+            <CardMosaic links={visible} onReorder={sort === "manual" ? reorderLinks : undefined} />
+            <PasteHint wide />
+          </>
         )}
         <div className="h-24 lg:hidden" />
       </div>

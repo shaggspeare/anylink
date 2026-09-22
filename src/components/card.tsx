@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/lib/store";
 import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, sizeFromDrag } from "@/lib/geometry";
@@ -39,6 +39,7 @@ export function Card({
   const router = useRouter();
   const { setLinkSize, setFavorite } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
+  const [resizing, setResizing] = useState(false);
   const geo = CARD_GEOMETRY[link.size];
   const cols = Math.min(geo.cols, columnCount);
   const rows = Math.round(geo.rowPx / GRID_ROW_UNIT);
@@ -58,24 +59,59 @@ export function Card({
     e.stopPropagation();
     const el = cardRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const handle = e.currentTarget as HTMLElement;
+    handle.setPointerCapture(e.pointerId);
+    // Native HTML5 drag steals the pointer stream from a draggable ancestor, so it's
+    // switched off for the duration of the resize.
+    setResizing(true);
+    let moved = false;
+
+    let rect = el.getBoundingClientRect();
+    let startX = e.clientX;
+    let startY = e.clientY;
     const unit = rect.width / cols;
     let lastSize = link.size;
+    el.style.transformOrigin = "top left";
+    el.style.transition = "none";
 
     const move = (ev: PointerEvent) => {
-      const w = rect.width + (ev.clientX - startX);
-      const h = rect.height + (ev.clientY - startY);
-      const next = sizeFromDrag(w, h, unit);
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      const next = sizeFromDrag(rect.width + dx, rect.height + dy, unit);
       if (next !== lastSize) {
         lastSize = next;
         setLinkSize(link.id, next);
+        // The card snaps to its new box under the cursor — rebase so the stretch
+        // below measures from there instead of double-counting the same drag.
+        requestAnimationFrame(() => {
+          rect = el.getBoundingClientRect();
+          startX = ev.clientX;
+          startY = ev.clientY;
+          el.style.transform = "";
+        });
+        return;
       }
+      // Rubber band: the card stretches a little toward the cursor between snaps.
+      const band = (d: number, size: number) => 1 + Math.max(-0.05, Math.min(0.05, d / size / 3));
+      el.style.transform = `scale(${band(dx, rect.width)}, ${band(dy, rect.height)})`;
     };
     const up = () => {
+      if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      el.style.transition = "transform .4s cubic-bezier(.2,1.5,.4,1)";
+      el.style.transform = "";
+      setResizing(false);
+      // A corner drag still ends in a click — on this card, or on whichever card the
+      // pointer landed over. Swallowing it globally is what keeps the resize from
+      // opening a link instead. Without this the drag reads as "nothing happened".
+      if (moved) {
+        window.addEventListener("click", (ev) => { ev.stopPropagation(); ev.preventDefault(); }, {
+          capture: true,
+          once: true,
+        });
+      }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -89,9 +125,7 @@ export function Card({
         gridRow: `span ${rows}`,
         opacity: drag?.dragging ? 0.35 : 1,
       }}
-      // Native HTML5 drag — the resize handle calls preventDefault on pointerdown, so
-      // grabbing the corner still resizes instead of starting a drag.
-      draggable={Boolean(drag)}
+      draggable={Boolean(drag) && !resizing}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", link.url);
@@ -210,18 +244,19 @@ export function Card({
             >
               ★
             </button>
-            <svg
-              className="ml-1.5 opacity-0 transition-opacity group-hover:opacity-100"
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="rgba(23,24,27,.35)"
-              strokeWidth="2.6"
-              strokeLinecap="round"
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(e) => e.stopPropagation()}
+              title={`Open ${link.domain}`}
+              aria-label={`Open ${link.domain} in a new tab`}
+              className="ml-1.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-ink/8 group-hover:opacity-100"
             >
-              <path d="M7 17 17 7M9 7h8v8" />
-            </svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.55)" strokeWidth="2.6" strokeLinecap="round">
+                <path d="M7 17 17 7M9 7h8v8" />
+              </svg>
+            </a>
           </div>
           <div
             className="overflow-hidden font-semibold leading-[1.12] text-ink"
@@ -271,7 +306,7 @@ export function Card({
         <div
           onPointerDown={handlePointerDown}
           title="Drag to resize"
-          className="absolute bottom-0 right-0 h-[30px] w-[30px] cursor-nwse-resize opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute bottom-0 right-0 h-[30px] w-[30px] touch-none cursor-nwse-resize opacity-0 transition-opacity group-hover:opacity-100"
           style={{
             backgroundImage:
               "repeating-linear-gradient(135deg, rgba(23,24,27,.3) 0 1.5px, transparent 1.5px 5px)",

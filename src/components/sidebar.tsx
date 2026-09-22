@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { CollectionMarker } from "./collection-marker";
 import { TourButton } from "./tour";
+import { PasteHint } from "./paste-hint";
 import { ALL_COLLECTION_ID } from "@/lib/mock-data";
 import { searchLinks } from "@/lib/search";
 import { suggestThemes } from "@/lib/organize";
@@ -225,8 +226,26 @@ export function Sidebar() {
         )}
 
         {tags.length > 0 && (
-          <div data-tour="tags">
-            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Tags</div>
+          /* Collapsed by default — the tag list is the longest section and it pushes
+             everything below it out of view. */
+          <details data-tour="tags" className="group">
+            <summary className="mt-4 flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-eyebrow text-ink/40 marker:content-[''] hover:text-ink/60">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="flex-none transition-transform group-open:rotate-90"
+              >
+                <path d="m9 5 7 7-7 7" />
+              </svg>
+              Tags
+              <span className="ml-auto normal-case tracking-normal">{tags.length}</span>
+            </summary>
             {tags.map(([tag, count]) => (
               <FilterRow
                 key={tag}
@@ -236,7 +255,7 @@ export function Sidebar() {
                 active={activeQuery === `#${tag}`}
               />
             ))}
-          </div>
+          </details>
         )}
 
         {trashed.length > 0 && (
@@ -257,12 +276,7 @@ export function Sidebar() {
         <TourButton />
       </div>
 
-      <div className="mt-2 flex items-center gap-2 rounded-[14px] bg-ink/6 px-3 py-2.5 text-meta text-ink/50">
-        <kbd className="rounded-[7px] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-ink/70 shadow-sm">
-          ⌘V
-        </kbd>
-        paste anywhere to add a link
-      </div>
+      <PasteHint />
     </aside>
   );
 }

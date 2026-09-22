@@ -112,6 +112,8 @@ export function TourRunner() {
         popoverClass: "anylink-tour",
         steps: slice.map(({ step }, i) => ({
           element: step.element,
+          // Collapsed sections (the sidebar's tags) have to be open to be explained.
+          onHighlightStarted: (el?: Element) => el?.closest("details")?.setAttribute("open", ""),
           popover: {
             title: step.title,
             description: step.description,
