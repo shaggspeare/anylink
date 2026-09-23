@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -87,14 +86,13 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <Image
-            src="/images/logo.png"
-            alt=""
-            width={1254}
-            height={1254}
-            priority
-            sizes="(min-width: 768px) 480px, 280px"
-            className="mx-auto w-[280px] md:w-full md:max-w-[480px]"
+          <video
+            src="/videos/chain_transparent.webm"
+            autoPlay
+            muted
+            playsInline
+            aria-hidden
+            className="mx-auto w-[525px] max-w-none md:w-full md:max-w-[480px] md:scale-[1.875]"
           />
         </section>
 
