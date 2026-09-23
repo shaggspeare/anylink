@@ -92,7 +92,7 @@ export default function LandingPage() {
             muted
             playsInline
             aria-hidden
-            className="mx-auto w-[525px] max-w-none md:w-full md:max-w-[480px] md:scale-[1.875]"
+            className="mx-auto w-[525px] max-w-none -rotate-10 md:w-full md:max-w-[480px] md:scale-[1.875]"
           />
         </section>
 
