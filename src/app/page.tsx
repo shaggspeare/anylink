@@ -45,7 +45,7 @@ export default function LandingPage() {
       <AmbientOrbs variant="library" />
 
       <div className="relative mx-auto w-full max-w-[1100px] px-4 sm:px-6">
-        <header className="flex items-center justify-between py-6">
+        <header className="relative z-[110] flex items-center justify-between py-6">
           <span className="text-wordmark">AnyLink</span>
           <div className="flex items-center gap-1.5">
           <ThemeToggle />
@@ -59,7 +59,7 @@ export default function LandingPage() {
         </header>
 
         {/* Hero */}
-        <section className="grid items-center gap-6 pt-10 pb-16 md:grid-cols-[1.1fr_1fr] md:pt-16">
+        <section className="grid items-center gap-6 pt-10 pb-16 md:grid-cols-[1.1fr_minmax(0,1fr)] md:pt-16">
           <div className="flex flex-col items-center gap-6 text-center md:items-start md:text-left">
             <span className="rounded-full bg-surface/70 px-4 py-2 text-eyebrow text-ink/50">
               Your saved links, finally readable
@@ -88,11 +88,12 @@ export default function LandingPage() {
           </div>
           <video
             src="/videos/chain_transparent.webm"
+            poster="/videos/chain_last.webp"
             autoPlay
             muted
             playsInline
             aria-hidden
-            className="mx-auto w-[525px] max-w-none -rotate-10 md:w-full md:max-w-[480px] md:scale-[1.875]"
+            className="pointer-events-none relative z-[100] w-[525px] max-w-none -rotate-10 justify-self-center md:w-[min(900px,75vw)]"
           />
         </section>
 
