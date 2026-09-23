@@ -18,7 +18,7 @@ export default function TrashPage() {
       <Sidebar />
       <div className="relative lg:pl-[250px]">
         <header className="flex items-end gap-3.5 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
-          <h1 className="text-hero text-[30px] sm:text-title lg:text-[30px]">Trash</h1>
+          <h1 className="text-hero text-[30px]">Trash</h1>
           <span className="pb-1.5 text-meta text-ink/50">{trashed.length} links</span>
           {trashed.length > 0 && (
             <button
@@ -76,7 +76,7 @@ export default function TrashPage() {
             </div>
           ))}
         </div>
-        <div className="h-24 lg:hidden" />
+        <div className="h-[calc(6rem+env(safe-area-inset-bottom))] lg:hidden" />
       </div>
       <BottomTabBar />
     </div>

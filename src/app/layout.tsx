@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { LibraryProvider } from "@/lib/store";
@@ -17,6 +17,15 @@ const instrumentSans = Instrument_Sans({
 export const metadata: Metadata = {
   title: "AnyLink",
   description: "Paste anything. We read the rest.",
+};
+
+// viewport-fit=cover lets the canvas run under the notch and home indicator; fixed
+// chrome pads itself with env(safe-area-inset-*).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#eceef0",
 };
 
 // Every route reads the live library from Postgres via the root layout —

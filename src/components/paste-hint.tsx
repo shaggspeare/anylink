@@ -5,8 +5,8 @@ export function PasteHint({ wide = false }: { wide?: boolean }) {
     <div
       className={
         wide
-          ? "mx-4 mb-10 flex items-center justify-center gap-2.5 rounded-card border border-dashed border-ink/20 px-4 py-6 text-body text-ink/50 sm:mx-5 lg:mx-6.5"
-          : "mt-2 flex items-center gap-2 rounded-[14px] bg-ink/6 px-3 py-2.5 text-meta text-ink/50"
+          ? "mx-4 mb-10 hidden items-center justify-center gap-2.5 rounded-card border border-dashed border-ink/20 px-4 py-6 text-body text-ink/50 sm:mx-5 lg:mx-6.5 pointer-fine:flex"
+          : "mt-2 hidden items-center gap-2 rounded-[14px] bg-ink/6 px-3 py-2.5 text-meta text-ink/50 pointer-fine:flex"
       }
     >
       <kbd

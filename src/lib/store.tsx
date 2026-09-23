@@ -23,6 +23,7 @@ type LibraryContextValue = {
   setLinkSize: (id: string, size: CardSize) => void;
   /** `ids` in their new manual order — the drag-and-drop mosaic's only write. */
   reorderLinks: (ids: string[]) => void;
+  reorderCollections: (ids: string[]) => void;
   moveLinks: (ids: string[], collectionId: string) => void;
   tagLinks: (ids: string[], tag: string) => void;
   archiveLinks: (ids: string[]) => void;
@@ -53,6 +54,10 @@ type LibraryContextValue = {
   paletteOpen: boolean;
   openPalette: () => void;
   closePalette: () => void;
+
+  /** The sidebar as a slide-in drawer below lg; on desktop it's always shown. */
+  menuOpen: boolean;
+  setMenuOpen: (open: boolean) => void;
 };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
@@ -80,6 +85,7 @@ export function LibraryProvider({
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [addLinkPrefillUrl, setAddLinkPrefillUrl] = useState<string | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const value = useMemo<LibraryContextValue>(
     () => ({
@@ -165,6 +171,15 @@ export function LibraryProvider({
         setCollections((prev) => [...prev, collection]);
         return collection;
       },
+      // `ids` is one sidebar group (folders or filters); the rest keep their slots.
+      reorderCollections: (ids) => {
+        setCollections((prev) => {
+          const byId = new Map(prev.map((c) => [c.id, c]));
+          const queue = [...ids];
+          return prev.map((c) => (ids.includes(c.id) ? byId.get(queue.shift()!)! : c));
+        });
+        actions.reorderCollections(ids).catch(console.error);
+      },
       renameCollection: (id, name) => {
         setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
         actions.renameCollection(id, name).catch(console.error);
@@ -243,8 +258,10 @@ export function LibraryProvider({
       paletteOpen,
       openPalette: () => setPaletteOpen(true),
       closePalette: () => setPaletteOpen(false),
+      menuOpen,
+      setMenuOpen,
     }),
-    [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen]
+    [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen, menuOpen]
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

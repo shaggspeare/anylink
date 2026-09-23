@@ -1,50 +1,54 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/lib/store";
-import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, sizeFromDrag } from "@/lib/geometry";
+import { swallowClick, type useDragReorder } from "@/lib/use-drag-reorder";
+import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, TILE_PX, sizeFromDrag } from "@/lib/geometry";
 import type { CardSize, LinkItem } from "@/lib/types";
 
 const SIZES: CardSize[] = ["S", "M", "L"];
-
-/** Present only while the mosaic is in manual order — that's what turns a card draggable. */
-export type CardDrag = {
-  dragging: boolean;
-  over: boolean;
-  onStart: () => void;
-  onOver: () => void;
-  onDrop: () => void;
-  onEnd: () => void;
-};
+const ENTRANCE_SCALES = [0.72, 1.14, 0.86, 1.22, 0.64, 1.06];
+const MENU_ITEM =
+  "flex h-8 items-center gap-2 rounded-[10px] px-2.5 text-[12.5px] font-medium text-[#f4f5f6] active:bg-white/15";
 
 export function Card({
+  index = 0,
   link,
   columnCount,
+  tile = false,
   selectable = false,
   selectionActive = false,
   selected = false,
   onSelectClick,
-  drag,
+  dragging = false,
+  dragProps,
 }: {
+  /** Position in the mosaic — staggers the entrance animation. */
+  index?: number;
   link: LinkItem;
   columnCount: number;
+  /** Phone layout: a small uniform tile. Touch has no hover, so its actions sit behind ⋯. */
+  tile?: boolean;
   selectable?: boolean;
   selectionActive?: boolean;
   selected?: boolean;
   onSelectClick?: (e: React.MouseEvent) => void;
-  drag?: CardDrag;
+  dragging?: boolean;
+  /** From useDragReorder's `item(id)` — the FLIP ref plus, when reorderable, the drag handlers. */
+  dragProps?: ReturnType<ReturnType<typeof useDragReorder>["item"]>;
 }) {
   const router = useRouter();
   const { setLinkSize, setFavorite, deleteLinks } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const geo = CARD_GEOMETRY[link.size];
-  const cols = Math.min(geo.cols, columnCount);
-  const rows = Math.round(geo.rowPx / GRID_ROW_UNIT);
-  const hero = link.size !== "S";
-  const compact = link.size === "S";
+  const cols = tile ? 1 : Math.min(geo.cols, columnCount);
+  const rows = Math.round((tile ? TILE_PX : geo.rowPx) / GRID_ROW_UNIT);
+  const hero = tile || link.size !== "S";
+  const compact = !tile && link.size === "S";
 
   const handleOpen = (e: React.MouseEvent) => {
     if (selectable && selectionActive) {
@@ -103,45 +107,47 @@ export function Card({
       el.style.transition = "transform .4s cubic-bezier(.2,1.5,.4,1)";
       el.style.transform = "";
       setResizing(false);
-      // A corner drag still ends in a click — on this card, or on whichever card the
-      // pointer landed over. Swallowing it globally is what keeps the resize from
-      // opening a link instead. Without this the drag reads as "nothing happened".
-      if (moved) {
-        window.addEventListener("click", (ev) => { ev.stopPropagation(); ev.preventDefault(); }, {
-          capture: true,
-          once: true,
-        });
-      }
+      // Without this the drag's trailing click opens a link, and the resize reads as
+      // "nothing happened".
+      if (moved) swallowClick();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
 
+  // Close on a tap anywhere else — and don't let that tap open whatever it landed on.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const outside = (e: PointerEvent) => {
+      if (cardRef.current?.contains(e.target as Node)) return;
+      setMenuOpen(false);
+      swallowClick();
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("pointerdown", outside, true);
+    window.addEventListener("keydown", esc);
+    return () => {
+      window.removeEventListener("pointerdown", outside, true);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [menuOpen]);
+
   return (
     <div
+      {...dragProps}
       style={{
         position: "relative",
         gridColumn: `span ${cols}`,
         gridRow: `span ${rows}`,
-        opacity: drag?.dragging ? 0.35 : 1,
+        opacity: dragging ? 0.35 : 1,
+        transition: "opacity .15s",
+        // iOS-style entrance: tiles settle in from mixed sizes, staggered, capped so a
+        // big library doesn't keep the last cards waiting.
+        ["--card-from" as string]: ENTRANCE_SCALES[index % ENTRANCE_SCALES.length],
+        animationDelay: `${Math.min(index * 35, 600)}ms`,
       }}
-      draggable={Boolean(drag) && !resizing}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", link.url);
-        drag?.onStart();
-      }}
-      onDragOver={(e) => {
-        if (!drag) return;
-        e.preventDefault();
-        drag.onOver();
-      }}
-      onDrop={(e) => {
-        if (!drag) return;
-        e.preventDefault();
-        drag.onDrop();
-      }}
-      onDragEnd={() => drag?.onEnd()}
+      className="card-enter"
+      draggable={Boolean(dragProps && "draggable" in dragProps) && !resizing}
     >
       <div
         ref={cardRef}
@@ -149,19 +155,72 @@ export function Card({
         onClick={handleOpen}
         role="button"
         tabIndex={0}
-        className="group absolute inset-1.5 flex cursor-pointer flex-col overflow-hidden rounded-[22px] transition-[box-shadow,transform] hover:-translate-y-0.5 sm:inset-[7px]"
+        className={`group absolute flex cursor-pointer flex-col overflow-hidden transition-[box-shadow,transform] ${
+          tile ? "inset-1 select-none rounded-[16px] [-webkit-touch-callout:none]" : "inset-1.5 rounded-[22px] hover:-translate-y-0.5 sm:inset-[7px]"
+        }`}
         style={{
           background: "rgba(255,255,255,.62)",
-          border: drag?.over
-            ? "2px dashed rgba(23,24,27,.55)"
-            : selected
-              ? "2px solid var(--ink)"
-              : "1px solid rgba(255,255,255,.75)",
+          border: selected ? "2px solid var(--ink)" : "1px solid rgba(255,255,255,.75)",
           backdropFilter: "blur(22px) saturate(1.35)",
           WebkitBackdropFilter: "blur(22px) saturate(1.35)",
           boxShadow: "var(--shadow-card)",
         }}
       >
+        {tile && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((open) => !open);
+            }}
+            aria-label={menuOpen ? "Close actions" : `Actions for ${link.title}`}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className={`absolute right-1.5 top-1.5 z-30 flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-bold leading-none ${
+              menuOpen ? "bg-white/15 text-[#f4f5f6]" : "bg-white/85 text-ink shadow-sm"
+            }`}
+            style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+          >
+            {menuOpen ? "✕" : "⋯"}
+          </button>
+        )}
+        {menuOpen && (
+          <div
+            role="menu"
+            aria-label={`Actions for ${link.title}`}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-0 z-20 flex flex-col justify-center gap-0.5 p-1.5"
+            style={{
+              background: "rgba(23,24,27,.84)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              animation: "card-menu-in .18s cubic-bezier(.2,.9,.3,1.2)",
+            }}
+          >
+            <a role="menuitem" href={link.url} target="_blank" rel="noreferrer noopener" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
+              <span className="w-4 text-center">↗</span> Open original
+            </a>
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setFavorite(link.id, !link.favorite);
+                setMenuOpen(false);
+              }}
+              className={MENU_ITEM}
+            >
+              <span className="w-4 text-center text-signal">★</span> {link.favorite ? "Unfavorite" : "Favorite"}
+            </button>
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => deleteLinks([link.id])}
+              className={`${MENU_ITEM} text-[#ff9a8f]`}
+            >
+              <span className="w-4 text-center">✕</span> Move to trash
+            </button>
+          </div>
+        )}
         {selectable && (
           <button
             type="button"
@@ -180,14 +239,18 @@ export function Card({
         )}
 
         {hero && (
-          <div className="relative m-2 mb-0 min-h-0 flex-1 overflow-hidden rounded-[18px] bg-[#dfe2e5]">
+          <div
+            className={`relative overflow-hidden bg-[#dfe2e5] ${
+              tile ? "m-1.5 mb-0 h-[54px] flex-none rounded-[11px]" : "m-2 mb-0 min-h-0 flex-1 rounded-[18px]"
+            }`}
+          >
             {link.heroImage ? (
               <>
                 <Image
                   src={link.heroImage}
                   alt=""
                   fill
-                  sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+                  sizes="(min-width: 1280px) 25vw, 50vw"
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/28 to-transparent to-55%" />
@@ -206,7 +269,7 @@ export function Card({
                 />
               </div>
             )}
-            {link.tags.length > 0 && (
+            {!tile && link.tags.length > 0 && (
               <div className="absolute left-2.5 top-2.5 flex gap-1.5">
                 {link.tags.slice(0, 1).map((t) => (
                   <span
@@ -221,15 +284,21 @@ export function Card({
           </div>
         )}
 
-        <div className="flex flex-none flex-col gap-2 px-4 py-3.5">
-          <div className="flex items-center gap-2">
+        <div className={`flex min-w-0 flex-none flex-col ${tile ? "gap-1 px-2.5 py-2" : "gap-2 px-4 py-3.5"}`}>
+          <div className={`flex min-w-0 items-center ${tile ? "gap-1.5" : "gap-2"}`}>
             <span
-              className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[6px] text-[9px] font-bold"
+              className={`flex flex-none items-center justify-center font-bold ${
+                tile ? "h-[14px] w-[14px] rounded-[4px] text-[8px]" : "h-[18px] w-[18px] rounded-[6px] text-[9px]"
+              }`}
               style={{ color: link.stripe, background: link.tint }}
             >
               {link.initial}
             </span>
-            <span className="text-[11.5px] text-ink/50">{link.domain}</span>
+            <span className={`truncate text-ink/50 ${tile ? "text-[10.5px]" : "text-[11.5px]"}`}>{link.domain}</span>
+            {tile ? (
+              link.favorite && <span className="ml-auto text-[11px] leading-none text-signal">★</span>
+            ) : (
+            <>
             <button
               type="button"
               data-tour="card-favorite"
@@ -272,12 +341,14 @@ export function Card({
                 <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
               </svg>
             </button>
+            </>
+            )}
           </div>
           <div
             className="overflow-hidden font-semibold leading-[1.12] text-ink"
             style={{
-              fontSize: CARD_TITLE_SIZE[link.size],
-              letterSpacing: "-.038em",
+              fontSize: tile ? 13 : CARD_TITLE_SIZE[link.size],
+              letterSpacing: tile ? "-.02em" : "-.038em",
               display: "-webkit-box",
               WebkitLineClamp: link.size === "L" ? 3 : 2,
               WebkitBoxOrient: "vertical",
@@ -296,9 +367,14 @@ export function Card({
           )}
         </div>
 
+        {!tile && (
         <div
           data-tour="card-size"
-          className="absolute right-4 top-4 flex gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity group-hover:opacity-100"
+          // S cards have no hero, so top-right is the ★/↗/trash row — the pill drops to
+          // the bottom there, beside the resize grip, instead of covering them.
+          className={`absolute flex gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity group-hover:opacity-100 ${
+            compact ? "bottom-2.5 right-8" : "right-4 top-4"
+          }`}
           style={{ background: "rgba(255,255,255,.72)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -317,7 +393,9 @@ export function Card({
             </button>
           ))}
         </div>
+        )}
 
+        {!tile && (
         <div
           onPointerDown={handlePointerDown}
           title="Drag to resize"
@@ -330,6 +408,7 @@ export function Card({
             backgroundRepeat: "no-repeat",
           }}
         />
+        )}
       </div>
     </div>
   );

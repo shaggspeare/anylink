@@ -77,16 +77,14 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
         <header className="flex flex-col gap-3 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
           <div data-tour="collection-header" className="flex items-center gap-3">
             <CollectionMarker color={collection.color} size={14} />
-            <h1 className="text-title text-[26px]">{collection.name}</h1>
-            <span className="text-meta text-ink/50">{scoped.length} links</span>
+            <h1 className="text-title min-w-0 truncate text-[26px]">{collection.name}</h1>
+            <span className="flex-none whitespace-nowrap text-meta text-ink/50">{scoped.length} links</span>
             {collection.isSmart && (
               <span className="rounded-full bg-ink/6 px-2.5 py-1 font-mono text-[11px] text-ink/55">
                 {collection.smartQuery}
               </span>
             )}
-            {sort === "manual" && (
-              <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
-            )}
+            <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
           </div>
           {/* Only collections AnyLink built have one — it's the "grouped because…" line
               from the import, kept where the collection lives rather than shown once. */}
@@ -95,7 +93,8 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
               {collection.reasoning}
             </p>
           )}
-          <div data-tour="collection-filters" className="flex flex-wrap items-center gap-2">
+          <div data-tour="collection-filters" className="-mr-4 flex items-center gap-2 sm:mr-0">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&>*]:flex-none sm:flex-wrap sm:overflow-visible">
             <Chip active={tagFilter === null} onClick={() => setTagFilter(null)}>
               All
             </Chip>
@@ -104,7 +103,8 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
                 {t}
               </Chip>
             ))}
-            <span className="ml-auto">
+          </div>
+            <span className="mr-4 flex-none sm:mr-0">
               <SortSelect value={sort} onChange={setSort} />
             </span>
           </div>
@@ -115,9 +115,12 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
           selectable
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
-          onReorder={sort === "manual" ? reorderLinks : undefined}
+          onReorder={(ids) => {
+            reorderLinks(ids);
+            setSort("manual");
+          }}
         />
-        <div className="h-24 lg:hidden" />
+        <div className="h-[calc(6rem+env(safe-area-inset-bottom))] lg:hidden" />
       </div>
 
       <BulkActionBar

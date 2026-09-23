@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 
 /** Public landing page. Static on purpose — no library data, nothing to log in for. */
@@ -46,9 +47,7 @@ export default function LandingPage() {
       <div className="relative mx-auto w-full max-w-[1100px] px-4 sm:px-6">
         <header className="flex items-center justify-between py-6">
           <span className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-kbd)] bg-ink text-[11px] font-bold text-light-100">
-              A
-            </span>
+            <Logo className="h-12 w-12 sm:h-11 sm:w-11" />
             <span className="text-wordmark">AnyLink</span>
           </span>
           <Link

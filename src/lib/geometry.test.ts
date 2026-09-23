@@ -1,7 +1,7 @@
 // Run: node --test src/lib/geometry.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { columnsForWidth, sizeFromDrag } from "./geometry.ts";
+import { columnsForWidth, sizeFromDrag, swipeDirection } from "./geometry.ts";
 
 test("sizeFromDrag snaps a corner drag to the three card sizes", () => {
   const unit = 280;
@@ -17,4 +17,11 @@ test("columnsForWidth follows the mosaic breakpoints", () => {
   assert.equal(columnsForWidth(1000), 3);
   assert.equal(columnsForWidth(700), 2);
   assert.equal(columnsForWidth(400), 1);
+});
+
+test("swipeDirection only counts long, clearly sideways swipes", () => {
+  assert.equal(swipeDirection(120, 10), "right");
+  assert.equal(swipeDirection(-120, 20), "left");
+  assert.equal(swipeDirection(40, 0), null); // too short
+  assert.equal(swipeDirection(100, 80), null); // a diagonal scroll
 });

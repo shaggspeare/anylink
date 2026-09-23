@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Logo } from "@/components/logo";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { CollectionMarker } from "@/components/collection-marker";
 import { mergeImports, parseImportFile, type ImportedLink } from "@/lib/import/parse";
@@ -48,9 +49,7 @@ function Header({ step }: { step: Step }) {
   return (
     <div className="flex flex-col gap-5">
       <span className="flex items-center gap-2 self-start text-eyebrow text-ink/50">
-        <span className="flex h-5 w-5 items-center justify-center rounded-[7px] bg-ink text-[10px] font-bold text-light-100">
-          A
-        </span>
+        <Logo className="h-11 w-11 sm:h-9 sm:w-9" />
         AnyLink
       </span>
       <div className="flex items-center gap-2">

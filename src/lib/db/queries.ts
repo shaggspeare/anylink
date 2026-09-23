@@ -44,7 +44,11 @@ export async function getLibraryData(): Promise<{
     .from(schema.collections)
     .where(eq(schema.collections.userId, CURRENT_USER_ID))
     // Inbox first — it's where unfiled links land, so it's the one opened most.
-    .orderBy(desc(schema.collections.isInbox), asc(schema.collections.createdAt));
+    .orderBy(
+      desc(schema.collections.isInbox),
+      asc(schema.collections.position),
+      asc(schema.collections.createdAt)
+    );
 
   const linkRows = await db
     .select()

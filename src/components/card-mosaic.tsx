@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useColumnCount } from "@/lib/geometry";
-import { moveBefore } from "@/lib/organize";
+import { useDragReorder } from "@/lib/use-drag-reorder";
 import { Card } from "./card";
 import type { LinkItem } from "@/lib/types";
 
@@ -17,12 +16,18 @@ export function CardMosaic({
   selectable?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string, e: React.MouseEvent) => void;
-  /** Passed only in manual order: receives the visible ids in their new order. */
+  /** Receives the visible ids in their new order after a drag. */
   onReorder?: (ids: string[]) => void;
 }) {
   const columnCount = useColumnCount();
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  // Phones get a two-up grid of small uniform tiles instead of one full-width card per row.
+  const tile = columnCount === 1;
+  const { order, dragId, item, zone } = useDragReorder(
+    links.map((l) => l.id),
+    onReorder,
+    { touch: tile }
+  );
+  const byId = new Map(links.map((l) => [l.id, l]));
 
   if (links.length === 0) {
     return (
@@ -41,46 +46,37 @@ export function CardMosaic({
     );
   }
 
-  const drop = () => {
-    if (dragId && overId) onReorder?.(moveBefore(links.map((l) => l.id), dragId, overId));
-    setDragId(null);
-    setOverId(null);
-  };
-
   return (
     <div
       data-tour="mosaic"
-      className="grid px-4 pb-6 sm:px-5"
+      {...zone}
+      className="grid px-2.5 pb-6 sm:px-5"
       style={{
-        gridTemplateColumns: `repeat(${columnCount}, 1fr)`,
+        gridTemplateColumns: `repeat(${tile ? 2 : columnCount}, minmax(0, 1fr))`,
         gridAutoRows: "4px",
         gridAutoFlow: "row dense",
       }}
     >
-      {links.map((link) => (
-        <Card
-          key={link.id}
-          link={link}
-          columnCount={columnCount}
-          selectable={selectable}
-          selectionActive={Boolean(selectedIds && selectedIds.size > 0)}
-          selected={selectedIds?.has(link.id)}
-          onSelectClick={(e) => onToggleSelect?.(link.id, e)}
-          drag={
-            onReorder && {
-              dragging: dragId === link.id,
-              over: Boolean(dragId) && overId === link.id && dragId !== link.id,
-              onStart: () => setDragId(link.id),
-              onOver: () => setOverId(link.id),
-              onDrop: drop,
-              onEnd: () => {
-                setDragId(null);
-                setOverId(null);
-              },
-            }
-          }
-        />
-      ))}
+      {order.flatMap((id, index) => {
+        // A link can vanish mid-drag (deleted in another tab), so skip what's gone.
+        const link = byId.get(id);
+        if (!link) return [];
+        return (
+          <Card
+            key={id}
+            index={index}
+            link={link}
+            columnCount={columnCount}
+            tile={tile}
+            selectable={selectable}
+            selectionActive={Boolean(selectedIds && selectedIds.size > 0)}
+            selected={selectedIds?.has(id)}
+            onSelectClick={(e) => onToggleSelect?.(id, e)}
+            dragging={dragId === id && !tile}
+            dragProps={item(id)}
+          />
+        );
+      })}
     </div>
   );
 }

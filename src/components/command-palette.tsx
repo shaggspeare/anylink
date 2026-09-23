@@ -115,12 +115,12 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-start justify-center pt-[12vh]"
+      className="fixed inset-0 z-50 grid place-items-start justify-center px-3 pt-[max(12px,env(safe-area-inset-top))] sm:px-0 sm:pt-[12vh]"
       style={{ background: "rgba(13,14,16,.42)", backdropFilter: "blur(6px)" }}
       onClick={closePalette}
     >
       <div
-        className="w-full max-w-[720px] overflow-hidden rounded-[26px]"
+        className="w-full max-w-[720px] overflow-hidden rounded-[26px] max-sm:bg-canvas"
         style={{ boxShadow: "var(--shadow-window)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -198,7 +198,7 @@ export function CommandPalette() {
             )}
           </div>
 
-          <div className="flex items-center gap-4 border-t border-white/60 px-5 py-3 text-meta text-ink/45">
+          <div className="hidden items-center gap-4 border-t border-white/60 px-5 py-3 text-meta text-ink/45 pointer-fine:flex">
             <span className="flex items-center gap-1.5">
               <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate
             </span>

@@ -49,6 +49,9 @@ export const collections = pgTable(
     reasoning: text("reasoning"),
     // 'user' | 'system'. Text rather than an enum so a third author doesn't need a migration.
     createdBy: text("created_by").notNull().default("user"),
+    // Sidebar drag order. Null until the list is first rearranged, and nulls sort last,
+    // so a new collection lands at the bottom — where it appears the moment it's made.
+    position: integer("position"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

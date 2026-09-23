@@ -27,9 +27,9 @@ export default function LibraryPage() {
       <Sidebar />
       <div className="relative lg:pl-[250px]">
         <header className="flex items-end gap-3.5 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
-          <h1 className="text-hero text-[30px] sm:text-title lg:text-[30px]">All links</h1>
-          <div className="flex items-center gap-2 pb-1.5">
-            <span className="text-meta text-ink/50">{visible.length} links</span>
+          <h1 className="text-hero whitespace-nowrap text-[30px]">All links</h1>
+          <div className="flex min-w-0 items-center gap-2 pb-1.5">
+            <span className="whitespace-nowrap text-meta text-ink/50">{visible.length} links</span>
             {query ? (
               <button
                 type="button"
@@ -42,9 +42,9 @@ export default function LibraryPage() {
               </button>
             ) : (
               <>
-                <span className="h-1 w-1 rounded-full bg-ink/25" />
+                <span className="hidden h-1 w-1 rounded-full bg-ink/25 sm:inline" />
                 <span className="hidden text-meta text-ink/50 sm:inline">
-                  {sort === "manual" ? "drag cards to arrange them" : "drag a card corner to resize"}
+                  drag cards to arrange, corners to resize
                 </span>
               </>
             )}
@@ -68,7 +68,7 @@ export default function LibraryPage() {
               type="button"
               data-tour="add"
               onClick={() => openAddLink()}
-              className="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 text-body font-semibold text-[#f4f5f6]"
+              className="hidden h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 sm:flex text-body font-semibold text-[#f4f5f6]"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
@@ -96,11 +96,19 @@ export default function LibraryPage() {
           /* ponytail: one position per link, so dragging inside a filtered view reshuffles
              the global order too. Per-view ordering would need a row per (view, link). */
           <>
-            <CardMosaic links={visible} onReorder={sort === "manual" ? reorderLinks : undefined} />
+            <CardMosaic
+              links={visible}
+              // Dragging works in any sort; the drop saves what you see and flips to
+              // "My order" so the arrangement doesn't snap straight back.
+              onReorder={(ids) => {
+                reorderLinks(ids);
+                setSort("manual");
+              }}
+            />
             <PasteHint wide />
           </>
         )}
-        <div className="h-24 lg:hidden" />
+        <div className="h-[calc(6rem+env(safe-area-inset-bottom))] lg:hidden" />
       </div>
       <BottomTabBar />
     </div>

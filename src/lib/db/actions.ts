@@ -153,6 +153,16 @@ export async function reorderLinks(ids: string[]) {
   `);
 }
 
+export async function reorderCollections(ids: string[]) {
+  if (ids.length === 0) return;
+  const rows = ids.map((id, i) => sql`(${id}::uuid, ${i}::int)`);
+  await db.execute(sql`
+    update ${schema.collections} set position = v.position
+    from (values ${sql.join(rows, sql`, `)}) as v(id, position)
+    where ${schema.collections.id} = v.id and ${schema.collections.userId} = ${CURRENT_USER_ID}::uuid
+  `);
+}
+
 export async function archiveLinks(ids: string[]) {
   if (ids.length === 0) return;
   await db

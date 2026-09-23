@@ -2,8 +2,10 @@
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { Logo } from "./logo";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
+import { useDragReorder } from "@/lib/use-drag-reorder";
 import { CollectionMarker } from "./collection-marker";
 import { TourButton } from "./tour";
 import { PasteHint } from "./paste-hint";
@@ -64,6 +66,9 @@ export function Sidebar() {
     addCollection,
     saveSmartCollection,
     deleteEmptyCollections,
+    reorderCollections,
+    menuOpen,
+    setMenuOpen,
   } = useLibrary();
   const pathname = usePathname();
   const activeQuery = useSearchParams().get("q") ?? "";
@@ -74,8 +79,13 @@ export function Sidebar() {
 
   // A real collection holds links; a smart one is a saved query. They read as different
   // things in the sidebar, so they're listed apart.
-  const folders = collections.filter((c) => !c.isSmart);
+  // The inbox stays pinned on top; everything else in each group can be dragged.
+  const inbox = collections.find((c) => c.isInbox && !c.isSmart);
+  const folders = collections.filter((c) => !c.isSmart && !c.isInbox);
   const customFilters = collections.filter((c) => c.isSmart);
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const folderDrag = useDragReorder(folders.map((c) => c.id), reorderCollections);
+  const filterDrag = useDragReorder(customFilters.map((c) => c.id), reorderCollections);
 
   const themes = useMemo(
     () => suggestThemes(links, collections).filter((t) => !dismissedThemes.includes(t.name)),
@@ -103,8 +113,21 @@ export function Sidebar() {
   }, [links]);
 
   return (
+    <>
+    {menuOpen && (
+      <button
+        type="button"
+        aria-label="Close menu"
+        onClick={() => setMenuOpen(false)}
+        className="fixed inset-0 z-40 bg-ink/25 lg:hidden"
+      />
+    )}
     <aside
-      className="fixed inset-y-0 left-0 z-20 hidden w-[250px] flex-none flex-col border-r px-4 py-5 lg:flex"
+      // Any link inside navigates away, so the drawer closes behind it.
+      onClick={(e) => (e.target as HTMLElement).closest("a") && setMenuOpen(false)}
+      className={`fixed inset-y-0 left-0 z-50 flex w-[280px] flex-none flex-col overflow-y-auto overscroll-contain border-r px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))] transition-transform duration-300 lg:z-20 lg:w-[250px] lg:translate-x-0 max-lg:bg-canvas! max-lg:shadow-[var(--shadow-window)] ${
+        menuOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
       style={{
         background: "rgba(255,255,255,.55)",
         borderColor: "rgba(255,255,255,.8)",
@@ -113,9 +136,7 @@ export function Sidebar() {
       }}
     >
       <div className="flex items-center gap-2 px-2 py-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-ink text-[13px] font-bold text-[#f4f5f6]">
-          A
-        </span>
+        <Logo className="h-12 w-12 lg:h-11 lg:w-11" />
         <span className="text-wordmark">AnyLink</span>
       </div>
 
@@ -129,9 +150,25 @@ export function Sidebar() {
           <span className="flex-1 truncate">All links</span>
           <span className="text-meta text-ink/45">{countForCollection(ALL_COLLECTION_ID)}</span>
         </Link>
-        {folders.map((c) => (
-          <CollectionRow key={c.id} collection={c} count={countForCollection(c.id)} active={pathname === `/collections/${c.id}`} />
-        ))}
+        {inbox && (
+          <CollectionRow collection={inbox} count={countForCollection(inbox.id)} active={pathname === `/collections/${inbox.id}`} />
+        )}
+        <div {...folderDrag.zone} className="flex flex-col gap-0.5">
+          {folderDrag.order.flatMap((id) => {
+            const c = byId.get(id);
+            if (!c) return [];
+            return (
+              <CollectionRow
+                key={id}
+                collection={c}
+                count={countForCollection(id)}
+                active={pathname === `/collections/${id}`}
+                dragging={folderDrag.dragId === id}
+                dragProps={folderDrag.item(id)}
+              />
+            );
+          })}
+        </div>
       </nav>
 
       <div className="mt-1 flex-1 overflow-y-auto">
@@ -181,16 +218,22 @@ export function Sidebar() {
         )}
 
         {customFilters.length > 0 && (
-          <div data-tour="custom-filters">
+          <div data-tour="custom-filters" {...filterDrag.zone}>
             <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Custom filters</div>
-            {customFilters.map((c) => (
-              <CollectionRow
-                key={c.id}
-                collection={c}
-                count={countForCollection(c.id)}
-                active={pathname === `/collections/${c.id}`}
-              />
-            ))}
+            {filterDrag.order.flatMap((id) => {
+              const c = byId.get(id);
+              if (!c) return [];
+              return (
+                <CollectionRow
+                  key={id}
+                  collection={c}
+                  count={countForCollection(id)}
+                  active={pathname === `/collections/${id}`}
+                  dragging={filterDrag.dragId === id}
+                  dragProps={filterDrag.item(id)}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -278,6 +321,7 @@ export function Sidebar() {
 
       <PasteHint />
     </aside>
+    </>
   );
 }
 
@@ -388,10 +432,14 @@ function CollectionRow({
   collection,
   count,
   active,
+  dragging = false,
+  dragProps,
 }: {
   collection: Collection;
   count: number;
   active: boolean;
+  dragging?: boolean;
+  dragProps?: ReturnType<ReturnType<typeof useDragReorder>["item"]>;
 }) {
   const { renameCollection, deleteCollection } = useLibrary();
   const router = useRouter();
@@ -440,11 +488,17 @@ function CollectionRow({
 
   return (
     <div
+      {...dragProps}
       data-tour={collection.isInbox ? "inbox" : undefined}
-      className="group relative flex items-center rounded-[14px]"
-      style={{ background: active ? "rgba(23,24,27,.06)" : "transparent" }}
+      className={`group relative flex items-center rounded-[14px] ${dragProps && "draggable" in dragProps ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{ background: active ? "rgba(23,24,27,.06)" : "transparent", opacity: dragging ? 0.35 : 1 }}
     >
-      <Link href={`/collections/${collection.id}`} className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-body">
+      {/* Not draggable itself — otherwise the browser drags the URL instead of the row. */}
+      <Link
+        href={`/collections/${collection.id}`}
+        draggable={false}
+        className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-body"
+      >
         <CollectionMarker color={collection.color} />
         <span className="flex-1 truncate">{collection.name}</span>
         <span className="text-meta text-ink/45 group-hover:hidden">{count}</span>

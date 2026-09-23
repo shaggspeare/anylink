@@ -199,7 +199,7 @@ export function AddLinkFlow() {
       onClick={handleClose}
     >
       <div
-        className={`relative w-full overflow-hidden rounded-[30px] transition-[max-width] ${
+        className={`relative max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-[30px] transition-[max-width] ${
           wide ? "max-w-3xl" : "max-w-[620px]"
         }`}
         style={{ boxShadow: "0 40px 90px rgba(0,0,0,.5)" }}
@@ -209,8 +209,8 @@ export function AddLinkFlow() {
           <AmbientOrbs variant="dark" />
           <div className="relative flex h-full flex-col">
             <div className="flex items-center gap-3 px-6 pt-6">
-              <h3 className="text-title text-[#f4f5f6]">Add a link</h3>
-              <span className="ml-auto text-eyebrow text-light-40">⌘V anywhere</span>
+              <h3 className="text-title flex-1 text-[#f4f5f6]">Add a link</h3>
+              <span className="hidden text-eyebrow text-light-40 pointer-fine:inline">⌘V anywhere</span>
               <button
                 type="button"
                 onClick={handleClose}

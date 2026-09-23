@@ -10,6 +10,9 @@ export const CARD_GEOMETRY: Record<CardSize, { cols: number; rowPx: number }> = 
   L: { cols: 2, rowPx: 300 },
 };
 
+/** Phone tile height — every size collapses to this so the two-up grid stays even. */
+export const TILE_PX = 132;
+
 export const CARD_TITLE_SIZE: Record<CardSize, number> = { S: 17, M: 19, L: 27 };
 
 export const GRID_ROW_UNIT = 4;
@@ -46,4 +49,11 @@ export function sizeFromDrag(widthPx: number, heightPx: number, unitPx: number):
   if (widthPx > unitPx * 1.45) return "L";
   if (heightPx > 245) return "M";
   return "S";
+}
+
+/** A finger travel reads as a swipe only if it's long enough and clearly sideways —
+ * otherwise it's a scroll that drifted. */
+export function swipeDirection(dx: number, dy: number): "left" | "right" | null {
+  if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2) return null;
+  return dx > 0 ? "right" : "left";
 }
