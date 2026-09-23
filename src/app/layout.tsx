@@ -25,18 +25,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eceef0" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1012" },
-  ],
+  themeColor: "#eceef0",
 };
 
 // Every route reads the live library from Postgres via the root layout —
 // none of it can be statically prerendered at build time.
 export const dynamic = "force-dynamic";
 
-// Runs before first paint: a saved choice wins, otherwise follow the OS.
-const THEME_SCRIPT = `try{document.documentElement.classList.toggle("dark",localStorage.theme==="dark"||(!localStorage.theme&&matchMedia("(prefers-color-scheme: dark)").matches))}catch(e){}`;
+// Runs before first paint: light unless the visitor picked dark.
+const THEME_SCRIPT = `try{document.documentElement.classList.toggle("dark",localStorage.theme==="dark")}catch(e){}`;
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { links, trashed, collections } = await getLibraryData();
