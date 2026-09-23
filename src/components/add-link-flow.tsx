@@ -422,7 +422,7 @@ function ReadyForm({
             Edit it and save; nothing else is needed.
           </div>
         )}
-        <div className="overflow-hidden rounded-[22px]" style={{ background: "rgba(255,255,255,.62)", border: "1px solid rgba(255,255,255,.75)" }}>
+        <div className="overflow-hidden rounded-[22px]" style={{ background: "rgb(var(--surface-rgb) / .62)", border: "1px solid rgb(var(--rim-rgb) / .75)" }}>
           <div className="relative h-[170px] w-full" style={{ background: heroImage ? undefined : result.tint }}>
             {heroImage && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -445,7 +445,7 @@ function ReadyForm({
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[12px] text-lime">
-          <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-ink">✓</span>
+          <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-on-accent">✓</span>
           <span className="text-light-55">{failed ? "Filled in from the link — check it" : "Crawled — check the details"}</span>
         </div>
       </div>
@@ -561,7 +561,7 @@ function TagPicker({
             type="button"
             onClick={() => onChange(value.filter((t) => t !== tag))}
             title="Remove"
-            className="inline-flex items-center gap-1.5 rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-medium text-ink"
+            className="inline-flex items-center gap-1.5 rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-medium text-on-accent"
           >
             {tag}
             <span className="text-ink/45">✕</span>

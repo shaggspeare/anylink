@@ -9,10 +9,10 @@ export function Chip({ active, tone = "light", className = "", children, ...prop
   const base =
     tone === "onGlass"
       ? active
-        ? "bg-ink text-[#f4f5f6]"
+        ? "bg-ink text-on-ink"
         : "bg-ink/6 text-ink/65 hover:bg-ink/10"
       : active
-        ? "bg-ink text-[#f4f5f6]"
+        ? "bg-ink text-on-ink"
         : "bg-ink/6 text-ink/65 hover:bg-ink/10";
   return (
     <button

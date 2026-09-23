@@ -4,7 +4,7 @@ import { SORT_LABELS, type Sort } from "@/lib/organize";
 
 const ORDER: Sort[] = ["newest", "oldest", "title", "site", "manual"];
 
-const CHEVRON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.5)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 9 7 7 7-7"/></svg>`;
+const CHEVRON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8a8f96" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 9 7 7 7-7"/></svg>`;
 
 export function SortSelect({ value, onChange }: { value: Sort; onChange: (sort: Sort) => void }) {
   return (

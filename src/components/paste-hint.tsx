@@ -10,7 +10,7 @@ export function PasteHint({ wide = false }: { wide?: boolean }) {
       }
     >
       <kbd
-        className={`rounded-[7px] bg-white font-semibold text-ink/70 shadow-sm ${
+        className={`rounded-[7px] bg-surface font-semibold text-ink/70 shadow-sm ${
           wide ? "px-2 py-1 text-[12px]" : "px-1.5 py-0.5 text-[10px]"
         }`}
       >

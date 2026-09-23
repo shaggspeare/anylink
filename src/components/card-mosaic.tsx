@@ -33,7 +33,7 @@ export function CardMosaic({
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink/6">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.4)" strokeWidth="2.4" strokeLinecap="round">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .4)" }} strokeWidth="2.4" strokeLinecap="round">
             <path d="M9.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
             <path d="M14.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
           </svg>

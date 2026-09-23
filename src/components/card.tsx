@@ -159,8 +159,8 @@ export function Card({
           tile ? "inset-1 select-none rounded-[16px] [-webkit-touch-callout:none]" : "inset-1.5 rounded-[22px] hover:-translate-y-0.5 sm:inset-[7px]"
         }`}
         style={{
-          background: "rgba(255,255,255,.62)",
-          border: selected ? "2px solid var(--ink)" : "1px solid rgba(255,255,255,.75)",
+          background: "rgb(var(--surface-rgb) / .62)",
+          border: selected ? "2px solid var(--ink)" : "1px solid rgb(var(--rim-rgb) / .75)",
           backdropFilter: "blur(22px) saturate(1.35)",
           WebkitBackdropFilter: "blur(22px) saturate(1.35)",
           boxShadow: "var(--shadow-card)",
@@ -174,10 +174,11 @@ export function Card({
               setMenuOpen((open) => !open);
             }}
             aria-label={menuOpen ? "Close actions" : `Actions for ${link.title}`}
+            data-tour="card-menu"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             className={`absolute right-1.5 top-1.5 z-30 flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-bold leading-none ${
-              menuOpen ? "bg-white/15 text-[#f4f5f6]" : "bg-white/85 text-ink shadow-sm"
+              menuOpen ? "bg-white/15 text-[#f4f5f6]" : "bg-surface/85 text-ink shadow-sm"
             }`}
             style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
           >
@@ -231,7 +232,7 @@ export function Card({
             }}
             aria-label={selected ? "Deselect" : "Select"}
             className={`absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold transition-opacity ${
-              selected ? "bg-lime text-ink opacity-100" : "bg-white/80 text-transparent opacity-0 group-hover:opacity-100"
+              selected ? "bg-lime text-on-accent opacity-100" : "bg-surface/80 text-transparent opacity-0 group-hover:opacity-100"
             }`}
           >
             ✓
@@ -240,7 +241,7 @@ export function Card({
 
         {hero && (
           <div
-            className={`relative overflow-hidden bg-[#dfe2e5] ${
+            className={`relative overflow-hidden bg-[#dfe2e5] dark:bg-[#26272b] ${
               tile ? "m-1.5 mb-0 h-[54px] flex-none rounded-[11px]" : "m-2 mb-0 min-h-0 flex-1 rounded-[18px]"
             }`}
           >
@@ -274,7 +275,7 @@ export function Card({
                 {link.tags.slice(0, 1).map((t) => (
                   <span
                     key={t}
-                    className="rounded-full bg-white/75 px-2.5 py-1 text-[10px] font-medium text-ink backdrop-blur-sm"
+                    className="rounded-full bg-surface/75 px-2.5 py-1 text-[10px] font-medium text-ink backdrop-blur-sm"
                   >
                     {t}
                   </span>
@@ -318,11 +319,12 @@ export function Card({
               target="_blank"
               rel="noreferrer noopener"
               onClick={(e) => e.stopPropagation()}
+              data-tour="card-open"
               title={`Open ${link.domain}`}
               aria-label={`Open ${link.domain} in a new tab`}
               className="ml-1.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-ink/8 group-hover:opacity-100"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.55)" strokeWidth="2.6" strokeLinecap="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .55)" }} strokeWidth="2.6" strokeLinecap="round">
                 <path d="M7 17 17 7M9 7h8v8" />
               </svg>
             </a>
@@ -333,11 +335,12 @@ export function Card({
                 e.stopPropagation();
                 deleteLinks([link.id]);
               }}
+              data-tour="card-trash"
               title="Move to trash"
               aria-label={`Move ${link.title} to trash`}
               className="ml-0.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-ink/8 group-hover:opacity-100"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.55)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .55)" }} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
               </svg>
             </button>
@@ -375,7 +378,7 @@ export function Card({
           className={`absolute flex gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity group-hover:opacity-100 ${
             compact ? "bottom-2.5 right-8" : "right-4 top-4"
           }`}
-          style={{ background: "rgba(255,255,255,.72)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
+          style={{ background: "rgb(var(--surface-rgb) / .72)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
           onClick={(e) => e.stopPropagation()}
         >
           {SIZES.map((s) => (
@@ -386,7 +389,7 @@ export function Card({
               className="h-[21px] w-[23px] rounded-full text-[10px] font-semibold"
               style={{
                 background: s === link.size ? "var(--ink)" : "transparent",
-                color: s === link.size ? "#f4f5f6" : "rgba(23,24,27,.5)",
+                color: s === link.size ? "var(--on-ink)" : "rgb(var(--ink-rgb) / .5)",
               }}
             >
               {s}
@@ -398,11 +401,12 @@ export function Card({
         {!tile && (
         <div
           onPointerDown={handlePointerDown}
+          data-tour="card-resize"
           title="Drag to resize"
           className="absolute bottom-0 right-0 h-[30px] w-[30px] touch-none cursor-nwse-resize opacity-0 transition-opacity group-hover:opacity-100"
           style={{
             backgroundImage:
-              "repeating-linear-gradient(135deg, rgba(23,24,27,.3) 0 1.5px, transparent 1.5px 5px)",
+              "repeating-linear-gradient(135deg, rgb(var(--ink-rgb) / .3) 0 1.5px, transparent 1.5px 5px)",
             backgroundPosition: "9px 9px",
             backgroundSize: "14px 14px",
             backgroundRepeat: "no-repeat",

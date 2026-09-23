@@ -18,7 +18,7 @@ export function TourButton() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
-      className="flex w-full items-center gap-2.5 rounded-[14px] bg-ink px-3 py-2.5 text-body font-semibold text-[#f4f5f6]"
+      className="flex w-full items-center gap-2.5 rounded-[14px] bg-ink px-3 py-2.5 text-body font-semibold text-on-ink"
     >
       <span className="flex h-4 w-4 items-center justify-center text-[10px] leading-none">▶</span>
       Guided tour

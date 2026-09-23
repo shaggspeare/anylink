@@ -56,8 +56,8 @@ export function BottomTabBar() {
     <nav
       className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex items-center justify-around rounded-full px-2 py-1.5 lg:hidden"
       style={{
-        background: "rgba(255,255,255,.55)",
-        border: "1px solid rgba(255,255,255,.8)",
+        background: "rgb(var(--surface-rgb) / .55)",
+        border: "1px solid rgb(var(--rim-rgb) / .8)",
         backdropFilter: "blur(24px) saturate(1.4)",
         WebkitBackdropFilter: "blur(24px) saturate(1.4)",
         boxShadow: "var(--shadow-popover)",

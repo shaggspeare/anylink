@@ -25,7 +25,7 @@ function withHighlights(paragraph: string, quotes: string[]) {
     const idx = remaining.indexOf(match);
     if (idx > 0) parts.push(remaining.slice(0, idx));
     parts.push(
-      <mark key={key++} className="rounded-[3px] bg-lime/60 px-0.5 text-ink">
+      <mark key={key++} className="rounded-[3px] bg-lime/60 px-0.5 text-on-accent">
         {match}
       </mark>
     );
@@ -74,9 +74,9 @@ export function ReaderPanel({
       <article
         data-tour="reader"
         className="relative flex-1 overflow-hidden rounded-[28px]"
-        style={{ background: "rgba(255,255,255,.72)", border: "1px solid rgba(255,255,255,.85)", backdropFilter: "blur(22px)" }}
+        style={{ background: "rgb(var(--surface-rgb) / .72)", border: "1px solid rgb(var(--rim-rgb) / .85)", backdropFilter: "blur(22px)" }}
       >
-        <div className="relative h-[250px] w-full overflow-hidden bg-[#dfe2e5]">
+        <div className="relative h-[250px] w-full overflow-hidden bg-[#dfe2e5] dark:bg-[#26272b]">
           {link.heroImage ? (
             <Image src={link.heroImage} alt="" fill sizes="900px" className="object-cover" />
           ) : (
@@ -97,7 +97,7 @@ export function ReaderPanel({
         >
           {link.contentType === "video" ? (
             <div className="flex flex-col items-center gap-3 rounded-[18px] bg-ink/6 py-14 text-center">
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .5)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 3v18l15-9L5 3z" />
               </svg>
               <p className="max-w-[360px] text-body text-ink/55">
@@ -121,7 +121,7 @@ export function ReaderPanel({
                 window.getSelection()?.removeAllRanges();
               }}
               style={{ left: popover.x, top: popover.y - 42, transform: "translateX(-50%)" }}
-              className="absolute z-10 flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-[11.5px] font-semibold text-[#f4f5f6] shadow-lg"
+              className="absolute z-10 flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-[11.5px] font-semibold text-on-ink shadow-lg"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-lime" /> Highlight
             </button>
@@ -184,7 +184,7 @@ function RailSection({
   return (
     <div
       className="flex flex-col gap-2.5 rounded-[22px] p-4"
-      style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", backdropFilter: "blur(20px) saturate(1.4)" }}
+      style={{ background: "rgb(var(--surface-rgb) / .55)", border: "1px solid rgb(var(--rim-rgb) / .8)", backdropFilter: "blur(20px) saturate(1.4)" }}
     >
       <div className="flex items-center">
         <span className="text-eyebrow text-ink/40">{title}</span>

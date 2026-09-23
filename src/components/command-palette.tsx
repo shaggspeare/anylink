@@ -15,7 +15,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark className="rounded-[3px] bg-lime px-0.5 text-ink">{text.slice(idx, idx + query.length)}</mark>
+      <mark className="rounded-[3px] bg-lime px-0.5 text-on-accent">{text.slice(idx, idx + query.length)}</mark>
       {text.slice(idx + query.length)}
     </>
   );
@@ -125,8 +125,8 @@ export function CommandPalette() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="glass-70 flex flex-col">
-          <div className="flex items-center gap-3 border-b border-white/60 px-5 py-4">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(23,24,27,.4)" strokeWidth="2.4" strokeLinecap="round">
+          <div className="flex items-center gap-3 border-b border-rim/60 px-5 py-4">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .4)" }} strokeWidth="2.4" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
@@ -198,7 +198,7 @@ export function CommandPalette() {
             )}
           </div>
 
-          <div className="hidden items-center gap-4 border-t border-white/60 px-5 py-3 text-meta text-ink/45 pointer-fine:flex">
+          <div className="hidden items-center gap-4 border-t border-rim/60 px-5 py-3 text-meta text-ink/45 pointer-fine:flex">
             <span className="flex items-center gap-1.5">
               <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate
             </span>
@@ -243,7 +243,7 @@ function ResultRow({
       type="button"
       onClick={onClick}
       className="flex items-center gap-2.5 rounded-[12px] px-3 py-2.5 text-left text-body text-ink"
-      style={{ background: active ? "rgba(23,24,27,.06)" : "transparent" }}
+      style={{ background: active ? "rgb(var(--ink-rgb) / .06)" : "transparent" }}
     >
       {children}
     </button>

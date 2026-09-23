@@ -13,6 +13,7 @@ import { ALL_COLLECTION_ID } from "@/lib/mock-data";
 import { searchLinks } from "@/lib/search";
 import { suggestThemes } from "@/lib/organize";
 import type { Collection } from "@/lib/types";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const SWATCHES = ["#ff5a1f", "#d6f24b", "#7c8cff", "#9aa3ad", "#e0855a"];
 
@@ -129,8 +130,8 @@ export function Sidebar() {
         menuOpen ? "translate-x-0" : "-translate-x-full"
       }`}
       style={{
-        background: "rgba(255,255,255,.55)",
-        borderColor: "rgba(255,255,255,.8)",
+        background: "rgb(var(--surface-rgb) / .55)",
+        borderColor: "rgb(var(--rim-rgb) / .8)",
         backdropFilter: "blur(24px) saturate(1.4)",
         WebkitBackdropFilter: "blur(24px) saturate(1.4)",
       }}
@@ -138,15 +139,16 @@ export function Sidebar() {
       <div className="flex items-center gap-2 px-2 py-2">
         <Logo className="h-12 w-12 lg:h-11 lg:w-11" />
         <span className="text-wordmark">AnyLink</span>
+        <ThemeToggle className="ml-auto" />
       </div>
 
       <nav data-tour="sidebar" className="mt-4 flex flex-col gap-0.5">
         <Link
           href="/app"
           className="flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body transition-colors"
-          style={{ background: isAllActive ? "rgba(23,24,27,.06)" : "transparent" }}
+          style={{ background: isAllActive ? "rgb(var(--ink-rgb) / .06)" : "transparent" }}
         >
-          <CollectionMarker color="#17181b" />
+          <CollectionMarker color="var(--ink)" />
           <span className="flex-1 truncate">All links</span>
           <span className="text-meta text-ink/45">{countForCollection(ALL_COLLECTION_ID)}</span>
         </Link>
@@ -251,7 +253,7 @@ export function Sidebar() {
                   type="button"
                   onClick={() => saveSmartCollection(theme.query, theme.name)}
                   title={`Collect the ${theme.count} links tagged ${theme.query}`}
-                  className="hidden rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold text-[#f4f5f6] group-hover:block"
+                  className="hidden rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold text-on-ink group-hover:block"
                 >
                   Create
                 </button>
@@ -259,7 +261,7 @@ export function Sidebar() {
                   type="button"
                   onClick={() => dismissTheme(theme.name)}
                   aria-label={`Dismiss ${theme.name}`}
-                  className="hidden h-5 w-5 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-white hover:text-ink group-hover:flex"
+                  className="hidden h-5 w-5 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-surface hover:text-ink group-hover:flex"
                 >
                   ✕
                 </button>
@@ -306,7 +308,7 @@ export function Sidebar() {
             data-tour="trash"
             href="/trash"
             className="mt-4 flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-body text-ink/55 hover:bg-ink/6 hover:text-ink"
-            style={{ background: pathname === "/trash" ? "rgba(23,24,27,.06)" : undefined }}
+            style={{ background: pathname === "/trash" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
           >
             <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⌫</span>
             <span className="flex-1 truncate">Trash</span>
@@ -340,7 +342,7 @@ function FilterRow({
     <Link
       href={`/app?q=${encodeURIComponent(query)}`}
       className="flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-body text-ink/65 hover:bg-ink/6 hover:text-ink"
-      style={{ background: active ? "rgba(23,24,27,.06)" : "transparent" }}
+      style={{ background: active ? "rgb(var(--ink-rgb) / .06)" : "transparent" }}
     >
       <span className="flex-1 truncate">{label}</span>
       <span className="text-meta text-ink/45">{count}</span>
@@ -395,7 +397,7 @@ function NewCollectionForm({
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onCancel()}
         placeholder="Collection name"
-        className="h-8 rounded-[10px] border border-ink/10 bg-white px-2.5 text-[12.5px] text-ink outline-none"
+        className="h-8 rounded-[10px] border border-ink/10 bg-surface px-2.5 text-[12.5px] text-ink outline-none"
       />
       <div className="flex items-center gap-1.5 px-0.5">
         {SWATCHES.map((s) => (
@@ -407,7 +409,7 @@ function NewCollectionForm({
             className="h-5 w-5 rounded-full"
             style={{
               background: s,
-              boxShadow: s === color ? "0 0 0 2px #17181b, 0 0 0 3px rgba(255,255,255,.9)" : undefined,
+              boxShadow: s === color ? "0 0 0 2px var(--ink), 0 0 0 3px rgb(var(--surface-rgb) / .9)" : undefined,
             }}
           />
         ))}
@@ -418,7 +420,7 @@ function NewCollectionForm({
           <button
             type="submit"
             disabled={!name.trim() || saving}
-            className="rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-[#f4f5f6] disabled:opacity-50"
+            className="rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-on-ink disabled:opacity-50"
           >
             Add
           </button>
@@ -480,7 +482,7 @@ function CollectionRow({
               setRenaming(false);
             }
           }}
-          className="h-6 min-w-0 flex-1 rounded-[8px] border border-ink/15 bg-white px-1.5 text-[12.5px] text-ink outline-none"
+          className="h-6 min-w-0 flex-1 rounded-[8px] border border-ink/15 bg-surface px-1.5 text-[12.5px] text-ink outline-none"
         />
       </div>
     );
@@ -490,8 +492,9 @@ function CollectionRow({
     <div
       {...dragProps}
       data-tour={collection.isInbox ? "inbox" : undefined}
-      className={`group relative flex items-center rounded-[14px] ${dragProps && "draggable" in dragProps ? "cursor-grab active:cursor-grabbing" : ""}`}
-      style={{ background: active ? "rgba(23,24,27,.06)" : "transparent", opacity: dragging ? 0.35 : 1 }}
+      // No text selection or iOS link callout: a held row is being picked up.
+      className={`group relative flex select-none items-center rounded-[14px] [-webkit-touch-callout:none] ${dragProps && "draggable" in dragProps ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{ background: active ? "rgb(var(--ink-rgb) / .06)" : "transparent", opacity: dragging ? 0.35 : 1 }}
     >
       {/* Not draggable itself — otherwise the browser drags the URL instead of the row. */}
       <Link
@@ -512,7 +515,7 @@ function CollectionRow({
               setRenaming(true);
             }}
             aria-label="Rename"
-            className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-white hover:text-ink"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
             ✎
           </button>
@@ -524,14 +527,14 @@ function CollectionRow({
             }}
             aria-label="Delete"
             title={count > 0 ? `Delete — ${count} link${count > 1 ? "s" : ""} move to Trash` : "Delete"}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-white hover:text-ink"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
             ✕
           </button>
         </div>
       )}
       {error && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-[10px] bg-ink px-2.5 py-1.5 text-[11px] text-[#f4f5f6]">
+        <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-[10px] bg-ink px-2.5 py-1.5 text-[11px] text-on-ink">
           {error}
         </div>
       )}

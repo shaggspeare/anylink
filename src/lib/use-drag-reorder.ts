@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { moveBefore } from "./organize";
 
 const PICKUP_MS = 300;
@@ -23,13 +23,24 @@ export function swallowClick() {
  *
  * Mouse uses native drag-and-drop. `touch` switches items to a pointer-driven drag —
  * phone browsers' native DnD is too patchy to rely on — where a short hold picks the
- * item up (so a swipe still scrolls) and it then follows the finger.
+ * item up (so a swipe still scrolls) and it then follows the finger. Left unset, it
+ * follows the device: touch drag wherever the primary pointer is a finger.
  * Items spread `item(id)` onto their root element, the list spreads `zone`. */
 export function useDragReorder(
   ids: string[],
   onReorder?: (ids: string[]) => void,
-  { touch = false }: { touch?: boolean } = {}
+  options: { touch?: boolean } = {}
 ) {
+  const coarse = useSyncExternalStore(
+    (notify) => {
+      const query = matchMedia("(pointer: coarse)");
+      query.addEventListener("change", notify);
+      return () => query.removeEventListener("change", notify);
+    },
+    () => matchMedia("(pointer: coarse)").matches,
+    () => false
+  );
+  const touch = options.touch ?? coarse;
   const [preview, setPreview] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   // Both drags retarget on events that repeat for the same item, and moveBefore is a
@@ -95,8 +106,9 @@ export function useDragReorder(
 
   const startTouchDrag = (id: string, e: React.PointerEvent) => {
     const el = nodes.current.get(id);
-    // Buttons and links inside an item (menus, checkboxes) keep their own taps.
-    if (!el || !onReorder || (e.target as Element).closest("button, a, [role=menu]")) return;
+    // Buttons and menus inside an item keep their own taps. Plain links don't: a sidebar
+    // row *is* a link, and a quick tap on it still navigates — only a hold lifts it.
+    if (!el || !onReorder || (e.target as Element).closest("button, [role=menu]")) return;
     const start = { x: e.clientX, y: e.clientY };
     let lifted = false;
     let frame = 0;

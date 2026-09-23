@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Theme lives in a `dark` class on <html> (set before paint by the script in layout.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Palette */
   --canvas: #eceef0;
@@ -11,6 +14,13 @@
   --lime: #d6f24b;
   --periwinkle: #7c8cff;
   --slate: #9aa3ad;
+  --on-accent: #17181b; /* text on lime/orange — stays dark in both themes */
+
+  /* Theme-flipping channels, used as rgb(var(--x-rgb) / a) where an alpha is needed */
+  --ink-rgb: 23 24 27;
+  --surface-rgb: 255 255 255; /* light fills: inputs, pills, cards */
+  --rim-rgb: 255 255 255; /* glass edges */
+  --on-ink: #f4f5f6; /* text on bg-ink */
 
   /* Ink alphas */
   --ink-100: rgba(23, 24, 27, 1);
@@ -52,6 +62,38 @@
   --shadow-card: 0 2px 8px -2px rgba(23, 24, 27, 0.14);
   --shadow-popover: 0 14px 34px -12px rgba(23, 24, 27, 0.28);
   --shadow-window: 0 30px 70px -20px rgba(23, 24, 27, 0.45);
+
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0f1012;
+  --ink: #eceef0;
+  --paper: #1a1b1f;
+  --doc-shell: #1c1d21;
+
+  --ink-rgb: 236 238 240;
+  --surface-rgb: 36 37 42;
+  --rim-rgb: 62 64 70;
+  --on-ink: #17181b;
+
+  --ink-100: rgba(236, 238, 240, 1);
+  --ink-60: rgba(236, 238, 240, 0.6);
+  --ink-50: rgba(236, 238, 240, 0.5);
+  --ink-45: rgba(236, 238, 240, 0.45);
+  --ink-20: rgba(236, 238, 240, 0.2);
+  --ink-6: rgba(236, 238, 240, 0.06);
+
+  --glass-42: rgba(30, 31, 35, 0.42);
+  --glass-55: rgba(30, 31, 35, 0.55);
+  --glass-70: rgba(30, 31, 35, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  --shadow-popover: 0 14px 34px -12px rgba(0, 0, 0, 0.6);
+  --shadow-window: 0 30px 70px -20px rgba(0, 0, 0, 0.75);
+
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -64,6 +106,10 @@
   --color-lime: var(--lime);
   --color-periwinkle: var(--periwinkle);
   --color-slate: var(--slate);
+  --color-on-accent: var(--on-accent);
+  --color-on-ink: var(--on-ink);
+  --color-surface: rgb(var(--surface-rgb));
+  --color-rim: rgb(var(--rim-rgb));
   --color-light-100: var(--light-100);
   --color-light-55: var(--light-55);
   --color-light-45: var(--light-45);
@@ -197,7 +243,7 @@ button {
 
 ::selection {
   background: var(--lime);
-  color: var(--ink);
+  color: var(--on-accent);
 }
 
 /* Guided tour (driver.js). The app hides controls until hover — while one is being
@@ -226,12 +272,12 @@ button {
   margin-top: 6px;
   font-size: 13.5px;
   line-height: 1.55;
-  color: rgba(23, 24, 27, 0.65);
+  color: rgb(var(--ink-rgb) / 0.65);
 }
 
 .driver-popover.anylink-tour .driver-popover-description code {
   border-radius: 5px;
-  background: rgba(23, 24, 27, 0.07);
+  background: rgb(var(--ink-rgb) / 0.07);
   padding: 1px 4px;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
@@ -240,13 +286,13 @@ button {
 
 .driver-popover.anylink-tour .driver-popover-progress-text {
   font-size: 11.5px;
-  color: rgba(23, 24, 27, 0.4);
+  color: rgb(var(--ink-rgb) / 0.4);
 }
 
 .driver-popover.anylink-tour .driver-popover-navigation-btns button {
   border-radius: 999px;
   border: 0;
-  background: rgba(23, 24, 27, 0.07);
+  background: rgb(var(--ink-rgb) / 0.07);
   padding: 6px 14px;
   font-size: 12.5px;
   font-weight: 600;
@@ -256,7 +302,7 @@ button {
 
 .driver-popover.anylink-tour .driver-popover-navigation-btns button:last-child {
   background: var(--ink);
-  color: #f4f5f6;
+  color: var(--on-ink);
 }
 
 /* Tile ⋯ menu: pops out of the tile it belongs to. */
@@ -284,4 +330,10 @@ button {
   .card-enter {
     animation: none;
   }
+}
+
+/* Card controls only show on hover, so a tour step pointing at one would light up
+   empty space. While the tour runs, the first card (the one it points at) shows them. */
+.driver-active [data-tour="mosaic"] > :first-child .group-hover\:opacity-100 {
+  opacity: 1;
 }

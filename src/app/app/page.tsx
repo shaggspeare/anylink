@@ -35,10 +35,10 @@ export default function LibraryPage() {
                 type="button"
                 onClick={() => router.push("/app")}
                 title="Clear filter"
-                className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] text-[#f4f5f6]"
+                className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] text-on-ink"
               >
                 {query}
-                <span className="text-[#f4f5f6]/60">✕</span>
+                <span className="text-on-ink/60">✕</span>
               </button>
             ) : (
               <>
@@ -55,7 +55,7 @@ export default function LibraryPage() {
               type="button"
               data-tour="search"
               onClick={openPalette}
-              className="hidden h-10 items-center gap-2 rounded-full border border-white/80 bg-white/70 px-4 text-body text-ink/60 sm:flex"
+              className="hidden h-10 items-center gap-2 rounded-full border border-rim/80 bg-surface/70 px-4 text-body text-ink/60 sm:flex"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                 <circle cx="11" cy="11" r="7" />
@@ -68,7 +68,7 @@ export default function LibraryPage() {
               type="button"
               data-tour="add"
               onClick={() => openAddLink()}
-              className="hidden h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 sm:flex text-body font-semibold text-[#f4f5f6]"
+              className="hidden h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 sm:flex text-body font-semibold text-on-ink"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
@@ -87,7 +87,7 @@ export default function LibraryPage() {
             </p>
             <a
               href="/start"
-              className="flex h-11 items-center rounded-full bg-ink px-5 text-body font-semibold text-light-100"
+              className="flex h-11 items-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink"
             >
               Import my links
             </a>

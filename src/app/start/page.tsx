@@ -83,7 +83,7 @@ function Title({ children, sub }: { children: React.ReactNode; sub?: string }) {
 }
 
 const PRIMARY =
-  "flex h-12 items-center justify-center rounded-full bg-ink px-6 text-body font-semibold text-light-100 disabled:opacity-40";
+  "flex h-12 items-center justify-center rounded-full bg-ink px-6 text-body font-semibold text-on-ink disabled:opacity-40";
 
 // ——————————————————————————————————————————— 1. Import
 
@@ -166,7 +166,7 @@ function Upload({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-signal px-5 py-2.5 text-[13px] font-semibold text-ink"
+          className="rounded-full bg-signal px-5 py-2.5 text-[13px] font-semibold text-on-accent"
         >
           Choose files…
         </button>
@@ -371,7 +371,7 @@ function Questions({ onDone }: { onDone: () => void }) {
           value={focus}
           onChange={(e) => setFocus(e.target.value)}
           placeholder="Rewriting the onboarding, learning Rust, planning a kitchen…"
-          className="h-[46px] rounded-[14px] border border-white/80 bg-white/70 px-4 text-body outline-none placeholder:text-ink/30"
+          className="h-[46px] rounded-[14px] border border-rim/80 bg-surface/70 px-4 text-body outline-none placeholder:text-ink/30"
         />
       </label>
 
@@ -389,7 +389,7 @@ function Questions({ onDone }: { onDone: () => void }) {
                     setTopics((prev) => (on ? prev.filter((t) => t !== topic) : [...prev, topic]))
                   }
                   className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
-                    on ? "bg-ink text-light-100" : "bg-ink/6 text-ink/60"
+                    on ? "bg-ink text-on-ink" : "bg-ink/6 text-ink/60"
                   }`}
                 >
                   {topic}
@@ -405,7 +405,7 @@ function Questions({ onDone }: { onDone: () => void }) {
           <span className="text-eyebrow text-ink/50">Keep or bin? ({Object.keys(verdicts).length}/{sample.length})</span>
           <div className="flex flex-col gap-1.5">
             {sample.map((link) => (
-              <div key={link.id} className="flex items-center gap-3 rounded-[14px] bg-white/60 px-3.5 py-2.5">
+              <div key={link.id} className="flex items-center gap-3 rounded-[14px] bg-surface/60 px-3.5 py-2.5">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body">{link.title}</span>
                   <span className="block truncate text-meta text-ink/45">{link.domain}</span>
@@ -418,8 +418,8 @@ function Questions({ onDone }: { onDone: () => void }) {
                     className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
                       verdicts[link.id] === verdict
                         ? verdict === "keep"
-                          ? "bg-lime text-ink"
-                          : "bg-ink text-light-100"
+                          ? "bg-lime text-on-accent"
+                          : "bg-ink text-on-ink"
                         : "bg-ink/6 text-ink/50"
                     }`}
                   >
@@ -438,7 +438,7 @@ function Questions({ onDone }: { onDone: () => void }) {
           value={avoid}
           onChange={(e) => setAvoid(e.target.value)}
           placeholder="Old job stuff, crypto, recipes I'll never cook…"
-          className="h-[46px] rounded-[14px] border border-white/80 bg-white/70 px-4 text-body outline-none placeholder:text-ink/30"
+          className="h-[46px] rounded-[14px] border border-rim/80 bg-surface/70 px-4 text-body outline-none placeholder:text-ink/30"
         />
       </label>
 
@@ -557,7 +557,7 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
           {results.map((result) => (
             <div
               key={result.collection.id}
-              className="flex flex-col gap-2.5 rounded-[18px] bg-white/60 p-4"
+              className="flex flex-col gap-2.5 rounded-[18px] bg-surface/60 p-4"
               style={{ opacity: verdicts[result.collection.id] === "up" ? 1 : undefined }}
             >
               <div className="flex items-center gap-2.5">

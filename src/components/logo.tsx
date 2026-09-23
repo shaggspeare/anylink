@@ -8,7 +8,7 @@ export function Logo({ className = "h-7 w-7" }: { className?: string }) {
       className={`relative flex shrink-0 items-center justify-center rounded-[28%] ${className}`}
       style={{
         // Glass rim only — the inside stays fully transparent.
-        border: "1.5px solid rgba(255,255,255,.85)",
+        border: "1.5px solid rgb(var(--surface-rgb) / .85)",
         boxShadow: "inset 0 0 0 .5px rgba(23,24,27,.06), 0 1px 6px rgba(23,24,27,.08)",
       }}
     >

@@ -25,18 +25,28 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#eceef0",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eceef0" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1012" },
+  ],
 };
 
 // Every route reads the live library from Postgres via the root layout —
 // none of it can be statically prerendered at build time.
 export const dynamic = "force-dynamic";
 
+// Runs before first paint: a saved choice wins, otherwise follow the OS.
+const THEME_SCRIPT = `try{document.documentElement.classList.toggle("dark",localStorage.theme==="dark"||(!localStorage.theme&&matchMedia("(prefers-color-scheme: dark)").matches))}catch(e){}`;
+
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { links, trashed, collections } = await getLibraryData();
 
   return (
-    <html lang="en" className={`${instrumentSans.variable} h-full`}>
+    // The head script adds `dark` before React hydrates.
+    <html lang="en" className={`${instrumentSans.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full antialiased">
         <LibraryProvider
           initialLinks={links}

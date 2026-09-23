@@ -22,7 +22,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
       <article
         data-tour="product"
         className="flex-1 overflow-hidden rounded-[28px]"
-        style={{ background: "rgba(255,255,255,.72)", border: "1px solid rgba(255,255,255,.85)", backdropFilter: "blur(22px)" }}
+        style={{ background: "rgb(var(--surface-rgb) / .72)", border: "1px solid rgb(var(--rim-rgb) / .85)", backdropFilter: "blur(22px)" }}
       >
         <div className="flex flex-col gap-5 border-b border-ink/6 p-5 sm:flex-row sm:p-6">
           <div className="relative h-[200px] w-full flex-none overflow-hidden rounded-[20px] bg-white shadow-[0_10px_26px_-14px_rgba(23,24,27,.4)] sm:w-[180px]">
@@ -57,7 +57,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
                   </span>
                 )}
                 {changePct !== 0 && (
-                  <span className="rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-bold text-ink">
+                  <span className="rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-bold text-on-accent">
                     {changePct}% since saved
                   </span>
                 )}
@@ -84,7 +84,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
                     className="h-[30px] w-[30px] rounded-[9px]"
                     style={{
                       background: v.swatch,
-                      boxShadow: i === 0 ? "0 0 0 2px #17181b, 0 0 0 4px rgba(255,255,255,.9)" : undefined,
+                      boxShadow: i === 0 ? "0 0 0 2px var(--ink), 0 0 0 4px rgb(var(--surface-rgb) / .9)" : undefined,
                     }}
                   />
                 ))}
@@ -125,7 +125,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
         <div
           data-tour="price-history"
           className="flex flex-col gap-3 rounded-[22px] p-4"
-          style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", backdropFilter: "blur(20px) saturate(1.4)" }}
+          style={{ background: "rgb(var(--surface-rgb) / .55)", border: "1px solid rgb(var(--rim-rgb) / .8)", backdropFilter: "blur(20px) saturate(1.4)" }}
         >
           <span className="text-eyebrow text-ink/40">Price history</span>
           {product.priceHistory.length >= 2 ? (
@@ -144,7 +144,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
                 onBlur={() => setAlertThreshold(link.id, threshold)}
-                className="h-9 w-full rounded-[10px] border border-ink/10 bg-white/70 px-2.5 text-[13px] text-ink outline-none"
+                className="h-9 w-full rounded-[10px] border border-ink/10 bg-surface/70 px-2.5 text-[13px] text-ink outline-none"
               />
             </div>
           </div>
@@ -158,7 +158,7 @@ function StatusChip({ active, children }: { active?: boolean; children: React.Re
   return (
     <span
       className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium text-ink"
-      style={{ background: active ? "rgba(0,160,70,.14)" : "rgba(23,24,27,.06)" }}
+      style={{ background: active ? "rgba(0,160,70,.14)" : "rgb(var(--ink-rgb) / .06)" }}
     >
       {active && <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#00a046" }} />}
       {children}

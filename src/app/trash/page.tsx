@@ -30,7 +30,7 @@ export default function TrashPage() {
                 router.push("/app");
               }}
               onBlur={() => setConfirmingEmpty(false)}
-              className="mb-1 ml-auto flex h-9 items-center rounded-full border border-white/90 bg-white/70 px-4 text-[12.5px] font-semibold text-ink"
+              className="mb-1 ml-auto flex h-9 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold text-ink"
             >
               {confirmingEmpty ? "Delete them for good?" : "Empty trash"}
             </button>
@@ -47,7 +47,7 @@ export default function TrashPage() {
             <div
               key={link.id}
               data-tour="trash-item"
-              className="flex items-center gap-3 rounded-[16px] border border-white/75 bg-white/62 px-4 py-3"
+              className="flex items-center gap-3 rounded-[16px] border border-rim/75 bg-surface/62 px-4 py-3"
             >
               <span
                 className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-[7px] text-[10px] font-bold"
@@ -69,7 +69,7 @@ export default function TrashPage() {
                 onClick={() => purgeLinks([link.id])}
                 aria-label="Delete forever"
                 title="Delete forever"
-                className="flex h-7 w-7 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-white hover:text-ink"
+                className="flex h-7 w-7 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-surface hover:text-ink"
               >
                 ✕
               </button>

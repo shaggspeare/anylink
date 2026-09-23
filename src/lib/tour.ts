@@ -19,7 +19,7 @@ export const TOUR_STEPS: TourStep[] = [
     page: "library",
     title: "Welcome to AnyLink",
     description:
-      "Paste a link and AnyLink reads the page, pulls out what matters and files it for you — or arrive with a thousand bookmarks you saved elsewhere and let it clear out the dead ones and group the rest. This tour covers everything the app does today. Use the arrow keys or the buttons; Esc leaves at any point.",
+      "Paste a link and AnyLink reads the page, pulls out what matters and files it for you — or arrive with a thousand bookmarks you saved elsewhere and let it clear out the dead ones and group the rest. This tour covers everything the app does today, from saving to arranging your library by hand. Use the arrow keys or the buttons; Esc leaves at any point.",
   },
   {
     page: "library",
@@ -44,7 +44,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=mosaic]",
     title: "The library",
     description:
-      "Everything you've saved, newest first, in a mosaic that packs cards of different sizes together.",
+      "Everything you've saved, in a mosaic that packs cards of different sizes together. The next few steps show how to shape it: open, resize and rearrange.",
     side: "top",
   },
   {
@@ -52,8 +52,16 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=card]",
     title: "One card per link",
     description:
-      "Hero image, source, title and tags — enough to recognise a page without opening it. Click through for the reader view.",
+      "Hero image, source, title and tags — enough to recognise a page without opening it. Click a card for the reader view.",
     side: "right",
+  },
+  {
+    page: "library",
+    element: "[data-tour=card-open]",
+    title: "Straight to the source",
+    description:
+      "The ↗ opens the original page in a new tab — no stop at the reader view on the way.",
+    side: "bottom",
   },
   {
     page: "library",
@@ -61,22 +69,54 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Favorites",
     description:
       "Star the ones worth keeping close. Favorites become their own filter in the sidebar.",
-    side: "right",
+    side: "bottom",
+  },
+  {
+    page: "library",
+    element: "[data-tour=card-trash]",
+    title: "Delete from the card",
+    description: "Sends the link to Trash, where it waits until you restore it or empty the bin.",
+    side: "bottom",
+  },
+  {
+    page: "library",
+    element: "[data-tour=card-menu]",
+    title: "Card actions, behind ⋯",
+    description:
+      "Tap ⋯ on any card to open the original, favorite it or move it to Trash. Tap ✕ or anywhere else to close.",
+    side: "bottom",
   },
   {
     page: "library",
     element: "[data-tour=card-size]",
-    title: "Three sizes, or drag",
+    title: "Three sizes",
     description:
-      "S, M or L per card — or grab the bottom-right corner and drag; the card snaps to the nearest size. Sizes are saved with the link.",
+      "Every card is S, M or L. Hover a card and pick one here — L spans two columns, S drops the image for a compact line.",
     side: "left",
+  },
+  {
+    page: "library",
+    element: "[data-tour=card-resize]",
+    title: "Or resize by dragging",
+    description:
+      "Grab the bottom-right corner and pull. The card stretches with your cursor, snaps to the nearest size as you pass it, and the cards around it slide out of the way. Drag wide for L, tall for M, back in for S. The size is saved with the link.",
+    side: "left",
+    align: "end",
+  },
+  {
+    page: "library",
+    element: "[data-tour=mosaic]",
+    title: "Arrange by dragging",
+    description:
+      "Pick up any card and drop it where you want it — the others make room as you move, so you see the new layout before you let go. On a phone, hold a card for a moment until it lifts, then drag; near the top or bottom of the screen the page scrolls with you.",
+    side: "top",
   },
   {
     page: "library",
     element: "[data-tour=sort]",
     title: "Sort it your way",
     description:
-      "Newest, oldest, title or site — or pick <em>My order</em> and drag cards into whatever arrangement makes sense to you. Manual order is saved with the links, so it survives a reload.",
+      "Newest, oldest, title or site — or <em>My order</em>, the arrangement you dragged. Dropping a card switches to it for you, so what you arranged never snaps back, and it's saved with the links.",
     side: "bottom",
     align: "end",
   },
@@ -85,7 +125,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=sidebar]",
     title: "Collections",
     description:
-      "Each collection gets a colour marker and a live count. Rename or delete from the row itself — deleting sends its links to Trash rather than refusing.",
+      "Each collection gets a colour marker and a live count. Drag rows to put them in the order you want; Unsorted stays pinned on top. Rename or delete from the row itself — deleting sends its links to Trash rather than refusing.",
     side: "right",
   },
   {
@@ -109,7 +149,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=custom-filters]",
     title: "Your own filters",
     description:
-      "Any search can become a permanent filter: press ⌘S in the palette, give it a name, and it lives here re-running itself as the library grows.",
+      "Any search can become a permanent filter: press ⌘S in the palette, give it a name, and it lives here re-running itself as the library grows. Drag them into whatever order you like, same as collections.",
     side: "right",
   },
   {
@@ -189,7 +229,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=collection-filters]",
     title: "Narrow it down",
     description:
-      "Filter by any tag used in this collection, and sort by date, title, site — or by hand.",
+      "Filter by any tag used in this collection, and sort by date, title or site. Dragging, resizing and the card buttons all work here exactly as in the library.",
     side: "bottom",
     align: "start",
   },
@@ -285,6 +325,6 @@ export const TOUR_STEPS: TourStep[] = [
     page: "library",
     title: "That's AnyLink",
     description:
-      "Arrive with a mess and leave with a library, capture the next one with a single paste, find any of it again with one query language across search, filters and smart collections — and nothing you save is ever one click from being lost.",
+      "Arrive with a mess and leave with a library, capture the next one with a single paste, shape it by dragging cards and collections where you want them, find any of it again with one query language — and nothing you save is ever one click from being lost.",
   },
 ];

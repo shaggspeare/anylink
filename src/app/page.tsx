@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { AmbientOrbs } from "@/components/ambient-orbs";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 /** Public landing page. Static on purpose — no library data, nothing to log in for. */
 
@@ -47,18 +48,21 @@ export default function LandingPage() {
       <div className="relative mx-auto w-full max-w-[1100px] px-4 sm:px-6">
         <header className="flex items-center justify-between py-6">
           <span className="text-wordmark">AnyLink</span>
+          <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           <Link
             href="/app"
-            className="flex h-9 items-center rounded-full bg-ink px-4 text-body font-semibold text-light-100"
+            className="flex h-9 items-center rounded-full bg-ink px-4 text-body font-semibold text-on-ink"
           >
             Open library
           </Link>
+          </div>
         </header>
 
         {/* Hero */}
         <section className="grid items-center gap-6 pt-10 pb-16 md:grid-cols-[1.1fr_1fr] md:pt-16">
           <div className="flex flex-col items-center gap-6 text-center md:items-start md:text-left">
-            <span className="rounded-full bg-white/70 px-4 py-2 text-eyebrow text-ink/50">
+            <span className="rounded-full bg-surface/70 px-4 py-2 text-eyebrow text-ink/50">
               Your saved links, finally readable
             </span>
             <h1 className="text-display max-w-[560px] text-[40px] sm:text-[56px]">
@@ -71,7 +75,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-2.5 md:justify-start">
               <Link
                 href="/start"
-                className="flex h-12 items-center rounded-full bg-ink px-7 text-body font-semibold text-light-100 shadow-card"
+                className="flex h-12 items-center rounded-full bg-ink px-7 text-body font-semibold text-on-ink shadow-card"
               >
                 Import my links
               </Link>
@@ -165,7 +169,7 @@ export default function LandingPage() {
           </p>
           <Link
             href="/start"
-            className="mt-1 flex h-12 items-center rounded-full bg-lime px-7 text-body font-semibold text-ink"
+            className="mt-1 flex h-12 items-center rounded-full bg-lime px-7 text-body font-semibold text-on-accent"
           >
             Import my links
           </Link>
