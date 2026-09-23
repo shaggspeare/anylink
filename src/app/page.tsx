@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import Image from "next/image";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 
 /** Public landing page. Static on purpose — no library data, nothing to log in for. */
@@ -46,10 +46,7 @@ export default function LandingPage() {
 
       <div className="relative mx-auto w-full max-w-[1100px] px-4 sm:px-6">
         <header className="flex items-center justify-between py-6">
-          <span className="flex items-center gap-2">
-            <Logo className="h-12 w-12 sm:h-11 sm:w-11" />
-            <span className="text-wordmark">AnyLink</span>
-          </span>
+          <span className="text-wordmark">AnyLink</span>
           <Link
             href="/app"
             className="flex h-9 items-center rounded-full bg-ink px-4 text-body font-semibold text-light-100"
@@ -59,31 +56,42 @@ export default function LandingPage() {
         </header>
 
         {/* Hero */}
-        <section className="flex flex-col items-center gap-6 pt-14 pb-16 text-center sm:pt-24">
-          <span className="rounded-full bg-white/70 px-4 py-2 text-eyebrow text-ink/50">
-            Your saved links, finally readable
-          </span>
-          <h1 className="text-display max-w-[760px] text-[40px] sm:text-[56px]">
-            Paste anything. We read the rest.
-          </h1>
-          <p className="max-w-[500px] text-lead text-ink/55">
-            A personal library for the links you keep meaning to get back to — crawled, tagged,
-            and filed into collections you actually browse.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <Link
-              href="/start"
-              className="flex h-12 items-center rounded-full bg-ink px-7 text-body font-semibold text-light-100 shadow-card"
-            >
-              Import my links
-            </Link>
-            <Link
-              href="/app"
-              className="glass-55 flex h-12 items-center rounded-full px-7 text-body font-semibold text-ink/70"
-            >
-              See the library
-            </Link>
+        <section className="grid items-center gap-6 pt-10 pb-16 md:grid-cols-[1.1fr_1fr] md:pt-16">
+          <div className="flex flex-col items-center gap-6 text-center md:items-start md:text-left">
+            <span className="rounded-full bg-white/70 px-4 py-2 text-eyebrow text-ink/50">
+              Your saved links, finally readable
+            </span>
+            <h1 className="text-display max-w-[560px] text-[40px] sm:text-[56px]">
+              Paste anything. We read the rest.
+            </h1>
+            <p className="max-w-[500px] text-lead text-ink/55">
+              A personal library for the links you keep meaning to get back to — crawled, tagged,
+              and filed into collections you actually browse.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 md:justify-start">
+              <Link
+                href="/start"
+                className="flex h-12 items-center rounded-full bg-ink px-7 text-body font-semibold text-light-100 shadow-card"
+              >
+                Import my links
+              </Link>
+              <Link
+                href="/app"
+                className="glass-55 flex h-12 items-center rounded-full px-7 text-body font-semibold text-ink/70"
+              >
+                See the library
+              </Link>
+            </div>
           </div>
+          <Image
+            src="/images/logo.png"
+            alt=""
+            width={1254}
+            height={1254}
+            priority
+            sizes="(min-width: 768px) 480px, 280px"
+            className="mx-auto w-[280px] md:w-full md:max-w-[480px]"
+          />
         </section>
 
         {/* Product frame */}
