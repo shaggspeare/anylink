@@ -60,7 +60,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=card-open]",
     title: "Straight to the source",
     description:
-      "The ↗ opens the original page in a new tab — no stop at the reader view on the way.",
+      "Open takes you to the original page in a new tab — no stop at the reader view on the way.",
     side: "bottom",
   },
   {
@@ -69,14 +69,14 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Favorites",
     description:
       "Star the ones worth keeping close. Favorites become their own filter in the sidebar.",
-    side: "bottom",
+    side: "left",
   },
   {
     page: "library",
     element: "[data-tour=card-trash]",
     title: "Delete from the card",
     description: "Sends the link to Trash, where it waits until you restore it or empty the bin.",
-    side: "bottom",
+    side: "left",
   },
   {
     page: "library",

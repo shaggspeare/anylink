@@ -70,35 +70,38 @@ export function Card({
     setResizing(true);
     let moved = false;
 
-    let rect = el.getBoundingClientRect();
-    let startX = e.clientX;
-    let startY = e.clientY;
+    // Measured once, never mid-drag: after a snap the mosaic FLIP-animates the card to its
+    // new slot, and a rect read during that animation fed back into the size rule made
+    // it flip-flop between sizes. The size is purely a function of cursor travel instead.
+    const rect = el.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
     const unit = rect.width / cols;
+    const inset = (el.offsetParent as HTMLElement).offsetWidth - rect.width; // both sides
+    const column = (rect.width + inset) / cols;
     let lastSize = link.size;
     el.style.transformOrigin = "top left";
     el.style.transition = "none";
+    el.style.willChange = "transform";
 
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-      const next = sizeFromDrag(rect.width + dx, rect.height + dy, unit);
+      const w = rect.width + dx;
+      const h = rect.height + dy;
+      const next = sizeFromDrag(w, h, unit);
       if (next !== lastSize) {
         lastSize = next;
         setLinkSize(link.id, next);
-        // The card snaps to its new box under the cursor — rebase so the stretch
-        // below measures from there instead of double-counting the same drag.
-        requestAnimationFrame(() => {
-          rect = el.getBoundingClientRect();
-          startX = ev.clientX;
-          startY = ev.clientY;
-          el.style.transform = "";
-        });
-        return;
       }
-      // Rubber band: the card stretches a little toward the cursor between snaps.
+      // Rubber band: the card stretches a little toward the cursor, relative to the box
+      // it has snapped to.
+      const g = CARD_GEOMETRY[next];
+      const boxW = Math.min(g.cols, columnCount) * column - inset;
+      const boxH = g.rowPx - inset;
       const band = (d: number, size: number) => 1 + Math.max(-0.05, Math.min(0.05, d / size / 3));
-      el.style.transform = `scale(${band(dx, rect.width)}, ${band(dy, rect.height)})`;
+      el.style.transform = `scale(${band(w - boxW, boxW)}, ${band(h - boxH, boxH)})`;
     };
     const up = () => {
       if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
@@ -106,6 +109,7 @@ export function Card({
       window.removeEventListener("pointerup", up);
       el.style.transition = "transform .4s cubic-bezier(.2,1.5,.4,1)";
       el.style.transform = "";
+      el.style.willChange = "";
       setResizing(false);
       // Without this the drag's trailing click opens a link, and the resize reads as
       // "nothing happened".
@@ -184,6 +188,21 @@ export function Card({
           >
             {menuOpen ? "✕" : "⋯"}
           </button>
+        )}
+        {tile && !menuOpen && !selectionActive && (
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Open ${link.domain} in a new tab`}
+            className="absolute left-1.5 top-1.5 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-surface/85 text-ink shadow-sm"
+            style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+              <path d="M7 17 17 7M9 7h8v8" />
+            </svg>
+          </a>
         )}
         {menuOpen && (
           <div
@@ -296,56 +315,26 @@ export function Card({
               {link.initial}
             </span>
             <span className={`truncate text-ink/50 ${tile ? "text-[10.5px]" : "text-[11.5px]"}`}>{link.domain}</span>
-            {tile ? (
-              link.favorite && <span className="ml-auto text-[11px] leading-none text-signal">★</span>
-            ) : (
-            <>
-            <button
-              type="button"
-              data-tour="card-favorite"
-              onClick={(e) => {
-                e.stopPropagation();
-                setFavorite(link.id, !link.favorite);
-              }}
-              aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
-              className={`ml-auto text-[13px] leading-none transition-opacity ${
-                link.favorite ? "text-signal" : "text-ink/30 opacity-0 group-hover:opacity-100"
-              }`}
-            >
-              ★
-            </button>
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              onClick={(e) => e.stopPropagation()}
-              data-tour="card-open"
-              title={`Open ${link.domain}`}
-              aria-label={`Open ${link.domain} in a new tab`}
-              className="ml-1.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-ink/8 group-hover:opacity-100"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .55)" }} strokeWidth="2.6" strokeLinecap="round">
-                <path d="M7 17 17 7M9 7h8v8" />
-              </svg>
-            </a>
-            {/* Soft delete — the link lands in Trash, same as the bulk action. */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteLinks([link.id]);
-              }}
-              data-tour="card-trash"
-              title="Move to trash"
-              aria-label={`Move ${link.title} to trash`}
-              className="ml-0.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full opacity-0 transition-opacity hover:bg-ink/8 group-hover:opacity-100"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .55)" }} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
-              </svg>
-            </button>
-            </>
+            {!tile && (
+              // The one action people hunt for, so it's always on screen and sits right
+              // by the domain it opens — apart from the hover-only controls panel.
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                onClick={(e) => e.stopPropagation()}
+                data-tour="card-open"
+                title={`Open ${link.domain} in a new tab`}
+                aria-label={`Open ${link.domain} in a new tab`}
+                className="flex h-7 flex-none items-center gap-1 rounded-full border border-ink/12 bg-surface/70 pl-2 pr-2.5 text-[11.5px] font-semibold text-ink/75 transition-colors hover:border-ink hover:bg-ink hover:text-on-ink"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                  <path d="M7 17 17 7M9 7h8v8" />
+                </svg>
+                Open
+              </a>
             )}
+            {link.favorite && <span className={`ml-auto leading-none text-signal ${tile ? "text-[11px]" : "text-[13px]"}`}>★</span>}
           </div>
           <div
             className="overflow-hidden font-semibold leading-[1.12] text-ink"
@@ -371,30 +360,57 @@ export function Card({
         </div>
 
         {!tile && (
+        // Hover controls, stacked down the right edge so they never cover the title,
+        // domain or Open button.
         <div
-          data-tour="card-size"
-          // S cards have no hero, so top-right is the ★/↗/trash row — the pill drops to
-          // the bottom there, beside the resize grip, instead of covering them.
-          className={`absolute flex gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity group-hover:opacity-100 ${
-            compact ? "bottom-2.5 right-8" : "right-4 top-4"
-          }`}
-          style={{ background: "rgb(var(--surface-rgb) / .72)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
+          className="absolute right-2.5 top-2.5 z-10 flex flex-col items-center gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+          style={{ background: "rgb(var(--surface-rgb) / .8)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
           onClick={(e) => e.stopPropagation()}
         >
-          {SIZES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setLinkSize(link.id, s)}
-              className="h-[21px] w-[23px] rounded-full text-[10px] font-semibold"
-              style={{
-                background: s === link.size ? "var(--ink)" : "transparent",
-                color: s === link.size ? "var(--on-ink)" : "rgb(var(--ink-rgb) / .5)",
-              }}
-            >
-              {s}
-            </button>
-          ))}
+          <div data-tour="card-size" className="flex flex-col gap-0.5">
+            {SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setLinkSize(link.id, s)}
+                aria-label={`Size ${s}`}
+                aria-pressed={s === link.size}
+                className="h-[22px] w-[22px] rounded-full text-[10px] font-semibold"
+                style={{
+                  background: s === link.size ? "var(--ink)" : "transparent",
+                  color: s === link.size ? "var(--on-ink)" : "rgb(var(--ink-rgb) / .5)",
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <span className="my-0.5 h-px w-3.5 bg-ink/15" />
+          <button
+            type="button"
+            data-tour="card-favorite"
+            onClick={() => setFavorite(link.id, !link.favorite)}
+            title={link.favorite ? "Remove from favorites" : "Add to favorites"}
+            aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
+            className={`flex h-[22px] w-[22px] items-center justify-center rounded-full text-[13px] leading-none hover:bg-ink/8 ${
+              link.favorite ? "text-signal" : "text-ink/40"
+            }`}
+          >
+            ★
+          </button>
+          {/* Soft delete — the link lands in Trash, same as the bulk action. */}
+          <button
+            type="button"
+            onClick={() => deleteLinks([link.id])}
+            data-tour="card-trash"
+            title="Move to trash"
+            aria-label={`Move ${link.title} to trash`}
+            className="flex h-[22px] w-[22px] items-center justify-center rounded-full hover:bg-ink/8"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .55)" }} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+            </svg>
+          </button>
         </div>
         )}
 
