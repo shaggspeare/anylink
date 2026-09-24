@@ -59,7 +59,7 @@ export default function LandingPage() {
         </header>
 
         {/* Hero */}
-        <section className="grid items-center gap-6 pt-10 pb-16 md:grid-cols-[1.1fr_minmax(0,1fr)] md:pt-16">
+        <section className="grid grid-cols-[minmax(0,1fr)] items-center gap-6 pt-10 pb-16 md:grid-cols-[1.1fr_minmax(0,1fr)] md:pt-16">
           <div className="flex flex-col items-center gap-6 text-center md:items-start md:text-left">
             <span className="rounded-full bg-surface/70 px-4 py-2 text-eyebrow text-ink/50">
               Your saved links, finally readable
@@ -71,16 +71,16 @@ export default function LandingPage() {
               A personal library for the links you keep meaning to get back to — crawled, tagged,
               and filed into collections you actually browse.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-2.5 md:justify-start">
+            <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
               <Link
                 href="/start"
-                className="flex h-12 items-center rounded-full bg-ink px-7 text-body font-semibold text-on-ink shadow-card"
+                className="flex h-12 items-center justify-center rounded-full bg-ink px-7 text-body font-semibold text-on-ink shadow-card"
               >
                 Import my links
               </Link>
               <Link
                 href="/app"
-                className="glass-55 flex h-12 items-center rounded-full px-7 text-body font-semibold text-ink/70"
+                className="glass-55 flex h-12 items-center justify-center rounded-full px-7 text-body font-semibold text-ink/70"
               >
                 See the library
               </Link>
@@ -93,7 +93,7 @@ export default function LandingPage() {
             muted
             playsInline
             aria-hidden
-            className="pointer-events-none relative z-[100] w-[525px] max-w-none -rotate-10 justify-self-center md:w-[min(900px,75vw)]"
+            className="pointer-events-none relative z-[100] -my-10 w-[min(525px,115vw)] max-w-none -rotate-10 justify-self-center md:my-0 md:w-[min(900px,75vw)]"
           />
         </section>
 
