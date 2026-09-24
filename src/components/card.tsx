@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
@@ -193,7 +194,7 @@ export function Card({
             }`}
             style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
           >
-            {menuOpen ? "✕" : "⋯"}
+            <Icon name={menuOpen ? "close" : "more"} size={menuOpen ? 13 : 15} />
           </button>
         )}
         {tile && !menuOpen && !selectionActive && (
@@ -225,7 +226,7 @@ export function Card({
             }}
           >
             <a role="menuitem" href={link.url} target="_blank" rel="noreferrer noopener" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
-              <span className="w-4 text-center">↗</span> Open original
+              <span className="flex w-4 justify-center"><Icon name="arrow-up-right" size={13} /></span> Open original
             </a>
             <button
               role="menuitem"
@@ -236,7 +237,7 @@ export function Card({
               }}
               className={MENU_ITEM}
             >
-              <span className="w-4 text-center text-signal">★</span> {link.favorite ? "Unfavorite" : "Favorite"}
+              <span className="flex w-4 justify-center text-signal"><Icon name="star" size={14} /></span> {link.favorite ? "Unfavorite" : "Favorite"}
             </button>
             <button
               role="menuitem"
@@ -244,7 +245,7 @@ export function Card({
               onClick={() => deleteLinks([link.id])}
               className={`${MENU_ITEM} text-[#ff9a8f]`}
             >
-              <span className="w-4 text-center">✕</span> Move to trash
+              <span className="flex w-4 justify-center"><Icon name="close" size={12} /></span> Move to trash
             </button>
           </div>
         )}
@@ -261,7 +262,7 @@ export function Card({
               selected ? "bg-lime text-on-accent opacity-100" : "bg-surface/80 text-transparent opacity-0 group-hover:opacity-100"
             }`}
           >
-            ✓
+            <Icon name="check" size={12} />
           </button>
         )}
 
@@ -341,7 +342,7 @@ export function Card({
                 Open
               </a>
             )}
-            {link.favorite && <span className={`ml-auto leading-none text-signal ${tile ? "text-[11px]" : "text-[13px]"}`}>★</span>}
+            {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="ml-auto text-signal" />}
           </div>
           <div
             className="overflow-hidden font-semibold leading-[1.12] text-ink"
@@ -404,7 +405,7 @@ export function Card({
               link.favorite ? "text-signal" : "text-ink/60"
             }`}
           >
-            ★
+            <Icon name="star" size={16} />
           </button>
           {/* Soft delete — the link lands in Trash, same as the bulk action. */}
           <button

@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -71,7 +72,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
                 link.favorite ? "text-signal" : "text-ink/35"
               }`}
             >
-              ★
+              <Icon name="star" size={15} />
             </button>
             <button
               type="button"

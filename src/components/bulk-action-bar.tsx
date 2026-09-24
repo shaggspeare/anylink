@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useState } from "react";
 import type { Collection } from "@/lib/types";
 
@@ -118,7 +119,7 @@ export function BulkActionBar({
           aria-label="Clear selection"
           className="ml-1 flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10"
         >
-          ✕
+          <Icon name="close" size={13} />
         </button>
       </div>
     </div>

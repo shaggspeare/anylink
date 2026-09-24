@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Logo } from "./logo";
@@ -199,7 +200,7 @@ export function Sidebar() {
           data-tour="import"
           className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
         >
-          <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">↓</span>
+          <span className="flex h-4 w-4 items-center justify-center"><Icon name="arrow-down" size={13} /></span>
           Import links
         </a>
         <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
@@ -263,7 +264,7 @@ export function Sidebar() {
                   aria-label={`Dismiss ${theme.name}`}
                   className="hidden h-5 w-5 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-surface hover:text-ink group-hover:flex"
                 >
-                  ✕
+                  <Icon name="close" size={10} />
                 </button>
               </div>
             ))}
@@ -517,7 +518,7 @@ function CollectionRow({
             aria-label="Rename"
             className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
-            ✎
+            <Icon name="pencil" size={12} />
           </button>
           <button
             type="button"
@@ -529,7 +530,7 @@ function CollectionRow({
             title={count > 0 ? `Delete — ${count} link${count > 1 ? "s" : ""} move to Trash` : "Delete"}
             className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
-            ✕
+            <Icon name="close" size={11} />
           </button>
         </div>
       )}

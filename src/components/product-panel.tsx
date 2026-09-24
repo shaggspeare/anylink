@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/lib/store";
@@ -70,7 +71,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
               {product.delivery && <StatusChip>{product.delivery}</StatusChip>}
               {product.rating !== undefined && (
                 <StatusChip>
-                  {product.rating} ★{product.reviewCount ? ` · ${product.reviewCount.toLocaleString()} reviews` : ""}
+                  {product.rating} <Icon name="star" size={11} className="inline-block align-[-1px]" />{product.reviewCount ? ` · ${product.reviewCount.toLocaleString()} reviews` : ""}
                 </StatusChip>
               )}
               {product.warranty && <StatusChip>{product.warranty}</StatusChip>}

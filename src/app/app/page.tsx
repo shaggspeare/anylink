@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
@@ -38,7 +39,7 @@ export default function LibraryPage() {
                 className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] text-on-ink"
               >
                 {query}
-                <span className="text-on-ink/60">✕</span>
+                <Icon name="close" size={10} className="text-on-ink/60" />
               </button>
             ) : (
               <>

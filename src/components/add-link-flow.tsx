@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useEffect, useRef, useState } from "react";
 import { useLibrary } from "@/lib/store";
 import { suggestTags } from "@/lib/organize";
@@ -217,7 +218,7 @@ export function AddLinkFlow() {
                 aria-label="Close"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-light-55 hover:bg-white/10"
               >
-                ✕
+                <Icon name="close" size={12} />
               </button>
             </div>
 
@@ -324,7 +325,7 @@ export function AddLinkFlow() {
                             background: i <= step ? "#d6f24b" : "rgba(255,255,255,.1)",
                           }}
                         >
-                          {i < step ? "✓" : i + 1}
+                          {i < step ? <Icon name="check" size={10} /> : i + 1}
                         </span>
                         {STEP_LABELS[s]}
                       </div>
@@ -445,7 +446,7 @@ function ReadyForm({
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[12px] text-lime">
-          <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-on-accent">✓</span>
+          <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-on-accent"><Icon name="check" size={10} /></span>
           <span className="text-light-55">{failed ? "Filled in from the link — check it" : "Crawled — check the details"}</span>
         </div>
       </div>
@@ -564,7 +565,7 @@ function TagPicker({
             className="inline-flex items-center gap-1.5 rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-medium text-on-accent"
           >
             {tag}
-            <span className="text-ink/45">✕</span>
+            <Icon name="close" size={9} className="text-ink/45" />
           </button>
         ))}
         {value.length === 0 && <span className="text-[12px] text-light-40">No tags yet</span>}

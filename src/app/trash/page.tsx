@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
@@ -71,7 +72,7 @@ export default function TrashPage() {
                 title="Delete forever"
                 className="flex h-7 w-7 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-surface hover:text-ink"
               >
-                ✕
+                <Icon name="close" size={12} />
               </button>
             </div>
           ))}

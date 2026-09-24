@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/icon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
 import { AmbientOrbs } from "@/components/ambient-orbs";
@@ -573,7 +574,7 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
                       verdicts[result.collection.id] === "up" ? "bg-lime" : "bg-ink/6 text-ink/50"
                     }`}
                   >
-                    ✓
+                    <Icon name="check" size={13} />
                   </button>
                   <button
                     type="button"
@@ -581,7 +582,7 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
                     aria-label={`Bin ${result.collection.name}`}
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-ink/6 text-[13px] text-ink/50"
                   >
-                    ✕
+                    <Icon name="close" size={12} />
                   </button>
                 </div>
               </div>
