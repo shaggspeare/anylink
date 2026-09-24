@@ -1,4 +1,5 @@
-export type CardSize = "S" | "M" | "L";
+export const CARD_SIZES = ["S", "M", "L"] as const;
+export type CardSize = (typeof CARD_SIZES)[number];
 export type ContentType = "article" | "video" | "product";
 export type LinkStatus = "crawling" | "ready" | "failed";
 

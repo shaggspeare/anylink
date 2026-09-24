@@ -5,7 +5,7 @@ import { useLibrary } from "@/lib/store";
 import { suggestTags } from "@/lib/organize";
 import type { CrawlResult, CrawlStep } from "@/lib/crawler";
 import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
-import type { CardSize, Collection } from "@/lib/types";
+import { CARD_SIZES, type CardSize, type Collection } from "@/lib/types";
 import { AmbientOrbs } from "./ambient-orbs";
 
 type Phase = "idle" | "crawling" | "ready";
@@ -502,7 +502,7 @@ function ReadyForm({
         <div className="flex flex-col gap-1.5">
           <span className="text-eyebrow text-light-40">Card size *</span>
           <div className="flex gap-1.5">
-            {(["S", "M", "L"] as CardSize[]).map((s) => (
+            {CARD_SIZES.map((s) => (
               <button
                 key={s}
                 type="button"

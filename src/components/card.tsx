@@ -6,12 +6,19 @@ import Image from "next/image";
 import { useLibrary } from "@/lib/store";
 import { swallowClick, type useDragReorder } from "@/lib/use-drag-reorder";
 import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, TILE_PX, sizeFromDrag } from "@/lib/geometry";
-import type { CardSize, LinkItem } from "@/lib/types";
+import { CARD_SIZES, type LinkItem } from "@/lib/types";
 
-const SIZES: CardSize[] = ["S", "M", "L"];
 const ENTRANCE_SCALES = [0.72, 1.14, 0.86, 1.22, 0.64, 1.06];
 const MENU_ITEM =
   "flex h-8 items-center gap-2 rounded-[10px] px-2.5 text-[12.5px] font-medium text-[#f4f5f6] active:bg-white/15";
+const ISLAND = "pointer-events-auto flex gap-1 rounded-full p-1";
+const ISLAND_STYLE = {
+  background: "rgb(var(--surface-rgb) / .96)",
+  border: "1px solid rgb(var(--ink-rgb) / .12)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+  boxShadow: "0 4px 14px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12)",
+};
 
 export function Card({
   index = 0,
@@ -360,40 +367,41 @@ export function Card({
         </div>
 
         {!tile && (
-        // Hover controls, stacked down the right edge so they never cover the title,
-        // domain or Open button.
+        // Hover controls: two floating islands — sizes and actions — lined up on the right
+        // edge so they never cover the title, domain or Open button. Stacked top/bottom on
+        // tall cards; on S (no image) they lie flat in the bottom-right corner, clear of the
+        // domain row and its Open button.
         <div
-          className="absolute right-2.5 top-2.5 z-10 flex flex-col items-center gap-0.5 rounded-full p-[3px] opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
-          style={{ background: "rgb(var(--surface-rgb) / .8)", backdropFilter: "blur(10px)", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}
+          className={`pointer-events-none absolute z-10 flex opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 ${
+            compact ? "bottom-2 right-9 gap-1.5" : "bottom-[34px] right-2.5 top-2.5 flex-col items-end justify-between"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div data-tour="card-size" className="flex flex-col gap-0.5">
-            {SIZES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setLinkSize(link.id, s)}
-                aria-label={`Size ${s}`}
-                aria-pressed={s === link.size}
-                className="h-[22px] w-[22px] rounded-full text-[10px] font-semibold"
-                style={{
-                  background: s === link.size ? "var(--ink)" : "transparent",
-                  color: s === link.size ? "var(--on-ink)" : "rgb(var(--ink-rgb) / .5)",
-                }}
-              >
-                {s}
-              </button>
-            ))}
+          <div data-tour="card-size" className={`${ISLAND} ${compact ? "" : "flex-col"}`} style={ISLAND_STYLE}>
+          {CARD_SIZES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setLinkSize(link.id, s)}
+              aria-label={`Size ${s}`}
+              aria-pressed={s === link.size}
+              className={`h-7 w-7 rounded-full text-[11px] font-semibold transition-colors ${
+                s === link.size ? "bg-ink text-on-ink" : "text-ink/75 hover:bg-lime hover:text-on-accent"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
           </div>
-          <span className="my-0.5 h-px w-3.5 bg-ink/15" />
+          <div className={`${ISLAND} ${compact ? "" : "flex-col"}`} style={ISLAND_STYLE}>
           <button
             type="button"
             data-tour="card-favorite"
             onClick={() => setFavorite(link.id, !link.favorite)}
             title={link.favorite ? "Remove from favorites" : "Add to favorites"}
             aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
-            className={`flex h-[22px] w-[22px] items-center justify-center rounded-full text-[13px] leading-none hover:bg-ink/8 ${
-              link.favorite ? "text-signal" : "text-ink/40"
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-[16px] leading-none transition-colors hover:bg-amber-400/15 hover:text-amber-400 ${
+              link.favorite ? "text-signal" : "text-ink/60"
             }`}
           >
             ★
@@ -405,12 +413,13 @@ export function Card({
             data-tour="card-trash"
             title="Move to trash"
             aria-label={`Move ${link.title} to trash`}
-            className="flex h-[22px] w-[22px] items-center justify-center rounded-full hover:bg-ink/8"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-ink/70 transition-colors hover:bg-red-500/12 hover:text-red-500"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .55)" }} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
             </svg>
           </button>
+          </div>
         </div>
         )}
 
@@ -419,7 +428,7 @@ export function Card({
           onPointerDown={handlePointerDown}
           data-tour="card-resize"
           title="Drag to resize"
-          className="absolute bottom-0 right-0 h-[30px] w-[30px] touch-none cursor-nwse-resize opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute bottom-0 right-0 z-10 h-[30px] w-[30px] touch-none cursor-nwse-resize opacity-0 transition-opacity group-hover:opacity-100"
           style={{
             backgroundImage:
               "repeating-linear-gradient(135deg, rgb(var(--ink-rgb) / .3) 0 1.5px, transparent 1.5px 5px)",
