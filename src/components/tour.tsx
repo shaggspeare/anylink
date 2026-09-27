@@ -13,15 +13,19 @@ const TOUR_EVENT = "anylink:tour-start";
 
 /** The button lives in the sidebar, the runner in the root layout (it has to survive
  * the navigations the tour itself makes) — a window event is the whole wiring. */
-export function TourButton() {
+export function TourButton({ className, children }: { className?: string; children?: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
-      className="flex w-full items-center gap-2.5 rounded-[14px] bg-ink px-3 py-2.5 text-body font-semibold text-on-ink"
+      className={className ?? "flex w-full items-center gap-2.5 rounded-[14px] bg-ink px-3 py-2.5 text-body font-semibold text-on-ink"}
     >
-      <span className="flex h-4 w-4 items-center justify-center text-[10px] leading-none">▶</span>
-      Guided tour
+      {children ?? (
+        <>
+          <span className="flex h-4 w-4 items-center justify-center text-[10px] leading-none">▶</span>
+          Guided tour
+        </>
+      )}
     </button>
   );
 }

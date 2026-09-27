@@ -48,7 +48,7 @@ export function Card({
   dragProps?: ReturnType<ReturnType<typeof useDragReorder>["item"]>;
 }) {
   const router = useRouter();
-  const { setLinkSize, setFavorite, deleteLinks } = useLibrary();
+  const { setLinkSize, setFavorite, deleteLinks, demo } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,7 +63,9 @@ export function Card({
       onSelectClick?.(e);
       return;
     }
-    router.push(`/links/${link.id}`);
+    // Demo links have no detail page — show the real thing instead.
+    if (demo) window.open(link.url, "_blank", "noopener");
+    else router.push(`/links/${link.id}`);
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {

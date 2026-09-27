@@ -332,6 +332,45 @@ button {
   }
 }
 
+/* Landing hero pile: tiles fly in from outside, then drift on their own clocks.
+   Entrance animates translate/rotate on the wrapper, drift animates translate on the
+   image, hover animates scale — separate properties, so none of them fight. */
+@keyframes pile-in {
+  from {
+    opacity: 0;
+    translate: var(--from);
+    rotate: var(--spin);
+    scale: 0.85;
+  }
+}
+
+@keyframes pile-float {
+  50% {
+    translate: 0 -8px;
+  }
+}
+
+.pile-tile {
+  animation: pile-in 1s cubic-bezier(0.22, 1.2, 0.36, 1) var(--delay) backwards;
+}
+.pile-tile > img {
+  animation: pile-float var(--float) ease-in-out calc(var(--delay) + 1s) infinite;
+  transition: scale 0.35s cubic-bezier(0.22, 1.35, 0.36, 1);
+}
+.pile-tile:hover {
+  z-index: 20 !important;
+}
+.pile-tile:hover > img {
+  scale: 1.06;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pile-tile,
+  .pile-tile > img {
+    animation: none;
+  }
+}
+
 /* Card controls only show on hover, so a tour step pointing at one would light up
    empty space. While the tour runs, the first card (the one it points at) shows them. */
 .driver-active [data-tour="mosaic"] > :first-child .group-hover\:opacity-100 {

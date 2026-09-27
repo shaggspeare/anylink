@@ -58,9 +58,13 @@ type LibraryContextValue = {
   /** The sidebar as a slide-in drawer below lg; on desktop it's always shown. */
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
+  demo: boolean;
 };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
+
+// Every server action becomes a resolved no-op; the optimistic local updates still run.
+const DEMO_ACTIONS = new Proxy({}, { get: () => async () => undefined }) as typeof actions;
 
 let idCounter = 0;
 function nextId(prefix: string) {
@@ -73,12 +77,16 @@ export function LibraryProvider({
   initialLinks,
   initialTrashed,
   initialCollections,
+  demo = false,
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
   initialTrashed: LinkItem[];
   initialCollections: Collection[];
+  /** Landing-page demo: state changes stay local, nothing reaches the server. */
+  demo?: boolean;
 }) {
+  const api = demo ? DEMO_ACTIONS : actions;
   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
   const [trashed, setTrashed] = useState<LinkItem[]>(initialTrashed);
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
@@ -95,28 +103,28 @@ export function LibraryProvider({
       tags: Array.from(new Set(links.flatMap((l) => l.tags))).sort((a, b) => a.localeCompare(b)),
       inbox: collections.find((c) => c.isInbox),
       addLink: async (input) => {
-        const link = await actions.createLink(input);
+        const link = await api.createLink(input);
         setLinks((prev) => [link, ...prev]);
         return link;
       },
       setLinkSize: (id, size) => {
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, size } : l)));
-        actions.setLinkSize(id, size).catch(console.error);
+        api.setLinkSize(id, size).catch(console.error);
       },
       reorderLinks: (ids) => {
         const positions = new Map(ids.map((id, i) => [id, i]));
         setLinks((prev) =>
           prev.map((l) => (positions.has(l.id) ? { ...l, position: positions.get(l.id) } : l))
         );
-        actions.reorderLinks(ids).catch(console.error);
+        api.reorderLinks(ids).catch(console.error);
       },
       moveLinks: (ids, collectionId) => {
         const idSet = new Set(ids);
         setLinks((prev) => prev.map((l) => (idSet.has(l.id) ? { ...l, collectionId } : l)));
-        actions.moveLinks(ids, collectionId).catch(console.error);
+        api.moveLinks(ids, collectionId).catch(console.error);
         // Every move is calibration data, wherever in the app it came from — which is
         // why it's logged here rather than at each call site.
-        actions.logSignal("move", { linkIds: ids, collectionId }).catch(console.error);
+        api.logSignal("move", { linkIds: ids, collectionId }).catch(console.error);
       },
       tagLinks: (ids, tag) => {
         const idSet = new Set(ids);
@@ -125,19 +133,19 @@ export function LibraryProvider({
             idSet.has(l.id) && !l.tags.includes(tag) ? { ...l, tags: [...l.tags, tag] } : l
           )
         );
-        actions.tagLinks(ids, tag).catch(console.error);
+        api.tagLinks(ids, tag).catch(console.error);
       },
       archiveLinks: (ids) => {
         const idSet = new Set(ids);
         setLinks((prev) => prev.map((l) => (idSet.has(l.id) ? { ...l, archived: true } : l)));
-        actions.archiveLinks(ids).catch(console.error);
+        api.archiveLinks(ids).catch(console.error);
       },
       deleteLinks: (ids) => {
         const idSet = new Set(ids);
         const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true }));
         setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
         setTrashed((prev) => [...moving, ...prev]);
-        actions.deleteLinks(ids).catch(console.error);
+        api.deleteLinks(ids).catch(console.error);
       },
       restoreLinks: (ids) => {
         const idSet = new Set(ids);
@@ -146,28 +154,28 @@ export function LibraryProvider({
         setLinks((prev) =>
           [...moving, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         );
-        actions.restoreLinks(ids).catch(console.error);
+        api.restoreLinks(ids).catch(console.error);
       },
       purgeLinks: (ids) => {
         const idSet = new Set(ids);
         setTrashed((prev) => prev.filter((l) => !idSet.has(l.id)));
-        actions.purgeLinks(ids).catch(console.error);
+        api.purgeLinks(ids).catch(console.error);
       },
       setFavorite: (id, favorite) => {
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, favorite } : l)));
-        actions.setFavorite(id, favorite).catch(console.error);
+        api.setFavorite(id, favorite).catch(console.error);
       },
       setNote: (id, note) => {
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, note: note.trim() || undefined } : l)));
-        actions.setNote(id, note).catch(console.error);
+        api.setNote(id, note).catch(console.error);
       },
       addCollection: async (name, color) => {
-        const collection = await actions.createCollection(name, color);
+        const collection = await api.createCollection(name, color);
         setCollections((prev) => [...prev, collection]);
         return collection;
       },
       saveSmartCollection: async (query, name) => {
-        const collection = await actions.createSmartCollection(query, name);
+        const collection = await api.createSmartCollection(query, name);
         setCollections((prev) => [...prev, collection]);
         return collection;
       },
@@ -178,14 +186,14 @@ export function LibraryProvider({
           const queue = [...ids];
           return prev.map((c) => (ids.includes(c.id) ? byId.get(queue.shift()!)! : c));
         });
-        actions.reorderCollections(ids).catch(console.error);
+        api.reorderCollections(ids).catch(console.error);
       },
       renameCollection: (id, name) => {
         setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
-        actions.renameCollection(id, name).catch(console.error);
+        api.renameCollection(id, name).catch(console.error);
       },
       deleteCollection: async (id) => {
-        const { trashedIds } = await actions.deleteCollection(id);
+        const { trashedIds } = await api.deleteCollection(id);
         const idSet = new Set(trashedIds);
         const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true }));
         setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
@@ -193,7 +201,7 @@ export function LibraryProvider({
         setCollections((prev) => prev.filter((c) => c.id !== id));
       },
       deleteEmptyCollections: async () => {
-        const deletedIds = await actions.deleteEmptyCollections();
+        const deletedIds = await api.deleteEmptyCollections();
         const idSet = new Set(deletedIds);
         setCollections((prev) => prev.filter((c) => !idSet.has(c.id)));
         return deletedIds.length;
@@ -213,7 +221,7 @@ export function LibraryProvider({
               : l
           )
         );
-        actions.addHighlight(linkId, quote).catch(console.error);
+        api.addHighlight(linkId, quote).catch(console.error);
       },
       setAlertThreshold: (linkId, threshold) => {
         let currency = "$";
@@ -224,15 +232,15 @@ export function LibraryProvider({
             return { ...l, product: { ...l.product, alertThreshold: threshold } };
           })
         );
-        actions.setAlertThreshold(linkId, threshold, currency).catch(console.error);
+        api.setAlertThreshold(linkId, threshold, currency).catch(console.error);
       },
       importLinks: async (items) => {
-        const result = await actions.importLinks(items);
+        const result = await api.importLinks(items);
         setLinks((prev) => [...result.links, ...prev]);
         return result;
       },
       groupInbox: async (priorities) => {
-        const results = await actions.groupInbox(priorities);
+        const results = await api.groupInbox(priorities);
         const moves = new Map(
           results.flatMap((r) => r.linkIds.map((id) => [id, r.collection.id] as const))
         );
@@ -243,7 +251,7 @@ export function LibraryProvider({
         return results;
       },
       logSignal: (action, options) => {
-        actions.logSignal(action, options).catch(console.error);
+        api.logSignal(action, options).catch(console.error);
       },
       addLinkOpen,
       addLinkPrefillUrl,
@@ -260,8 +268,9 @@ export function LibraryProvider({
       closePalette: () => setPaletteOpen(false),
       menuOpen,
       setMenuOpen,
+      demo,
     }),
-    [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen, menuOpen]
+    [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen, menuOpen, api, demo]
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
