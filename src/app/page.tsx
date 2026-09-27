@@ -18,12 +18,11 @@ export const metadata = {
     "A personal library for saved links: crawled, tagged, and filed into collections you actually browse.",
 };
 
-// ponytail: anchors for sections still to come — add ids as those sections land.
 const NAV = [
   { label: "Features", href: "#features" },
-  { label: "Templates", href: "#templates" },
-  { label: "Integrations", href: "#integrations" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Collections", href: "#collections" },
+  { label: "Search", href: "#search" },
+  { label: "How it works", href: "#how-it-works" },
 ];
 
 // Photos: Unsplash.
@@ -138,7 +137,7 @@ export default function LandingPage() {
         <UrlPreview />
 
         {/* Collections */}
-        <section className="pt-16 md:pt-24">
+        <section id="collections" className="pt-16 md:pt-24">
           <h2 className="text-display text-[40px] leading-[0.98] sm:text-[56px]">
             A place for every rabbit hole.
           </h2>

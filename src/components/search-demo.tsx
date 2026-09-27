@@ -55,7 +55,7 @@ function SearchBody() {
   const count = (t: ContentType | "all") => (t === "all" ? matches.length : matches.filter((l) => l.contentType === t).length);
 
   return (
-    <section className="pt-16 md:pt-24">
+    <section id="search" className="pt-16 md:pt-24">
       <h2 className="text-display text-[40px] leading-[0.98] sm:text-[56px]">Find that thing. Instantly.</h2>
       <p className="mt-4 max-w-[560px] text-[17px] leading-[1.5] text-ink/55">
         One search for everything — titles, descriptions, and even text inside the page. Filter by type,
