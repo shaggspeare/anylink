@@ -18,5 +18,4 @@ export type CrawlResult = {
   product?: ProductDetails;
 };
 
-export type CrawlStep = "fetch" | "parse" | "images" | "tags";
-export const CRAWL_STEPS: CrawlStep[] = ["fetch", "parse", "images", "tags"];
+export type CrawlStep = "fetch" | "parse" | "tags";

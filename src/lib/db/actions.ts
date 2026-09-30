@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
@@ -94,13 +95,16 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       .onConflictDoNothing();
   }
 
-  let heroImage = input.heroImage;
+  // Download/resize/upload runs after the response: the card shows the hotlinked
+  // image now and picks up the re-hosted copy on the next load.
+  const heroImage = input.heroImage;
   if (heroImage) {
-    const rehosted = await reuploadHeroImage(heroImage, row.id, url);
-    if (rehosted) {
-      heroImage = rehosted;
-      await db.update(schema.links).set({ heroImage: rehosted }).where(eq(schema.links.id, row.id));
-    }
+    after(async () => {
+      const rehosted = await reuploadHeroImage(heroImage, row.id, url);
+      if (rehosted) {
+        await db.update(schema.links).set({ heroImage: rehosted }).where(eq(schema.links.id, row.id));
+      }
+    });
   }
 
   return {

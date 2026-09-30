@@ -15,7 +15,7 @@ export async function fetchMetadataFallback(url: string): Promise<CrawlResult | 
   }
 
   try {
-    const res = await fetch(endpoint.toString(), { signal: AbortSignal.timeout(15_000) });
+    const res = await fetch(endpoint.toString(), { signal: AbortSignal.timeout(8_000) });
     if (!res.ok) return null;
 
     const json = await res.json();

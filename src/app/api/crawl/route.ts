@@ -26,7 +26,11 @@ export async function POST(request: Request) {
       const send = (line: object) => controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
 
       try {
-        const result = await crawlUrl(url, (step: CrawlStep) => send({ type: "step", step }));
+        const result = await crawlUrl(
+          url,
+          (step: CrawlStep) => send({ type: "step", step }),
+          (preview) => send({ type: "preview", result: preview })
+        );
         send("failed" in result ? { type: "failed", ...result } : { type: "done", result });
       } catch {
         send({ type: "failed", failed: true, reason: "network" });

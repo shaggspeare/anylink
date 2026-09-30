@@ -1,12 +1,28 @@
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
-import { identityForDomain } from "../card-identity";
-import { cleanUrl } from "./url";
+// explicit extensions so `node --test` can load this without a bundler
+import { identityForDomain } from "../card-identity.ts";
+import { cleanUrl } from "./url.ts";
 import type { ContentType, ProductDetails } from "../types";
 import type { CrawlResult } from "./types";
 
 const VIDEO_DOMAINS = ["youtube.com", "youtu.be", "vimeo.com"];
 const WORDS_PER_MINUTE = 225;
+const BODY_BLOCKS = "p, li, h2, h3, h4, pre, blockquote";
+
+/** Readability's HTML → one string per block. A DOM walk rather than a <p> regex:
+ * keeps lists, headings and code, and decodes entities for free. A block nested in
+ * another (p inside li or blockquote) is covered by its outermost one. */
+function bodyBlocks(doc: Document, html: string): string[] {
+  const root = doc.createElement("div");
+  root.innerHTML = html;
+  return Array.from(root.querySelectorAll(BODY_BLOCKS))
+    .filter((el) => !el.parentElement?.closest(BODY_BLOCKS))
+    .map((el) =>
+      el.tagName === "PRE" ? (el.textContent ?? "").trim() : (el.textContent ?? "").replace(/\s+/g, " ").trim()
+    )
+    .filter((text) => text.length > 0);
+}
 
 function getMeta(doc: Document, attr: "property" | "name", ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -160,11 +176,7 @@ export function parseHtml(html: string, url: string): CrawlResult {
 
   // Readability mutates the document, so it runs last.
   const article = new Readability(doc).parse();
-  const paragraphs =
-    article?.content
-      ?.match(/<p[^>]*>([\s\S]*?)<\/p>/g)
-      ?.map((p) => p.replace(/<[^>]+>/g, "").trim())
-      .filter((p) => p.length > 0) ?? [];
+  const paragraphs = article?.content ? bodyBlocks(doc, article.content) : [];
 
   const title = ogTitle || article?.title || doc.title || domain;
   const textLength = (article?.textContent ?? "").trim().length;

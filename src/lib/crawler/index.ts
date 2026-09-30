@@ -10,31 +10,41 @@ import type { CrawlResult, CrawlStep } from "./types";
 
 export { CrawlError } from "./errors";
 export type { CrawlResult, CrawlStep } from "./types";
-export { CRAWL_STEPS } from "./types";
 export type { CrawlFailure } from "./url";
 
 /** Reasons that mean "the site wouldn't serve us" rather than "there's nothing
  * there" — those degrade to metadata instead of failing. */
 const REFUSED = new Set(["blocked", "not-html", "not-found"]);
 
-/** Runs the full crawl pipeline, invoking onStep as each phase completes. */
+/** Past this, the LLM pass is skipped: the route's function dies at 60s and a card
+ * without AI polish beats a stream cut off mid-crawl. */
+const LLM_CUTOFF_MS = 45_000;
+
+/** Runs the full crawl pipeline, invoking onStep as each phase completes. onPreview
+ * gets the parsed card before the LLM pass so the form can open on it right away. */
 export async function crawlUrl(
   url: string,
-  onStep: (step: CrawlStep) => void
+  onStep: (step: CrawlStep) => void,
+  onPreview?: (result: CrawlResult) => void
 ): Promise<CrawlResult | CrawlFailure> {
+  const started = Date.now();
   let result: CrawlResult | null = null;
   let reason = "network";
   let blockedHtml: string | undefined;
+  // Started the moment the plain fetch is refused, so it runs alongside the browser
+  // instead of after it. Never rejects.
+  let microlink: Promise<CrawlResult | null> | undefined;
 
   try {
-    result = await fetchAndParse(url);
+    result = await fetchAndParse(url, onStep, () => {
+      microlink ??= fetchMetadataFallback(url);
+    });
   } catch (err) {
     if (err instanceof CrawlError) {
       reason = err.reason;
       blockedHtml = err.html;
     }
   }
-  onStep("fetch");
 
   // The page refused us. Rather than failing, degrade to metadata: first a third
   // party (microlink) whose IP reputation isn't tied to ours, then whatever the
@@ -44,7 +54,7 @@ export async function crawlUrl(
   if (!result && REFUSED.has(reason)) {
     // Every source gets the same gate: an error shell relayed by microlink is no
     // more a page than one we fetched ourselves.
-    const viaMicrolink = await fetchMetadataFallback(url);
+    const viaMicrolink = await (microlink ?? fetchMetadataFallback(url));
     result = viaMicrolink && !looksBlocked(viaMicrolink) ? viaMicrolink : null;
     if (!result && blockedHtml) result = salvage(blockedHtml, url);
     // A 404 nobody else can see past either is a real 404, not a bot wall — that
@@ -55,12 +65,11 @@ export async function crawlUrl(
   // confident-looking card, so those still come back as a failure to fill in.
   if (!result) return failureFor(url, reason);
   onStep("parse");
+  onPreview?.(result);
 
   // Hero image download/resize/re-host happens later, at save time (createLink) —
   // not here, so an abandoned crawl never uploads anything.
-  onStep("images");
-
-  await enrichWithLLM(result);
+  if (Date.now() - started < LLM_CUTOFF_MS) await enrichWithLLM(result);
   onStep("tags");
   return result;
 }
@@ -68,29 +77,44 @@ export async function crawlUrl(
 /** Plain fetch, falling back to a real headless browser when the site refuses us
  * — either with a block status or by serving a 200 that parses out to nothing
  * (JS-only shells and interstitials both look like that). Anything else (DNS
- * failure, timeout, non-HTML) a browser won't fix either, so it throws through. */
-async function fetchAndParse(url: string): Promise<CrawlResult> {
+ * failure, timeout, non-HTML) a browser won't fix either, so it throws through.
+ * onRefused fires as the browser gets involved. */
+async function fetchAndParse(
+  url: string,
+  onStep: (step: CrawlStep) => void,
+  onRefused: () => void
+): Promise<CrawlResult> {
+  let page: { html: string; finalUrl: string };
   try {
-    const { html, finalUrl } = await fetchHtml(url);
-    const parsed = parseHtml(html, finalUrl);
-    if (!looksBlocked(parsed)) return parsed;
-    // Nothing usable came out of it. The browser gets a go, and failing that the
-    // shell goes up as salvage material rather than being served as a card.
-    return await parseWithBrowser(url).catch(() => {
-      throw new CrawlError("Nothing extractable in the response", "blocked", html);
-    });
+    page = await fetchHtml(url);
   } catch (err) {
+    onStep("fetch");
     if (!(err instanceof CrawlError)) throw err;
-    if (err.reason === "blocked") return await parseWithBrowser(url);
+    if (err.reason === "blocked") {
+      onRefused();
+      return await parseWithBrowser(url);
+    }
     // Amazon and friends answer bots with a 404 rather than a 403, so one browser
     // attempt before believing it. Still 404 there? Then the page really is gone.
     if (err.reason === "not-found") {
+      onRefused();
       return await parseWithBrowser(url).catch(() => {
         throw err;
       });
     }
     throw err;
   }
+  onStep("fetch");
+
+  const parsed = parseHtml(page.html, page.finalUrl);
+  if (!looksBlocked(parsed)) return parsed;
+  // Nothing usable came out of it. The browser gets a go, and failing that the
+  // shell goes up as salvage material rather than being served as a card. Kept
+  // outside the try above: a browser failure caught there relaunched the browser.
+  onRefused();
+  return await parseWithBrowser(url).catch(() => {
+    throw new CrawlError("Nothing extractable in the response", "blocked", page.html);
+  });
 }
 
 async function parseWithBrowser(url: string): Promise<CrawlResult> {
@@ -138,7 +162,6 @@ async function enrichWithLLM(result: CrawlResult): Promise<void> {
 
   result.title = structured.title;
   result.excerpt = structured.excerpt;
-  if (structured.articleText.length > 0) result.articleText = structured.articleText;
   if (structured.tags.length > 0) result.suggestedTags = structured.tags;
 
   result.contentType = structured.contentType;

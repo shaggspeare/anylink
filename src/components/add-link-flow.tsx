@@ -12,12 +12,11 @@ import { AmbientOrbs } from "./ambient-orbs";
 type Phase = "idle" | "crawling" | "ready";
 type ReadyResult = CrawlResult | CrawlFailure;
 
-const STEP_ORDER: CrawlStep[] = ["fetch", "parse", "images", "tags"];
-const STEP_LABELS: Record<CrawlStep, string> = {
+// "tags" (the LLM pass) runs after the form is already open — see `refining`.
+const STEP_ORDER: CrawlStep[] = ["fetch", "parse"];
+const STEP_LABELS: Partial<Record<CrawlStep, string>> = {
   fetch: "Fetching page",
   parse: "Reading content",
-  images: "Saving images",
-  tags: "Suggesting tags",
 };
 
 export function AddLinkFlow() {
@@ -45,8 +44,12 @@ export function AddLinkFlow() {
   const [size, setSize] = useState<CardSize>("M");
   const [touched, setTouched] = useState<{ collection?: boolean; size?: boolean }>({});
   const [saving, setSaving] = useState(false);
+  // Form is open on the parsed preview while the LLM pass is still running.
+  const [refining, setRefining] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  // Fields the user has typed into — the LLM result must not overwrite those.
+  const editedRef = useRef(new Set<"title" | "excerpt" | "tags">());
 
   const reset = () => {
     abortRef.current?.abort();
@@ -60,6 +63,8 @@ export function AddLinkFlow() {
     setCollectionId(inbox?.id ?? "");
     setSize("M");
     setSaving(false);
+    setRefining(false);
+    editedRef.current.clear();
     setTouched({});
     setClipboardHint(null);
   };
@@ -68,6 +73,9 @@ export function AddLinkFlow() {
     setUrl(targetUrl);
     setPhase("crawling");
     setStep(-1);
+    setRefining(false);
+    editedRef.current.clear();
+    let settled = false;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -95,15 +103,20 @@ export function AddLinkFlow() {
           if (!line.trim()) continue;
           const msg = JSON.parse(line);
           if (msg.type === "step") {
-            setStep(STEP_ORDER.indexOf(msg.step));
-          } else if (msg.type === "done") {
+            const i = STEP_ORDER.indexOf(msg.step);
+            if (i >= 0) setStep(i);
+          } else if (msg.type === "preview" || msg.type === "done") {
+            settled = true;
+            const edited = editedRef.current;
             setResult(msg.result);
-            setTitle(msg.result.title);
-            setExcerpt(msg.result.excerpt);
+            if (!edited.has("title")) setTitle(msg.result.title);
+            if (!edited.has("excerpt")) setExcerpt(msg.result.excerpt);
             // Pre-ticked, not silently applied — the form is where you drop the wrong ones.
-            setTags(msg.result.suggestedTags ?? []);
+            if (!edited.has("tags")) setTags(msg.result.suggestedTags ?? []);
+            setRefining(msg.type === "preview");
             setPhase("ready");
           } else if (msg.type === "failed") {
+            settled = true;
             const failure: CrawlFailure = msg;
             setResult(failure);
             // Failure is a fill-in state, not an error screen: seed the form with
@@ -114,8 +127,15 @@ export function AddLinkFlow() {
           }
         }
       }
+      setRefining(false);
+      // Stream cut off before any card arrived (e.g. the function hit its time
+      // limit) — without this the form would sit on "crawling" forever.
+      if (!settled) throw new Error("network");
     } catch (err) {
+      // Aborted = the modal was reset; a newer crawl may already own this state.
       if (controller.signal.aborted) return;
+      setRefining(false);
+      if (settled) return;
       const failure = failureFor(targetUrl, err instanceof Error ? err.message : "network");
       setResult(failure);
       setTitle(failure.suggestedTitle);
@@ -334,15 +354,27 @@ export function AddLinkFlow() {
                 </div>
               )}
 
+              {phase === "ready" && result && refining && (
+                <div className="mb-3 text-[12.5px] text-light-55">Refining title, summary and tags…</div>
+              )}
               {phase === "ready" && result && (
                 <ReadyForm
                   result={result}
                   title={title}
-                  setTitle={setTitle}
+                  setTitle={(v) => {
+                    editedRef.current.add("title");
+                    setTitle(v);
+                  }}
                   excerpt={excerpt}
-                  setExcerpt={setExcerpt}
+                  setExcerpt={(v) => {
+                    editedRef.current.add("excerpt");
+                    setExcerpt(v);
+                  }}
                   tags={tags}
-                  setTags={setTags}
+                  setTags={(v) => {
+                    editedRef.current.add("tags");
+                    setTags(v);
+                  }}
                   suggestions={suggestTags(
                     "failed" in result ? [] : result.suggestedTags,
                     libraryTags,

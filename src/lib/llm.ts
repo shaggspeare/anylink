@@ -6,7 +6,11 @@ const MODEL = "gpt-5.6-luna";
 export async function chatJson<T>(
   system: string,
   user: unknown,
-  { maxTokens = 4000, timeoutMs = 25_000 }: { maxTokens?: number; timeoutMs?: number } = {}
+  {
+    maxTokens = 4000,
+    timeoutMs = 25_000,
+    reasoningEffort,
+  }: { maxTokens?: number; timeoutMs?: number; reasoningEffort?: "none" | "low" | "medium" | "high" } = {}
 ): Promise<T | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -19,6 +23,7 @@ export async function chatJson<T>(
         model: MODEL,
         response_format: { type: "json_object" },
         max_completion_tokens: maxTokens,
+        reasoning_effort: reasoningEffort,
         messages: [
           { role: "system", content: system },
           { role: "user", content: typeof user === "string" ? user : JSON.stringify(user) },

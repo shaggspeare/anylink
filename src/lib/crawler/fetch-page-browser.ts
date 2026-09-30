@@ -1,7 +1,12 @@
 import puppeteerCore, { type Browser, type Page } from "puppeteer-core";
 import { CrawlError } from "./errors";
 
-const NAV_TIMEOUT_MS = 20_000;
+const NAV_TIMEOUT_MS = 10_000;
+// After DOMContentLoaded, how long an SPA gets to hydrate before we read the DOM.
+// networkidle2 as the goto condition waited on analytics and ad beacons — 10s on some news sites.
+const HYDRATE_CAP_MS = 3_000;
+// Only the DOM matters to us; stylesheets stay because some bot checks look for them.
+const SKIPPED_RESOURCES = new Set(["image", "media", "font"]);
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 
@@ -46,10 +51,15 @@ export async function fetchHtmlWithBrowser(url: string): Promise<{ html: string;
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
     await hidePuppeteerFlag(page);
+    await page.setRequestInterception(true);
+    page.on("request", (req) =>
+      SKIPPED_RESOURCES.has(req.resourceType()) ? req.abort() : req.continue()
+    );
 
     let response;
     try {
-      response = await page.goto(url, { waitUntil: "networkidle2", timeout: NAV_TIMEOUT_MS });
+      response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+      await page.waitForNetworkIdle({ idleTime: 500, timeout: HYDRATE_CAP_MS }).catch(() => {});
     } catch (err) {
       console.error("[browser-crawl] navigation failed:", err);
       throw new CrawlError(`Navigation failed: ${err instanceof Error ? err.message : err}`, "blocked");
