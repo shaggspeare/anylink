@@ -27,7 +27,7 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const collections = pgTable(
   "collections",
@@ -56,7 +56,7 @@ export const collections = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("collections_user_id_idx").on(t.userId)]
-);
+).enableRLS();
 
 export const tags = pgTable(
   "tags",
@@ -68,7 +68,7 @@ export const tags = pgTable(
     name: text("name").notNull(),
   },
   (t) => [uniqueIndex("tags_user_id_name_idx").on(t.userId, t.name)]
-);
+).enableRLS();
 
 export const links = pgTable(
   "links",
@@ -124,7 +124,7 @@ export const links = pgTable(
     index("links_collection_id_idx").on(t.collectionId),
     index("links_domain_idx").on(t.domain),
   ]
-);
+).enableRLS();
 
 export const linkTags = pgTable(
   "link_tags",
@@ -137,7 +137,7 @@ export const linkTags = pgTable(
       .references(() => tags.id, { onDelete: "cascade" }),
   },
   (t) => [primaryKey({ columns: [t.linkId, t.tagId] })]
-);
+).enableRLS();
 
 export const highlights = pgTable(
   "highlights",
@@ -154,7 +154,7 @@ export const highlights = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("highlights_link_id_idx").on(t.linkId)]
-);
+).enableRLS();
 
 export const priceAlerts = pgTable("price_alerts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -166,7 +166,7 @@ export const priceAlerts = pgTable("price_alerts", {
   currency: text("currency").notNull(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const priceSnapshots = pgTable(
   "price_snapshots",
@@ -181,7 +181,7 @@ export const priceSnapshots = pgTable(
     capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("price_snapshots_link_id_captured_at_idx").on(t.linkId, t.capturedAt)]
-);
+).enableRLS();
 
 /** Every accept/reject/move the user makes on what the grouper decided, plus the
  * onboarding answers. Written and never read in v1 — it's the training set for the
@@ -203,7 +203,7 @@ export const userSignals = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("user_signals_user_id_idx").on(t.userId)]
-);
+).enableRLS();
 
 export const crawlJobs = pgTable("crawl_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -218,4 +218,4 @@ export const crawlJobs = pgTable("crawl_jobs", {
   startedAt: timestamp("started_at", { withTimezone: true }),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
