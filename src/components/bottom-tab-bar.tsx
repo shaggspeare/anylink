@@ -71,47 +71,44 @@ export function BottomTabBar() {
     };
   }, [menuOpen, addLinkOpen, paletteOpen, setMenuOpen, openAddLink]);
 
+  // iOS 26 tab bar: icon over a short label, all tabs one tint. Press squishes the tab
+  // like Liquid Glass does instead of flashing a background.
   const itemClass = (display = "flex") =>
-    `${display} h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-3 text-ink/70`;
+    `${display} h-[50px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-full text-ink/75 transition-transform duration-200 active:scale-90`;
+  const label = "text-[10px] font-medium leading-none tracking-[-.01em]";
 
   return (
-    <nav
-      className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex items-center justify-around rounded-full px-2 py-1.5 lg:hidden"
-      style={{
-        background: "rgb(var(--surface-rgb) / .55)",
-        border: "1px solid rgb(var(--rim-rgb) / .8)",
-        backdropFilter: "blur(24px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(24px) saturate(1.4)",
-        boxShadow: "var(--shadow-popover)",
-      }}
-    >
-      <button type="button" onClick={() => setMenuOpen(true)} className={itemClass()} aria-label="Menu">
-        <TabIcon d="M4 6h16M4 12h16M4 18h16" />
-      </button>
-      {/* Already on the library (phone widths), this tab folds the tiles into one-line
-          rows and back; from anywhere else it just goes to All links. */}
-      {isLibrary && (
-        <button
-          type="button"
-          onClick={toggleList}
-          className={itemClass("flex sm:hidden")}
-          aria-label={list ? "Show links as tiles" : "Show links as compact rows"}
-          aria-pressed={list}
-        >
-          {/* Chevrons say what a tap does: pointing apart unfolds the rows, together squashes the tiles. */}
-          <TabIcon d={list ? "M7 15l5 5 5-5M7 9l5-5 5 5" : "M7 20l5-5 5 5M7 4l5 5 5-5"} />
+    <nav className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex items-center gap-2.5 lg:hidden">
+      <div className="flex min-w-0 flex-1 items-center rounded-full px-1 py-[3px]" style={GLASS}>
+        <button type="button" onClick={() => setMenuOpen(true)} className={itemClass()}>
+          <TabIcon d="M4 6h16M4 12h16M4 18h16" />
+          <span className={label}>Menu</span>
         </button>
-      )}
-      <Link href="/app" className={itemClass(isLibrary ? "hidden sm:flex" : "flex")} aria-label="All links">
-        <TabIcon d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
-      </Link>
-      <button type="button" onClick={openPalette} className={itemClass()} aria-label="Search">
-        <TabIcon d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16ZM21 21l-4.3-4.3" />
-      </button>
+        {/* Already on the library (phone widths), this tab folds the tiles into one-line
+            rows and back; from anywhere else it just goes to All links. */}
+        {isLibrary && (
+          <button type="button" onClick={toggleList} className={itemClass("flex sm:hidden")} aria-pressed={list}>
+            {/* Chevrons say what a tap does: pointing apart unfolds the rows, together squashes the tiles. */}
+            <TabIcon d={list ? "M7 15l5 5 5-5M7 9l5-5 5 5" : "M7 20l5-5 5 5M7 4l5 5 5-5"} />
+            <span className={label}>{list ? "Expand" : "Squash"}</span>
+          </button>
+        )}
+        <Link href="/app" className={itemClass(isLibrary ? "hidden sm:flex" : "flex")}>
+          <TabIcon d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+          <span className={label}>Links</span>
+        </Link>
+        <button type="button" onClick={openPalette} className={itemClass()}>
+          <TabIcon d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16ZM21 21l-4.3-4.3" />
+          <span className={label}>Search</span>
+        </button>
+      </div>
+      {/* The primary action floats on its own glass bubble, accent-tinted, like iOS 26's
+          search/compose button beside the tab bar. */}
       <button
         type="button"
         onClick={() => openAddLink()}
-        className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-signal text-doc-shell"
+        className="flex h-14 w-14 flex-none items-center justify-center rounded-full bg-signal text-doc-shell transition-transform duration-200 active:scale-90"
+        style={{ ...GLASS, background: undefined }}
         aria-label="Add a link"
       >
         <TabIcon d="M12 5v14M5 12h14" />
@@ -119,6 +116,17 @@ export function BottomTabBar() {
     </nav>
   );
 }
+
+/** Liquid Glass: thin translucent fill, heavy blur with boosted saturation so content
+ * colour bleeds through, a specular top highlight and a soft lift shadow. */
+const GLASS = {
+  background: "rgb(var(--surface-rgb) / .42)",
+  border: "1px solid rgb(var(--rim-rgb) / .55)",
+  backdropFilter: "blur(20px) saturate(1.8)",
+  WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+  boxShadow:
+    "inset 0 1px 0 rgb(255 255 255 / .45), inset 0 -1px 1px rgb(0 0 0 / .05), var(--shadow-popover)",
+} as const;
 
 /** The tag-chip row scrolls sideways on its own — a swipe there is a scroll, not a gesture. */
 function inHorizontalScroller(target: EventTarget | null) {
