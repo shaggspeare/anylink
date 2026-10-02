@@ -9,6 +9,7 @@ import { swallowClick, type useDragReorder } from "@/lib/use-drag-reorder";
 import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, TILE_PX, sizeFromDrag } from "@/lib/geometry";
 import { CARD_SIZES, type LinkItem } from "@/lib/types";
 
+const ROW_PX = 46;
 const ENTRANCE_SCALES = [0.72, 1.14, 0.86, 1.22, 0.64, 1.06];
 const MENU_ITEM =
   "flex h-8 items-center gap-2 rounded-[10px] px-2.5 text-[12.5px] font-medium text-[#f4f5f6] active:bg-white/15";
@@ -26,6 +27,7 @@ export function Card({
   link,
   columnCount,
   tile = false,
+  row = false,
   selectable = false,
   selectionActive = false,
   selected = false,
@@ -39,6 +41,8 @@ export function Card({
   columnCount: number;
   /** Phone layout: a small uniform tile. Touch has no hover, so its actions sit behind ⋯. */
   tile?: boolean;
+  /** Phone list view: a one-line row of the tile, same ⋯ and ↗ controls. */
+  row?: boolean;
   selectable?: boolean;
   selectionActive?: boolean;
   selected?: boolean;
@@ -54,8 +58,8 @@ export function Card({
   const [menuOpen, setMenuOpen] = useState(false);
   const geo = CARD_GEOMETRY[link.size];
   const cols = tile ? 1 : Math.min(geo.cols, columnCount);
-  const rows = Math.round((tile ? TILE_PX : geo.rowPx) / GRID_ROW_UNIT);
-  const hero = tile || link.size !== "S";
+  const rows = Math.round((row ? ROW_PX : tile ? TILE_PX : geo.rowPx) / GRID_ROW_UNIT);
+  const hero = !row && (tile || link.size !== "S");
   const compact = !tile && link.size === "S";
 
   const handleOpen = (e: React.MouseEvent) => {
@@ -169,8 +173,8 @@ export function Card({
         onClick={handleOpen}
         role="button"
         tabIndex={0}
-        className={`group absolute flex cursor-pointer flex-col overflow-hidden transition-[box-shadow,transform] ${
-          tile ? "inset-1 select-none rounded-[16px] [-webkit-touch-callout:none]" : "inset-1.5 rounded-[22px] hover:-translate-y-0.5 sm:inset-[7px]"
+        className={`group absolute flex cursor-pointer overflow-hidden ${row ? "flex-row items-center" : "flex-col"} transition-[box-shadow,transform] ${
+          tile ? `${row ? "inset-x-0 inset-y-[2px] rounded-[12px]" : "inset-1 rounded-[16px]"} select-none [-webkit-touch-callout:none]` : "inset-1.5 rounded-[22px] hover:-translate-y-0.5 sm:inset-[7px]"
         }`}
         style={{
           background: "rgb(var(--surface-rgb) / .62)",
@@ -191,7 +195,7 @@ export function Card({
             data-tour="card-menu"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            className={`absolute right-1.5 top-1.5 z-30 flex h-7 w-7 items-center justify-center rounded-full text-[15px] font-bold leading-none ${
+            className={`absolute z-30 flex h-7 w-7 ${row ? "right-1.5 top-1/2 -translate-y-1/2" : "right-1.5 top-1.5"} items-center justify-center rounded-full text-[15px] font-bold leading-none ${
               menuOpen ? "bg-white/15 text-[#f4f5f6]" : "bg-surface/85 text-ink shadow-sm"
             }`}
             style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
@@ -206,7 +210,7 @@ export function Card({
             rel="noreferrer noopener"
             onClick={(e) => e.stopPropagation()}
             aria-label={`Open ${link.domain} in a new tab`}
-            className="absolute left-1.5 top-1.5 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-surface/85 text-ink shadow-sm"
+            className={`absolute z-30 flex h-7 w-7 ${row ? "right-10 top-1/2 -translate-y-1/2" : "left-1.5 top-1.5"} items-center justify-center rounded-full bg-surface/85 text-ink shadow-sm`}
             style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
@@ -219,7 +223,7 @@ export function Card({
             role="menu"
             aria-label={`Actions for ${link.title}`}
             onClick={(e) => e.stopPropagation()}
-            className="absolute inset-0 z-20 flex flex-col justify-center gap-0.5 p-1.5"
+            className={`absolute inset-0 z-20 flex gap-0.5 p-1.5 ${row ? "items-center justify-end pr-10" : "flex-col justify-center"}`}
             style={{
               background: "rgba(23,24,27,.84)",
               backdropFilter: "blur(10px)",
@@ -227,9 +231,12 @@ export function Card({
               animation: "card-menu-in .18s cubic-bezier(.2,.9,.3,1.2)",
             }}
           >
-            <a role="menuitem" href={link.url} target="_blank" rel="noreferrer noopener" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
-              <span className="flex w-4 justify-center"><Icon name="arrow-up-right" size={13} /></span> Open original
-            </a>
+            {/* A row keeps ↗ beside ⋯, and three items don't fit across a phone. */}
+            {!row && (
+              <a role="menuitem" href={link.url} target="_blank" rel="noreferrer noopener" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
+                <span className="flex w-4 justify-center"><Icon name="arrow-up-right" size={13} /></span> Open original
+              </a>
+            )}
             <button
               role="menuitem"
               type="button"
@@ -314,6 +321,18 @@ export function Card({
           </div>
         )}
 
+        {row ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 pl-2.5 pr-[72px]">
+            <span
+              className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-[7px] text-[10px] font-bold"
+              style={{ color: link.stripe, background: link.tint }}
+            >
+              {link.initial}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-.02em] text-ink">{link.title}</span>
+            {link.favorite && <Icon name="star" size={11} className="flex-none text-signal" />}
+          </div>
+        ) : (
         <div className={`flex min-w-0 flex-none flex-col ${tile ? "gap-1 px-2.5 py-2" : "gap-2 px-4 py-3.5"}`}>
           <div className={`flex min-w-0 items-center ${tile ? "gap-1.5" : "gap-2"}`}>
             <span
@@ -368,6 +387,7 @@ export function Card({
             </div>
           )}
         </div>
+        )}
 
         {!tile && (
         // Hover controls: two floating islands — sizes and actions — lined up on the right

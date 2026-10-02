@@ -11,6 +11,7 @@ export function CardMosaic({
   selectedIds,
   onToggleSelect,
   onReorder,
+  list = false,
 }: {
   links: LinkItem[];
   selectable?: boolean;
@@ -18,10 +19,13 @@ export function CardMosaic({
   onToggleSelect?: (id: string, e: React.MouseEvent) => void;
   /** Receives the visible ids in their new order after a drag. */
   onReorder?: (ids: string[]) => void;
+  /** Phones only: one-line rows instead of the two-up tiles. */
+  list?: boolean;
 }) {
   const columnCount = useColumnCount();
   // Phones get a two-up grid of small uniform tiles instead of one full-width card per row.
   const tile = columnCount === 1;
+  const row = tile && list;
   const { order, dragId, item, zone } = useDragReorder(
     links.map((l) => l.id),
     onReorder,
@@ -50,9 +54,9 @@ export function CardMosaic({
     <div
       data-tour="mosaic"
       {...zone}
-      className="grid px-2.5 pb-6 sm:px-5"
+      className={`grid pb-6 sm:px-5 ${row ? "px-3" : "px-2.5"}`}
       style={{
-        gridTemplateColumns: `repeat(${tile ? 2 : columnCount}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${row ? 1 : tile ? 2 : columnCount}, minmax(0, 1fr))`,
         gridAutoRows: "4px",
         gridAutoFlow: "row dense",
       }}
@@ -68,6 +72,7 @@ export function CardMosaic({
             link={link}
             columnCount={columnCount}
             tile={tile}
+            row={row}
             selectable={selectable}
             selectionActive={Boolean(selectedIds && selectedIds.size > 0)}
             selected={selectedIds?.has(id)}

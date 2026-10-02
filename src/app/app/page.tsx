@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { Sidebar } from "@/components/sidebar";
-import { BottomTabBar } from "@/components/bottom-tab-bar";
+import { BottomTabBar, useListView } from "@/components/bottom-tab-bar";
 import { CardMosaic } from "@/components/card-mosaic";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { PasteHint } from "@/components/paste-hint";
@@ -17,6 +17,7 @@ export default function LibraryPage() {
   const { links, reorderLinks, openAddLink, openPalette } = useLibrary();
   const router = useRouter();
   const [sort, setSort] = useState<Sort>("newest");
+  const [list] = useListView();
   // Every sidebar filter and saved search lands here as `?q=…` — one query language,
   // no per-filter view state. searchLinks also drops archived links on its own.
   const query = useSearchParams().get("q") ?? "";
@@ -99,6 +100,7 @@ export default function LibraryPage() {
           <>
             <CardMosaic
               links={visible}
+              list={list}
               // Dragging works in any sort; the drop saves what you see and flips to
               // "My order" so the arrangement doesn't snap straight back.
               onReorder={(ids) => {

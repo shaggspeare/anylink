@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLibrary } from "@/lib/store";
@@ -14,10 +14,34 @@ function TabIcon({ d }: { d: string }) {
   );
 }
 
+const LIST_VIEW_KEY = "anylink:list-view";
+const listViewListeners = new Set<() => void>();
+
+/** Phone library layout: tiles or one-line rows. Kept in localStorage so it survives
+ * reloads; useSyncExternalStore keeps the tab bar and the mosaic in step. */
+export function useListView(): [boolean, () => void] {
+  const list = useSyncExternalStore(
+    (notify) => {
+      listViewListeners.add(notify);
+      return () => {
+        listViewListeners.delete(notify);
+      };
+    },
+    () => localStorage.getItem(LIST_VIEW_KEY) === "1",
+    () => false
+  );
+  const toggle = () => {
+    localStorage.setItem(LIST_VIEW_KEY, list ? "0" : "1");
+    listViewListeners.forEach((notify) => notify());
+  };
+  return [list, toggle];
+}
+
 export function BottomTabBar() {
   const pathname = usePathname();
   const { openAddLink, openPalette, setMenuOpen, menuOpen, addLinkOpen, paletteOpen } = useLibrary();
   const isLibrary = pathname === "/app";
+  const [list, toggleList] = useListView();
 
   // Phone gestures: swipe right pulls in the sidebar, swipe left opens "Add a link"
   // (or just closes the sidebar if it's out). Lives here because this bar is the
@@ -47,10 +71,8 @@ export function BottomTabBar() {
     };
   }, [menuOpen, addLinkOpen, paletteOpen, setMenuOpen, openAddLink]);
 
-  const itemClass = (active: boolean) =>
-    `flex h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-3 ${
-      active ? "text-ink" : "text-ink/45"
-    }`;
+  const itemClass = (display = "flex") =>
+    `${display} h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-3 text-ink/70`;
 
   return (
     <nav
@@ -63,13 +85,27 @@ export function BottomTabBar() {
         boxShadow: "var(--shadow-popover)",
       }}
     >
-      <button type="button" onClick={() => setMenuOpen(true)} className={itemClass(false)} aria-label="Menu">
+      <button type="button" onClick={() => setMenuOpen(true)} className={itemClass()} aria-label="Menu">
         <TabIcon d="M4 6h16M4 12h16M4 18h16" />
       </button>
-      <Link href="/app" className={itemClass(isLibrary)} aria-label="All links">
+      {/* Already on the library (phone widths), this tab folds the tiles into one-line
+          rows and back; from anywhere else it just goes to All links. */}
+      {isLibrary && (
+        <button
+          type="button"
+          onClick={toggleList}
+          className={itemClass("flex sm:hidden")}
+          aria-label={list ? "Show links as tiles" : "Show links as compact rows"}
+          aria-pressed={list}
+        >
+          {/* Chevrons say what a tap does: pointing apart unfolds the rows, together squashes the tiles. */}
+          <TabIcon d={list ? "M7 15l5 5 5-5M7 9l5-5 5 5" : "M7 20l5-5 5 5M7 4l5 5 5-5"} />
+        </button>
+      )}
+      <Link href="/app" className={itemClass(isLibrary ? "hidden sm:flex" : "flex")} aria-label="All links">
         <TabIcon d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
       </Link>
-      <button type="button" onClick={openPalette} className={itemClass(false)} aria-label="Search">
+      <button type="button" onClick={openPalette} className={itemClass()} aria-label="Search">
         <TabIcon d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16ZM21 21l-4.3-4.3" />
       </button>
       <button
