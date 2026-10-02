@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { swipeDirection } from "@/lib/geometry";
+import { Icon } from "@/components/icon";
 
 function TabIcon({ d }: { d: string }) {
   return (
@@ -40,18 +41,20 @@ export function useListView(): [boolean, () => void] {
 export function BottomTabBar() {
   const pathname = usePathname();
   const { openAddLink, openPalette, setMenuOpen, menuOpen, addLinkOpen, paletteOpen } = useLibrary();
-  const isLibrary = pathname === "/app";
+  const [hidden, setHidden] = useState(false);
   const [list, toggleList] = useListView();
 
-  // Phone gestures: swipe right pulls in the sidebar, swipe left opens "Add a link"
-  // (or just closes the sidebar if it's out). Lives here because this bar is the
-  // phone-only chrome every library page already renders.
+  // Phone gestures: swipe right opens the sidebar, swipe left opens "Add a link" (or just
+  // closes the sidebar if it's out). Lives here because this bar is the phone-only chrome
+  // every library page already renders.
   useEffect(() => {
     if (window.matchMedia("(min-width: 1024px)").matches) return;
     let start: { x: number; y: number } | null = null;
     const onStart = (e: TouchEvent) => {
       const t = e.touches[0];
-      start = e.touches.length === 1 && !inHorizontalScroller(e.target) ? { x: t.clientX, y: t.clientY } : null;
+      // A swipe from the very edge is the browser's Back gesture, not ours.
+      const edge = t.clientX < 24 || t.clientX > window.innerWidth - 24;
+      start = e.touches.length === 1 && !edge && !inHorizontalScroller(e.target) ? { x: t.clientX, y: t.clientY } : null;
     };
     const onEnd = (e: TouchEvent) => {
       if (!start) return;
@@ -71,33 +74,53 @@ export function BottomTabBar() {
     };
   }, [menuOpen, addLinkOpen, paletteOpen, setMenuOpen, openAddLink]);
 
-  // iOS 26 tab bar: icon over a short label, all tabs one tint. Press squishes the tab
-  // like Liquid Glass does instead of flashing a background.
-  const itemClass = (display = "flex") =>
-    `${display} h-[50px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-full text-ink/75 transition-transform duration-200 active:scale-90`;
-  const label = "text-[10px] font-medium leading-none tracking-[-.01em]";
+  // Out of the way while scrolling down through cards, back the moment you scroll up.
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setHidden(y > last && y > 80);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // iOS 26 tab bar: icon over a short label; the current section is tinted. Press squishes
+  // the tab like Liquid Glass does instead of flashing a background.
+  const itemClass = (active: boolean) =>
+    `flex h-[50px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-full transition-transform duration-200 active:scale-90 ${
+      active ? "text-signal" : "text-ink/65"
+    }`;
+  const label = "text-[10px] font-semibold leading-none tracking-[-.01em]";
+  const inCollections = menuOpen || pathname.startsWith("/collections") || pathname === "/trash";
 
   return (
-    <nav className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex items-center gap-2.5 lg:hidden">
+    <nav
+      className={`fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex items-center gap-2.5 transition-transform duration-300 lg:hidden ${
+        hidden ? "translate-y-[calc(100%+40px)]" : ""
+      }`}
+    >
       <div className="flex min-w-0 flex-1 items-center rounded-full px-1 py-[3px]" style={GLASS}>
-        <button type="button" onClick={() => setMenuOpen(true)} className={itemClass()}>
-          <TabIcon d="M4 6h16M4 12h16M4 18h16" />
-          <span className={label}>Menu</span>
-        </button>
-        {/* Already on the library (phone widths), this tab folds the tiles into one-line
-            rows and back; from anywhere else it just goes to All links. */}
-        {isLibrary && (
-          <button type="button" onClick={toggleList} className={itemClass("flex sm:hidden")} aria-pressed={list}>
-            {/* Chevrons say what a tap does: pointing apart unfolds the rows, together squashes the tiles. */}
-            <TabIcon d={list ? "M7 15l5 5 5-5M7 9l5-5 5 5" : "M7 20l5-5 5 5M7 4l5 5 5-5"} />
-            <span className={label}>{list ? "Expand" : "Squash"}</span>
-          </button>
-        )}
-        <Link href="/app" className={itemClass(isLibrary ? "hidden sm:flex" : "flex")}>
-          <TabIcon d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+        <Link href="/app" className={itemClass(pathname === "/app" && !menuOpen)} aria-current={pathname === "/app" ? "page" : undefined}>
+          {/* A chain, not a grid — the grid glyph belongs to the layout tab beside it. */}
+          <TabIcon d="M9.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
           <span className={label}>Links</span>
         </Link>
-        <button type="button" onClick={openPalette} className={itemClass()}>
+        {/* Library only, phone widths: the tab names the layout a tap switches to. */}
+        {pathname === "/app" && (
+          <button type="button" onClick={toggleList} className={`${itemClass(false)} sm:hidden`} aria-pressed={list}>
+            <Icon name={list ? "grid" : "list"} size={21} strokeWidth={2.4} />
+            <span className={label}>{list ? "Grid" : "List"}</span>
+          </button>
+        )}
+        {/* Collections live in the drawer — this tab is the way in. */}
+        <button type="button" onClick={() => setMenuOpen(true)} className={itemClass(inCollections)}>
+          <TabIcon d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <span className={label}>Collections</span>
+        </button>
+        <button type="button" onClick={openPalette} className={itemClass(paletteOpen)}>
           <TabIcon d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16ZM21 21l-4.3-4.3" />
           <span className={label}>Search</span>
         </button>

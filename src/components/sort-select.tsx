@@ -15,7 +15,7 @@ export function SortSelect({ value, onChange }: { value: Sort; onChange: (sort: 
       aria-label="Sort"
       // The native arrow is pinned to the very edge of the pill, so it's replaced by our
       // own chevron, inset like the label on the other side.
-      className="h-8 appearance-none rounded-full bg-ink/6 pl-3.5 pr-8 text-[12px] font-medium text-ink/65 outline-none"
+      className="h-10 min-w-0 appearance-none truncate sm:h-8 rounded-full bg-ink/6 pl-3.5 pr-8 text-[12px] font-medium text-ink/65 outline-none"
       style={{
         backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(CHEVRON)}")`,
         backgroundRepeat: "no-repeat",

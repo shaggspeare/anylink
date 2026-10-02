@@ -23,7 +23,7 @@ const VARIANTS: Record<string, Orb[]> = {
     { left: -150, top: -150, size: 520, color: "#7c8cff", opacity: 0.26, blur: 130 },
     { right: -140, bottom: -170, size: 520, color: "#d6f24b", opacity: 0.3, blur: 140 },
   ],
-  dark: [
+  sheet: [
     { left: -60, top: -80, size: 380, color: "#ff5a1f", opacity: 0.35, blur: 110 },
     { right: -80, bottom: 40, size: 340, color: "#7c8cff", opacity: 0.28, blur: 120 },
   ],
@@ -31,7 +31,8 @@ const VARIANTS: Record<string, Orb[]> = {
 
 export function AmbientOrbs({ variant = "library" }: { variant?: keyof typeof VARIANTS }) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+    // On a dark canvas these colours mix to olive and brown; at half strength they stay a glow.
+    <div className="pointer-events-none absolute inset-0 overflow-hidden dark:opacity-45" aria-hidden>
       {VARIANTS[variant].map((orb, i) => (
         <div
           key={i}

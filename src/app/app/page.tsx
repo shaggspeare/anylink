@@ -28,9 +28,9 @@ export default function LibraryPage() {
       <AmbientOrbs variant="library" />
       <Sidebar />
       <div className="relative lg:pl-[250px]">
-        <header className="flex items-end gap-3.5 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
+        <header className="flex items-center gap-3.5 sm:items-end px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
           <h1 className="text-hero whitespace-nowrap text-[30px]">All links</h1>
-          <div className="flex min-w-0 items-center gap-2 pb-1.5">
+          <div className="flex min-w-0 items-center gap-2 sm:pb-1.5">
             <span className="whitespace-nowrap text-meta text-ink/50">{visible.length} links</span>
             {query ? (
               <button
@@ -51,7 +51,7 @@ export default function LibraryPage() {
               </>
             )}
           </div>
-          <div className="ml-auto flex items-center gap-2 pb-1">
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:pb-1">
             <SortSelect value={sort} onChange={setSort} />
             <button
               type="button"

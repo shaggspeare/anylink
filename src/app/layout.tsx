@@ -17,6 +17,8 @@ const instrumentSans = Instrument_Sans({
 export const metadata: Metadata = {
   title: "AnyLink",
   description: "Paste anything. We read the rest.",
+  // Added to the home screen, iOS opens it full-screen like an app.
+  appleWebApp: { capable: true, title: "AnyLink", statusBarStyle: "default" },
 };
 
 // viewport-fit=cover lets the canvas run under the notch and home indicator; fixed
@@ -33,7 +35,9 @@ export const viewport: Viewport = {
 export const dynamic = "force-dynamic";
 
 // Runs before first paint: light unless the visitor picked dark.
-const THEME_SCRIPT = `try{document.documentElement.classList.toggle("dark",localStorage.theme==="dark")}catch(e){}`;
+// The theme-color meta is already parsed by then (it's emitted above this script), so the
+// browser chrome gets the canvas colour too.
+const THEME_SCRIPT = `try{if(localStorage.theme==="dark"){document.documentElement.classList.add("dark");document.querySelector('meta[name="theme-color"]')?.setAttribute("content","#0f1012")}}catch(e){}`;
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { links, trashed, collections } = await getLibraryData();

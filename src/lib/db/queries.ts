@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
+import { legibleStripe } from "../card-identity";
 import { CURRENT_USER_ID } from "./current-user";
 import type {
   Collection,
@@ -104,7 +105,7 @@ export async function getLibraryData(): Promise<{
       articleText: row.articleText ?? undefined,
       heroImage: row.heroImage ?? undefined,
       tint: row.tint,
-      stripe: row.stripe,
+      stripe: legibleStripe(row.tint, row.stripe),
       initial: row.initial,
       contentType: row.contentType,
       readingTimeMinutes: row.readingTimeMinutes ?? undefined,

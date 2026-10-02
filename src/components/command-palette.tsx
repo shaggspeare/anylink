@@ -138,7 +138,7 @@ export function CommandPalette() {
                 setActiveIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search — or filter with type: #tag -word is:favorite"
+              placeholder="Search links, #tags…"
               className="flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink/40"
             />
           </div>

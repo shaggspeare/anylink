@@ -74,7 +74,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
       <AmbientOrbs variant="library" />
       <Sidebar />
       <div className="relative lg:pl-[250px]">
-        <header className="flex flex-col gap-3 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
+        <header className="flex flex-col gap-3 px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
           <div data-tour="collection-header" className="flex items-center gap-3">
             <CollectionMarker color={collection.color} size={14} />
             <h1 className="text-title min-w-0 truncate text-[26px]">{collection.name}</h1>
@@ -85,6 +85,9 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
               </span>
             )}
             <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
+            <span className="ml-auto flex-none">
+              <SortSelect value={sort} onChange={setSort} />
+            </span>
           </div>
           {/* Only collections AnyLink built have one — it's the "grouped because…" line
               from the import, kept where the collection lives rather than shown once. */}
@@ -93,8 +96,8 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
               {collection.reasoning}
             </p>
           )}
-          <div data-tour="collection-filters" className="-mr-4 flex items-center gap-2 sm:mr-0">
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&>*]:flex-none sm:flex-wrap sm:overflow-visible">
+          {/* Runs off the right edge on phones so it reads as scrollable. */}
+          <div data-tour="collection-filters" className="-mr-4 flex min-w-0 items-center gap-2 overflow-x-auto pr-4 [scrollbar-width:none] [&>*]:flex-none sm:mr-0 sm:flex-wrap sm:overflow-visible sm:pr-0">
             <Chip active={tagFilter === null} onClick={() => setTagFilter(null)}>
               All
             </Chip>
@@ -103,10 +106,6 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
                 {t}
               </Chip>
             ))}
-          </div>
-            <span className="mr-4 flex-none sm:mr-0">
-              <SortSelect value={sort} onChange={setSort} />
-            </span>
           </div>
         </header>
 

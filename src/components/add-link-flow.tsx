@@ -215,42 +215,45 @@ export function AddLinkFlow() {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center p-4"
+      className="fixed inset-0 z-50 grid items-end sm:place-items-center sm:p-4"
       style={{ background: "rgba(13,14,16,.42)", backdropFilter: "blur(6px)" }}
       onClick={handleClose}
     >
       <div
-        className={`relative max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-[30px] transition-[max-width] ${
+        // Phones get a bottom sheet: it sits where the thumb is and the keyboard pushes it up.
+        className={`relative max-h-[calc(100dvh-env(safe-area-inset-top)-12px)] w-full overflow-y-auto overscroll-contain rounded-t-[30px] transition-[max-width] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[30px] ${
           wide ? "max-w-3xl" : "max-w-[620px]"
         }`}
-        style={{ boxShadow: "0 40px 90px rgba(0,0,0,.5)" }}
+        style={{ boxShadow: "var(--shadow-window)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative min-h-[420px] overflow-hidden" style={{ background: "#111214" }}>
-          <AmbientOrbs variant="dark" />
+        {/* overflow-clip, not -hidden: hidden would turn this into the scroll box and the
+            sticky header and Save button would stop sticking. */}
+        <div className="relative min-h-[420px] overflow-clip bg-canvas">
+          <AmbientOrbs variant="sheet" />
           <div className="relative flex h-full flex-col">
-            <div className="flex items-center gap-3 px-6 pt-6">
-              <h3 className="text-title flex-1 text-[#f4f5f6]">Add a link</h3>
-              <span className="hidden text-eyebrow text-light-40 pointer-fine:inline">⌘V anywhere</span>
+            <div className="sticky top-0 z-20 flex items-center gap-3 bg-canvas/45 px-6 pb-2 pt-6 backdrop-blur-xl">
+              <h3 className="text-title flex-1 text-ink">Add a link</h3>
+              <span className="hidden text-eyebrow text-ink/40 pointer-fine:inline">⌘V anywhere</span>
               <button
                 type="button"
                 onClick={handleClose}
                 aria-label="Close"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-light-55 hover:bg-white/10"
+                className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-ink/55 hover:bg-ink/6"
               >
                 <Icon name="close" size={12} />
               </button>
             </div>
 
-            <div className="flex gap-2 px-6 pt-4">
+            <div className="flex flex-wrap gap-2 px-6 pt-2">
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleFetch()}
                 placeholder="https://"
                 disabled={phase !== "idle"}
-                className="h-[46px] min-w-0 flex-1 rounded-full border px-4.5 text-[14px] text-[#f4f5f6] outline-none disabled:opacity-50"
-                style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
+                className="h-[46px] min-w-0 flex-1 rounded-full border px-4.5 max-sm:basis-full text-[14px] text-ink outline-none disabled:opacity-50"
+                style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
               />
               <button
                 type="button"
@@ -259,8 +262,8 @@ export function AddLinkFlow() {
                   if (text) setUrl(text.trim());
                 }}
                 disabled={phase !== "idle"}
-                className="flex-none rounded-full border px-4.5 text-[13px] font-medium text-[#f4f5f6] disabled:opacity-50"
-                style={{ borderColor: "rgba(255,255,255,.16)" }}
+                className="h-[46px] rounded-full border px-4.5 text-[13px] max-sm:flex-1 sm:flex-none font-medium text-ink disabled:opacity-50"
+                style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)" }}
               >
                 Paste
               </button>
@@ -268,19 +271,19 @@ export function AddLinkFlow() {
                 type="button"
                 onClick={handleFetch}
                 disabled={phase !== "idle"}
-                className="flex-none rounded-full bg-signal px-5 text-[13px] font-semibold text-[#111214] disabled:opacity-50"
+                className="h-[46px] rounded-full bg-signal px-5 text-[13px] max-sm:flex-1 sm:flex-none font-semibold text-on-accent disabled:opacity-50"
               >
                 Fetch
               </button>
             </div>
 
-            <div className="flex-1 px-6 pb-6 pt-5">
+            <div className="flex-1 px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-5">
               {phase === "idle" && (
                 <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
                   className="flex flex-col items-start gap-3.5 rounded-[22px] border border-dashed px-6.5 py-7.5"
-                  style={{ borderColor: "rgba(255,255,255,.18)" }}
+                  style={{ borderColor: "rgb(var(--ink-rgb) / 0.18)" }}
                 >
                   <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[14px]" style={{ background: "rgba(255,90,31,.18)" }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff8a5c" strokeWidth="2.4" strokeLinecap="round">
@@ -288,10 +291,10 @@ export function AddLinkFlow() {
                       <path d="M14.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
                     </svg>
                   </div>
-                  <div className="text-[18px] font-semibold tracking-[-.035em] text-[#f4f5f6]">
+                  <div className="text-[18px] font-semibold tracking-[-.035em] text-ink">
                     Nothing to read yet
                   </div>
-                  <div className="max-w-[420px] text-[13px] leading-[1.6] text-light-55">
+                  <div className="max-w-[420px] text-[13px] leading-[1.6] text-ink/55">
                     Drop in any URL. The crawler pulls the title, hero image, domain and suggests
                     two or three tags — you only fix what it gets wrong.
                   </div>
@@ -302,10 +305,10 @@ export function AddLinkFlow() {
                         setUrl(clipboardHint);
                         runCrawl(clipboardHint);
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-[14px] px-4 py-3 text-left text-[12.5px] text-light-55 hover:text-[#f4f5f6]"
-                      style={{ background: "rgba(255,255,255,.06)" }}
+                      className="flex w-full items-center gap-2.5 rounded-[14px] px-4 py-3 text-left text-[12.5px] text-ink/55 hover:text-ink"
+                      style={{ background: "rgb(var(--ink-rgb) / 0.05)" }}
                     >
-                      <span className="text-lime">On your clipboard</span>
+                      <span className="text-signal">On your clipboard</span>
                       <span className="truncate">{clipboardHint}</span>
                     </button>
                   )}
@@ -315,17 +318,17 @@ export function AddLinkFlow() {
               {phase === "crawling" && (
                 <div
                   className="flex flex-col gap-4.5 rounded-[22px] p-6"
-                  style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)" }}
+                  style={{ background: "rgb(var(--ink-rgb) / 0.05)", border: "1px solid rgb(var(--ink-rgb) / 0.1)" }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-[15px] font-semibold tracking-[-.03em] text-[#f4f5f6]">
+                    <div className="text-[15px] font-semibold tracking-[-.03em] text-ink">
                       Reading the page…
                     </div>
-                    <div className="ml-auto font-mono text-[13px] font-semibold text-lime tabular-nums">
+                    <div className="ml-auto font-mono text-[13px] font-semibold text-signal tabular-nums">
                       {Math.round(((step + 1) / STEP_ORDER.length) * 100)}%
                     </div>
                   </div>
-                  <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
+                  <div className="h-[5px] overflow-hidden rounded-full" style={{ background: "rgb(var(--ink-rgb) / 0.12)" }}>
                     <div
                       className="h-full rounded-full bg-lime transition-[width] duration-500"
                       style={{ width: `${((step + 1) / STEP_ORDER.length) * 100}%` }}
@@ -336,13 +339,13 @@ export function AddLinkFlow() {
                       <div
                         key={s}
                         className="flex items-center gap-2.5 text-[13px]"
-                        style={{ color: i <= step ? "#f4f5f6" : "rgba(244,245,246,.4)" }}
+                        style={{ color: i <= step ? "var(--ink)" : "rgb(var(--ink-rgb) / .4)" }}
                       >
                         <span
                           className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full text-[10px] font-bold"
                           style={{
-                            color: i <= step ? "#17181b" : "rgba(244,245,246,.5)",
-                            background: i <= step ? "#d6f24b" : "rgba(255,255,255,.1)",
+                            color: i <= step ? "var(--on-accent)" : "rgb(var(--ink-rgb) / .5)",
+                            background: i <= step ? "var(--lime)" : "rgb(var(--ink-rgb) / .1)",
                           }}
                         >
                           {i < step ? <Icon name="check" size={10} /> : i + 1}
@@ -355,7 +358,7 @@ export function AddLinkFlow() {
               )}
 
               {phase === "ready" && result && refining && (
-                <div className="mb-3 text-[12.5px] text-light-55">Refining title, summary and tags…</div>
+                <div className="mb-3 text-[12.5px] text-ink/55">Refining title, summary and tags…</div>
               )}
               {phase === "ready" && result && (
                 <ReadyForm
@@ -444,19 +447,19 @@ function ReadyForm({
     <div className="grid gap-6 md:grid-cols-2">
       <div className="flex flex-col gap-3">
         {excerptOnly && (
-          <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
+          <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-ink/55" style={{ background: "rgba(255,90,31,.14)" }}>
             The site wouldn&apos;t give up the full page — this card is built from its metadata and
             written up by AI. Worth a glance before you save.
           </div>
         )}
         {failed && (
-          <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-light-55" style={{ background: "rgba(255,90,31,.14)" }}>
+          <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-ink/55" style={{ background: "rgba(255,90,31,.14)" }}>
             The page wouldn&apos;t open ({result.reason}) — the title is guessed from the link.
             Edit it and save; nothing else is needed.
           </div>
         )}
         <div className="overflow-hidden rounded-[22px]" style={{ background: "rgb(var(--surface-rgb) / .62)", border: "1px solid rgb(var(--rim-rgb) / .75)" }}>
-          <div className="relative h-[170px] w-full" style={{ background: heroImage ? undefined : result.tint }}>
+          <div className={`relative w-full ${heroImage ? "h-[170px]" : "h-14 sm:h-[170px]"}`} style={{ background: heroImage ? undefined : result.tint }}>
             {heroImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={heroImage} alt="" className="h-full w-full object-cover" />
@@ -477,46 +480,46 @@ function ReadyForm({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 text-[12px] text-lime">
+        <div className="flex items-center gap-1.5 text-[12px]">
           <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-on-accent"><Icon name="check" size={10} /></span>
-          <span className="text-light-55">{failed ? "Filled in from the link — check it" : "Crawled — check the details"}</span>
+          <span className="text-ink/55">{failed ? "Filled in from the link — check it" : "Crawled — check the details"}</span>
         </div>
       </div>
 
       <div className="flex flex-col gap-3.5">
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-light-40">Title</span>
+          <span className="text-eyebrow text-ink/40">Title</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-[#f4f5f6] outline-none"
-            style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
+            className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-ink outline-none"
+            style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-light-40">Excerpt</span>
+          <span className="text-eyebrow text-ink/40">Excerpt</span>
           <textarea
             value={excerpt}
             onChange={(e) => setExcerpt(e.target.value)}
             rows={3}
-            className="resize-none rounded-[12px] border px-3.5 py-2.5 text-[13.5px] text-[#f4f5f6] outline-none"
-            style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
+            className="max-h-48 min-h-[86px] resize-none rounded-[12px] border px-3.5 py-2.5 text-[13.5px] [field-sizing:content] text-ink outline-none"
+            style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
           />
         </label>
         <div className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-light-40">Tags</span>
+          <span className="text-eyebrow text-ink/40">Tags</span>
           <TagPicker value={tags} suggestions={suggestions} onChange={setTags} />
         </div>
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-light-40">Collection</span>
+          <span className="text-eyebrow text-ink/40">Collection</span>
           <select
             value={collectionId}
             onChange={(e) => setCollectionId(e.target.value)}
             onBlur={onCollectionBlur}
-            className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-[#f4f5f6] outline-none"
+            className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-ink outline-none"
             style={{
-              borderColor: collectionError ? "#ff5a1f" : "rgba(255,255,255,.16)",
-              background: "rgba(255,255,255,.06)",
+              borderColor: collectionError ? "#ff5a1f" : "rgb(var(--ink-rgb) / 0.16)",
+              background: "rgb(var(--ink-rgb) / 0.05)",
             }}
           >
             <option value="" disabled>
@@ -525,7 +528,7 @@ function ReadyForm({
             {collections
               .filter((c) => !c.isSmart)
               .map((c) => (
-                <option key={c.id} value={c.id} className="bg-[#111214]">
+                <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
@@ -533,7 +536,7 @@ function ReadyForm({
           {collectionError && <span className="text-[11px] text-signal-soft">Pick a collection to save into.</span>}
         </label>
         <div className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-light-40">Card size *</span>
+          <span className="text-eyebrow text-ink/40">Card size *</span>
           <div className="flex gap-1.5">
             {CARD_SIZES.map((s) => (
               <button
@@ -542,9 +545,9 @@ function ReadyForm({
                 onClick={() => setSize(s)}
                 className="h-9 flex-1 rounded-[10px] text-[12px] font-semibold"
                 style={{
-                  background: s === size ? "#d6f24b" : "rgba(255,255,255,.06)",
-                  color: s === size ? "#17181b" : "rgba(244,245,246,.6)",
-                  border: "1px solid rgba(255,255,255,.12)",
+                  background: s === size ? "var(--lime)" : "rgb(var(--ink-rgb) / .05)",
+                  color: s === size ? "var(--on-accent)" : "rgb(var(--ink-rgb) / .6)",
+                  border: "1px solid rgb(var(--ink-rgb) / 0.12)",
                 }}
               >
                 {s}
@@ -556,7 +559,8 @@ function ReadyForm({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="mt-1 h-[46px] rounded-full bg-signal text-[13.5px] font-semibold text-[#111214] disabled:opacity-60"
+          // Pinned on phones so Save never ends up below the fold of a long form.
+          className="z-10 mt-1 h-[46px] rounded-full bg-signal text-[13.5px] font-semibold text-on-accent shadow-[0_10px_30px_rgba(0,0,0,.45)] disabled:opacity-60 max-md:sticky max-md:bottom-[max(12px,env(safe-area-inset-bottom))]"
         >
           {saving ? "Saving…" : "Save to library"}
         </button>
@@ -600,7 +604,7 @@ function TagPicker({
             <Icon name="close" size={9} className="text-ink/45" />
           </button>
         ))}
-        {value.length === 0 && <span className="text-[12px] text-light-40">No tags yet</span>}
+        {value.length === 0 && <span className="text-[12px] text-ink/40">No tags yet</span>}
       </div>
       <input
         value={draft}
@@ -613,8 +617,8 @@ function TagPicker({
         }}
         onBlur={() => add(draft)}
         placeholder="Add a tag, then Enter"
-        className="h-[38px] rounded-[12px] border px-3.5 text-[13px] text-[#f4f5f6] outline-none placeholder:text-light-40"
-        style={{ borderColor: "rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)" }}
+        className="h-[38px] rounded-[12px] border px-3.5 text-[13px] text-ink outline-none placeholder:text-ink/40"
+        style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
       />
       {unpicked.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -623,10 +627,10 @@ function TagPicker({
               key={tag}
               type="button"
               onClick={() => add(tag)}
-              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] text-light-55 hover:text-[#f4f5f6]"
-              style={{ borderColor: "rgba(255,255,255,.16)" }}
+              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] text-ink/55 hover:text-ink"
+              style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)" }}
             >
-              <span className="text-lime">+</span>
+              <span className="text-signal">+</span>
               {tag}
             </button>
           ))}

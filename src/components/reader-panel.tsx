@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useLibrary } from "@/lib/store";
 import { Chip } from "./chip";
 import type { LinkItem } from "@/lib/types";
+import { readableParagraphs } from "@/lib/reader";
 
 function withHighlights(paragraph: string, quotes: string[]) {
   if (quotes.length === 0) return paragraph;
@@ -67,7 +68,7 @@ export function ReaderPanel({
     .filter((l) => l.id !== link.id && l.collectionId === link.collectionId && !l.archived)
     .slice(0, 3);
 
-  const paragraphs = link.articleText ?? [link.excerpt];
+  const paragraphs = readableParagraphs(link.articleText, link.excerpt);
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-start">
@@ -82,9 +83,10 @@ export function ReaderPanel({
           ) : (
             <div className="absolute inset-0" style={{ background: link.tint }} />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-ink/10 to-transparent" />
+          {/* Black, not ink: ink flips light in dark mode and the white title would vanish. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-6">
-            <span className="text-eyebrow text-white/70">{link.domain}</span>
+            <span className="text-eyebrow text-white/85 [text-shadow:0_1px_3px_rgb(0_0_0/.5)]">{link.domain}</span>
             <h1 className="text-title max-w-[600px] text-[28px] text-white">{link.title}</h1>
           </div>
         </div>

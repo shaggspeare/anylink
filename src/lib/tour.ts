@@ -83,7 +83,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=card-menu]",
     title: "Card actions, behind ⋯",
     description:
-      "Tap ⋯ on any card to open the original, favorite it or move it to Trash. Tap ✕ or anywhere else to close.",
+      "Tap ⋯ on any card to open, share or copy it, move it to another collection, favorite it or send it to Trash.",
     side: "bottom",
   },
   {

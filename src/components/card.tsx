@@ -2,17 +2,16 @@
 
 import { Icon } from "@/components/icon";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/lib/store";
+import { LinkActionSheet } from "./link-action-sheet";
 import { swallowClick, type useDragReorder } from "@/lib/use-drag-reorder";
 import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, TILE_PX, sizeFromDrag } from "@/lib/geometry";
 import { CARD_SIZES, type LinkItem } from "@/lib/types";
 
 const ROW_PX = 46;
 const ENTRANCE_SCALES = [0.72, 1.14, 0.86, 1.22, 0.64, 1.06];
-const MENU_ITEM =
-  "flex h-8 items-center gap-2 rounded-[10px] px-2.5 text-[12.5px] font-medium text-[#f4f5f6] active:bg-white/15";
 const ISLAND = "pointer-events-auto flex gap-1 rounded-full p-1";
 const ISLAND_STYLE = {
   background: "rgb(var(--surface-rgb) / .96)",
@@ -41,7 +40,7 @@ export function Card({
   columnCount: number;
   /** Phone layout: a small uniform tile. Touch has no hover, so its actions sit behind ⋯. */
   tile?: boolean;
-  /** Phone list view: a one-line row of the tile, same ⋯ and ↗ controls. */
+  /** Phone list view: a one-line row of the tile, same ⋯ control. */
   row?: boolean;
   selectable?: boolean;
   selectionActive?: boolean;
@@ -56,6 +55,7 @@ export function Card({
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const geo = CARD_GEOMETRY[link.size];
   const cols = tile ? 1 : Math.min(geo.cols, columnCount);
   const rows = Math.round((row ? ROW_PX : tile ? TILE_PX : geo.rowPx) / GRID_ROW_UNIT);
@@ -133,22 +133,6 @@ export function Card({
     window.addEventListener("pointerup", up);
   };
 
-  // Close on a tap anywhere else — and don't let that tap open whatever it landed on.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const outside = (e: PointerEvent) => {
-      if (cardRef.current?.contains(e.target as Node)) return;
-      setMenuOpen(false);
-      swallowClick();
-    };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
-    window.addEventListener("pointerdown", outside, true);
-    window.addEventListener("keydown", esc);
-    return () => {
-      window.removeEventListener("pointerdown", outside, true);
-      window.removeEventListener("keydown", esc);
-    };
-  }, [menuOpen]);
 
   return (
     <div
@@ -185,79 +169,27 @@ export function Card({
         }}
       >
         {tile && (
+          // 44px tap target around a 28px dot, per the iOS minimum.
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setMenuOpen((open) => !open);
+              setMenuOpen(true);
             }}
-            aria-label={menuOpen ? "Close actions" : `Actions for ${link.title}`}
+            aria-label={`Actions for ${link.title}`}
             data-tour="card-menu"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className={`absolute z-30 flex h-7 w-7 ${row ? "right-1.5 top-1/2 -translate-y-1/2" : "right-1.5 top-1.5"} items-center justify-center rounded-full text-[15px] font-bold leading-none ${
-              menuOpen ? "bg-white/15 text-[#f4f5f6]" : "bg-surface/85 text-ink shadow-sm"
-            }`}
-            style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+            aria-haspopup="dialog"
+            className={`absolute z-30 flex h-11 w-11 items-center justify-center ${row ? "right-0 top-1/2 -translate-y-1/2" : "right-0 top-0"}`}
           >
-            <Icon name={menuOpen ? "close" : "more"} size={menuOpen ? 13 : 15} />
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/85 text-ink shadow-sm"
+              style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+            >
+              <Icon name="more" size={15} />
+            </span>
           </button>
         )}
-        {tile && !menuOpen && !selectionActive && (
-          <a
-            href={link.url}
-            target="_blank"
-            rel="noreferrer noopener"
-            onClick={(e) => e.stopPropagation()}
-            aria-label={`Open ${link.domain} in a new tab`}
-            className={`absolute z-30 flex h-7 w-7 ${row ? "right-10 top-1/2 -translate-y-1/2" : "left-1.5 top-1.5"} items-center justify-center rounded-full bg-surface/85 text-ink shadow-sm`}
-            style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
-              <path d="M7 17 17 7M9 7h8v8" />
-            </svg>
-          </a>
-        )}
-        {menuOpen && (
-          <div
-            role="menu"
-            aria-label={`Actions for ${link.title}`}
-            onClick={(e) => e.stopPropagation()}
-            className={`absolute inset-0 z-20 flex gap-0.5 p-1.5 ${row ? "items-center justify-end pr-10" : "flex-col justify-center"}`}
-            style={{
-              background: "rgba(23,24,27,.84)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              animation: "card-menu-in .18s cubic-bezier(.2,.9,.3,1.2)",
-            }}
-          >
-            {/* A row keeps ↗ beside ⋯, and three items don't fit across a phone. */}
-            {!row && (
-              <a role="menuitem" href={link.url} target="_blank" rel="noreferrer noopener" onClick={() => setMenuOpen(false)} className={MENU_ITEM}>
-                <span className="flex w-4 justify-center"><Icon name="arrow-up-right" size={13} /></span> Open original
-              </a>
-            )}
-            <button
-              role="menuitem"
-              type="button"
-              onClick={() => {
-                setFavorite(link.id, !link.favorite);
-                setMenuOpen(false);
-              }}
-              className={MENU_ITEM}
-            >
-              <span className="flex w-4 justify-center text-signal"><Icon name="star" size={14} /></span> {link.favorite ? "Unfavorite" : "Favorite"}
-            </button>
-            <button
-              role="menuitem"
-              type="button"
-              onClick={() => deleteLinks([link.id])}
-              className={`${MENU_ITEM} text-[#ff9a8f]`}
-            >
-              <span className="flex w-4 justify-center"><Icon name="close" size={12} /></span> Move to trash
-            </button>
-          </div>
-        )}
+        {menuOpen && <LinkActionSheet link={link} onClose={closeMenu} />}
         {selectable && (
           <button
             type="button"
@@ -290,7 +222,7 @@ export function Card({
                   sizes="(min-width: 1280px) 25vw, 50vw"
                   className="object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/28 to-transparent to-55%" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/28 to-transparent to-55%" />
               </>
             ) : (
               <div className="absolute inset-0" style={{ background: link.tint }}>
@@ -322,7 +254,7 @@ export function Card({
         )}
 
         {row ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 pl-2.5 pr-[72px]">
+          <div className="flex min-w-0 flex-1 items-center gap-2 pl-2.5 pr-11">
             <span
               className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-[7px] text-[10px] font-bold"
               style={{ color: link.stripe, background: link.tint }}
@@ -371,7 +303,8 @@ export function Card({
               fontSize: tile ? 13 : CARD_TITLE_SIZE[link.size],
               letterSpacing: tile ? "-.02em" : "-.038em",
               display: "-webkit-box",
-              WebkitLineClamp: link.size === "L" ? 3 : 2,
+              // A tile only has room for two lines whatever size the card is on desktop.
+              WebkitLineClamp: !tile && link.size === "L" ? 3 : 2,
               WebkitBoxOrient: "vertical",
             }}
           >

@@ -33,6 +33,7 @@ export const FILTERS: { label: string; query: string }[] = [
 ];
 
 const MAX_SIDEBAR_TAGS = 12;
+const QUIET_ROW = "flex items-center gap-2.5 rounded-[14px] px-3 py-3 text-meta text-ink/45 hover:bg-ink/6 hover:text-ink lg:py-2";
 const DISMISSED_THEMES_KEY = "anylink:dismissed-themes";
 
 /** Theme suggestions you've waved off, kept in localStorage. useSyncExternalStore because
@@ -141,6 +142,14 @@ export function Sidebar() {
         <Logo className="h-12 w-12 lg:h-11 lg:w-11" />
         <span className="text-wordmark">AnyLink</span>
         <ThemeToggle className="ml-auto" />
+        <button
+          type="button"
+          onClick={() => setMenuOpen(false)}
+          aria-label="Close menu"
+          className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full text-ink/60 lg:hidden"
+        >
+          <Icon name="close" size={14} />
+        </button>
       </div>
 
       <nav data-tour="sidebar" className="mt-4 flex flex-col gap-0.5">
@@ -203,7 +212,6 @@ export function Sidebar() {
           <span className="flex h-4 w-4 items-center justify-center"><Icon name="arrow-down" size={13} /></span>
           Import links
         </a>
-        <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
 
         {filters.length > 0 && (
           <div data-tour="filters">
@@ -308,7 +316,7 @@ export function Sidebar() {
           <Link
             data-tour="trash"
             href="/trash"
-            className="mt-4 flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-body text-ink/55 hover:bg-ink/6 hover:text-ink"
+            className="mt-4 flex items-center gap-2.5 rounded-[14px] px-3 py-3 text-body text-ink/55 lg:py-2 hover:bg-ink/6 hover:text-ink"
             style={{ background: pathname === "/trash" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
           >
             <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⌫</span>
@@ -318,8 +326,10 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
-        <TourButton />
+      {/* Housekeeping: rarely needed, so quiet rows below everything you navigate by. */}
+      <div className="mt-3 flex flex-col border-t border-ink/8 pt-2">
+        <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
+        <TourButton className={`${QUIET_ROW} w-full`} />
       </div>
 
       <PasteHint />
@@ -342,7 +352,7 @@ function FilterRow({
   return (
     <Link
       href={`/app?q=${encodeURIComponent(query)}`}
-      className="flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-body text-ink/65 hover:bg-ink/6 hover:text-ink"
+      className="flex items-center gap-2.5 rounded-[14px] px-3 py-3 text-body text-ink/65 hover:bg-ink/6 hover:text-ink lg:py-2"
       style={{ background: active ? "rgb(var(--ink-rgb) / .06)" : "transparent" }}
     >
       <span className="flex-1 truncate">{label}</span>
@@ -359,7 +369,7 @@ function CleanUpCollectionsButton({ onRun }: { onRun: () => Promise<number> }) {
       type="button"
       data-tour="cleanup"
       onClick={async () => setRemoved(await onRun())}
-      className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
+      className={QUIET_ROW}
     >
       <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⌦</span>
       {removed === null ? "Delete empty collections" : `Removed ${removed}`}
@@ -501,7 +511,7 @@ function CollectionRow({
       <Link
         href={`/collections/${collection.id}`}
         draggable={false}
-        className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-body"
+        className="flex flex-1 items-center gap-2.5 px-3 py-3 text-body lg:py-2.5"
       >
         <CollectionMarker color={collection.color} />
         <span className="flex-1 truncate">{collection.name}</span>

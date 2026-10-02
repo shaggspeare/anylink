@@ -1,6 +1,5 @@
 "use client";
 
-import { Icon } from "@/components/icon";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
@@ -18,9 +17,9 @@ export default function TrashPage() {
       <AmbientOrbs variant="library" />
       <Sidebar />
       <div className="relative lg:pl-[250px]">
-        <header className="flex items-end gap-3.5 px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
+        <header className="flex items-center gap-3.5 sm:items-end px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
           <h1 className="text-hero text-[30px]">Trash</h1>
-          <span className="pb-1.5 text-meta text-ink/50">{trashed.length} links</span>
+          <span className="text-meta text-ink/50 sm:pb-1.5">{trashed.length} links</span>
           {trashed.length > 0 && (
             <button
               type="button"
@@ -31,13 +30,18 @@ export default function TrashPage() {
                 router.push("/app");
               }}
               onBlur={() => setConfirmingEmpty(false)}
-              className="mb-1 ml-auto flex h-9 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold text-ink"
+              className="ml-auto flex h-10 sm:mb-1 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold text-ink"
             >
               {confirmingEmpty ? "Delete them for good?" : "Empty trash"}
             </button>
           )}
         </header>
 
+        {trashed.length > 0 && (
+          <p className="-mt-2 px-4 pb-3 text-meta text-ink/50 sm:px-5 lg:px-6.5">
+            Links stay here until you delete them.
+          </p>
+        )}
         <div className="flex flex-col gap-1.5 px-4 pb-10 sm:px-5 lg:px-6.5">
           {trashed.length === 0 && (
             <p className="py-16 text-center text-body text-ink/45">
@@ -48,7 +52,7 @@ export default function TrashPage() {
             <div
               key={link.id}
               data-tour="trash-item"
-              className="flex items-center gap-3 rounded-[16px] border border-rim/75 bg-surface/62 px-4 py-3"
+              className="flex items-center gap-2 rounded-[16px] border border-rim/75 bg-surface/62 py-1.5 pl-4 pr-1.5 sm:gap-3"
             >
               <span
                 className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-[7px] text-[10px] font-bold"
@@ -61,18 +65,17 @@ export default function TrashPage() {
               <button
                 type="button"
                 onClick={() => restoreLinks([link.id])}
-                className="flex-none rounded-full bg-ink/6 px-3 py-1.5 text-[12px] font-semibold text-ink/70 hover:bg-ink/10"
+                className="h-10 flex-none rounded-full bg-ink/6 px-3.5 text-[12.5px] font-semibold text-ink hover:bg-ink/10"
               >
                 Restore
               </button>
               <button
                 type="button"
                 onClick={() => purgeLinks([link.id])}
-                aria-label="Delete forever"
                 title="Delete forever"
-                className="flex h-7 w-7 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-surface hover:text-ink"
+                className="h-10 flex-none rounded-full px-3 text-[12.5px] font-semibold text-red-500 hover:bg-red-500/10"
               >
-                <Icon name="close" size={12} />
+                Delete
               </button>
             </div>
           ))}

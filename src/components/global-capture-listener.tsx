@@ -16,6 +16,21 @@ export function GlobalCaptureListener() {
   const { openAddLink, openPalette, closePalette, paletteOpen, addLinkOpen, closeAddLink } =
     useLibrary();
 
+  // Arrived from the OS share sheet (see app/manifest.ts). Many Android apps put the link
+  // in `text` rather than `url`, so both are checked.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = [params.get("shared_url"), params.get("shared_text")]
+      .map((v) => v?.match(/https?:\/\/\S+/)?.[0])
+      .find(Boolean);
+    if (!params.has("shared_url") && !params.has("shared_text")) return;
+    ["shared_url", "shared_text", "shared_title"].forEach((k) => params.delete(k));
+    const rest = params.toString();
+    history.replaceState(history.state, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    if (shared) openAddLink(shared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;

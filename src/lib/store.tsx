@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ALL_COLLECTION_ID } from "./mock-data";
 import * as actions from "./db/actions";
 import { searchLinks } from "./search";
@@ -58,8 +58,12 @@ type LibraryContextValue = {
   /** The sidebar as a slide-in drawer below lg; on desktop it's always shown. */
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
+  /** One-line confirmation at the bottom of the screen; `undoIds` adds an Undo that restores them from Trash. */
+  showToast: (message: string, undoIds?: string[]) => void;
   demo: boolean;
 };
+
+type Toast = { message: string; undoIds?: string[]; key: number };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
@@ -94,6 +98,13 @@ export function LibraryProvider({
   const [addLinkPrefillUrl, setAddLinkPrefillUrl] = useState<string | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [toast, setToast] = useState<Toast | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const hide = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(hide);
+  }, [toast]);
 
   const value = useMemo<LibraryContextValue>(
     () => ({
@@ -146,6 +157,12 @@ export function LibraryProvider({
         setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
         setTrashed((prev) => [...moving, ...prev]);
         api.deleteLinks(ids).catch(console.error);
+        // Every delete path (tile menu, hover trash, bulk bar) gets the same way back.
+        setToast({
+          message: ids.length > 1 ? `${ids.length} links moved to Trash` : "Moved to Trash",
+          undoIds: ids,
+          key: Date.now(),
+        });
       },
       restoreLinks: (ids) => {
         const idSet = new Set(ids);
@@ -268,12 +285,38 @@ export function LibraryProvider({
       closePalette: () => setPaletteOpen(false),
       menuOpen,
       setMenuOpen,
+      showToast: (message, undoIds) => setToast({ message, undoIds, key: Date.now() }),
       demo,
     }),
     [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen, menuOpen, api, demo]
   );
 
-  return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
+  return (
+    <LibraryContext.Provider value={value}>
+      {children}
+      {toast && (
+        <div
+          key={toast.key}
+          role="status"
+          className="fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-[60] mx-auto flex max-w-sm items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-body text-on-ink shadow-[var(--shadow-popover)] lg:bottom-6"
+        >
+          <span className="min-w-0 flex-1 truncate">{toast.message}</span>
+          {toast.undoIds && (
+            <button
+              type="button"
+              onClick={() => {
+                value.restoreLinks(toast.undoIds!);
+                setToast(null);
+              }}
+              className="h-9 flex-none rounded-full px-4 font-semibold text-signal"
+            >
+              Undo
+            </button>
+          )}
+        </div>
+      )}
+    </LibraryContext.Provider>
+  );
 }
 
 export function useLibrary() {

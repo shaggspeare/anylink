@@ -33,16 +33,27 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
             WebkitBackdropFilter: "blur(24px) saturate(1.3)",
           }}
         >
-          <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink/50">
-            <Link href="/app" aria-label="Library" className="-ml-1.5 flex h-9 flex-none items-center gap-1.5 px-1.5 hover:text-ink sm:ml-0 sm:h-auto sm:px-0">
+          {/* Phones: one back button, to wherever you came from. */}
+          <button
+            type="button"
+            onClick={() => (history.length > 1 ? router.back() : router.push(collection ? `/collections/${collection.id}` : "/app"))}
+            className="-ml-2 flex h-11 min-w-0 items-center gap-1 px-2 text-[15px] font-semibold text-ink sm:hidden"
+          >
+            <svg className="flex-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+              <path d="m14 6-6 6 6 6" />
+            </svg>
+            <span className="truncate">Back</span>
+          </button>
+          <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink/50 max-sm:hidden">
+            <Link href="/app" aria-label="Library" className="flex flex-none items-center gap-1.5 hover:text-ink">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                 <path d="m14 6-6 6 6 6" />
               </svg>
-              <span className="max-sm:hidden">Library</span>
+              <span>Library</span>
             </Link>
             {collection && (
               <>
-                <svg className="max-sm:hidden" width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .3)" }} strokeWidth="2.6" strokeLinecap="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .3)" }} strokeWidth="2.6" strokeLinecap="round">
                   <path d="m9 6 6 6-6 6" />
                 </svg>
                 <Link href={`/collections/${collection.id}`} className="truncate font-semibold text-ink hover:underline">
@@ -68,7 +79,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
               onClick={() => setFavorite(link.id, !link.favorite)}
               aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
               title="Favorite"
-              className={`flex h-9 w-9 items-center justify-center rounded-full border border-rim/90 bg-surface/70 text-[15px] ${
+              className={`flex h-10 w-10 items-center justify-center rounded-full border border-rim/90 bg-surface/70 text-[15px] sm:h-9 sm:w-9 ${
                 link.favorite ? "text-signal" : "text-ink/35"
               }`}
             >
@@ -79,8 +90,8 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
               data-tour="note"
               onClick={() => setNoteOpen((open) => !open)}
               title="Note"
-              className={`flex h-9 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold ${
-                link.note ? "text-ink" : "text-ink/45"
+              className={`flex h-10 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold sm:h-9 ${
+                link.note ? "text-ink" : "text-ink/70"
               }`}
             >
               Note
@@ -89,16 +100,16 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
               type="button"
               data-tour="open-original"
               onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
-              className="flex h-9 items-center gap-2 rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold text-ink"
+              className="flex h-9 items-center gap-2 rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold text-ink max-sm:hidden"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                 <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
               </svg>
-              Open<span className="max-sm:hidden">{isProduct ? ` on ${link.product?.retailer.split(".")[0]}` : " original"}</span>
+              Open{isProduct ? ` on ${link.product?.retailer.split(".")[0]}` : " original"}
             </button>
             <details data-tour="move" className="relative">
               <summary
-                className="flex h-9 w-9 list-none items-center justify-center rounded-full border border-rim/90 bg-surface/70"
+                className="flex h-10 w-10 list-none items-center justify-center rounded-full border border-rim/90 bg-surface/70 sm:h-9 sm:w-9"
                 style={{ cursor: "pointer" }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
@@ -147,6 +158,17 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
         ) : (
           <ReaderPanel link={link} onOpenCollection={() => router.push(`/collections/${link.collectionId}`)} />
         )}
+
+        {/* Phones: the one thing you came to do, under the thumb. */}
+        <div className="h-24 sm:hidden" />
+        <button
+          type="button"
+          onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
+          className="fixed inset-x-4 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex h-[52px] items-center justify-center gap-2 rounded-full bg-ink text-[15px] font-semibold text-on-ink shadow-[var(--shadow-window)] sm:hidden"
+        >
+          Open{isProduct ? ` on ${link.product?.retailer.split(".")[0]}` : " original"}
+          <Icon name="arrow-up-right" size={15} />
+        </button>
       </div>
     </div>
   );

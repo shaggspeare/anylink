@@ -5,6 +5,8 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   function toggle() {
     const dark = document.documentElement.classList.toggle("dark");
     localStorage.theme = dark ? "dark" : "light";
+    // Browser chrome (status bar, Android toolbar) follows the canvas, not the OS setting.
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0f1012" : "#eceef0");
   }
 
   // Both icons render; CSS picks one, so server and client markup match.
@@ -14,7 +16,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label="Toggle dark mode"
       title="Toggle dark mode"
-      className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink/60 hover:bg-ink/6 hover:text-ink ${className}`}
+      className={`flex h-11 w-11 flex-none lg:h-9 lg:w-9 items-center justify-center rounded-full text-ink/60 hover:bg-ink/6 hover:text-ink ${className}`}
     >
       <svg className="dark:hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
