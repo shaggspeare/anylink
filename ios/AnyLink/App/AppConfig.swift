@@ -1,19 +1,17 @@
 import Foundation
 
 enum AppConfig {
-    private static let info = Bundle.main.infoDictionary ?? [:]
-
     static var apiBase: URL? {
-        (info["AnyLinkAPIBase"] as? String).flatMap(URL.init(string:))
+        (Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIBase") as? String).flatMap(URL.init(string:))
     }
     static var apiToken: String? {
-        info["AnyLinkAPIToken"] as? String
+        Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIToken") as? String
     }
     static var supabaseURL: String? {
-        info["SupabaseURL"] as? String
+        Bundle.main.object(forInfoDictionaryKey: "SupabaseURL") as? String
     }
     static var supabaseAnonKey: String? {
-        info["SupabaseAnonKey"] as? String
+        Bundle.main.object(forInfoDictionaryKey: "SupabaseAnonKey") as? String
     }
     static var isUITesting: Bool {
         CommandLine.arguments.contains("-ui-testing")
