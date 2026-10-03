@@ -58,7 +58,8 @@ public actor MockAPI: @preconcurrency AnyLinkAPI {
     }
 
     public func library(since: Date?) async throws -> LibrarySnapshot {
-        LibrarySnapshot(links: links, trashed: trashed, collections: collections)
+        try maybeThrow()
+        return LibrarySnapshot(links: links, trashed: trashed, collections: collections)
     }
 
     public func createLink(_ draft: LinkDraft) async throws -> LinkItem {
