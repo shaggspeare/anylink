@@ -93,3 +93,42 @@
 
 ### Check by hand
 - Launch with `-gallery`; swipe the card stack both ways, use the Bin/Keep buttons, toggle Env menu options.
+
+---
+
+## Phase 3 · App shell
+
+**Status:** Done
+
+### Done
+- `LibraryStore` (Store module): all intents from `02` (save, move, favorite, note, highlight, tag, archive, trash, restore, purge, emptyTrash, create collection/filter, rename, dissolve, deleteEmptyCollections, refresh). Each one is optimistic, syncs through a **strictly ordered** queue (so an Undo can't overtake the change it reverts), and rolls back with the `error.generic` toast on failure.
+- `ToastCenter` (moved from DesignSystem into Store), `UndoCenter` (toast Undo + `UndoManager` shake, one-shot), `SignalLogger` (fire-and-forget).
+- `Router` (Store module, so it's unit-tested): per-tab paths, select/pop/scroll-to-top, sheets, confirmations, `showsAccessory`, deep links `anylink://add?url=`, `anylink://link/{id}`, `https://…/links/{id}`.
+- `AppEnvironment.mock()/.live()/.current()`; `MockAPI.fixtures()` moved into `Fixtures` (the old `withFixtures` returned an empty library).
+- `MainTabs`: Library · Collections · Search (`role: .search`), `.tabBarMinimizeBehavior(.onScrollDown)`, `.tabViewBottomAccessory` with the real `PasteButton`; compact layout in the inline placement; "Paste into {name}" inside a collection.
+- `ClipboardWatcher`: `detectedPatterns(for: [\.probableWebURL])` on active and on `changedNotification`, cached by `changeCount`, honours the `clipboardSuggestions` setting. No paste alert (checked in the simulator).
+- Placeholder destinations for every route, sheet host (Add/Move/Tag/New/Rename, minimally functional), all confirmation dialogs with spec copy. Library, Collections and Search roots already show fixture data.
+- Tests: 24 store tests (every intent, rollback via `failNext`, Undo restores exact state), 4 router tests. 66 total.
+
+### Decisions
+- `PasteButton` uses `payloadType: String` and extracts the first http(s) URL, because a `URL` payload stays disabled for plain-text links (Notes, Messages, `simctl pbcopy`). Tested.
+- Accessory text uses `.primary/.secondary` rather than `AL.ink`: system glass adapts its scheme to what's beneath it, and `AL.ink` washed out.
+- `createCollection`/`createFilter` are `async` and wait for the server id (capture-never-blocks applies to links, not collections).
+
+### Not done
+- `.offline` rolls back like any other error; the Outbox that keeps and queues it is phase 11.
+- 404 → "drop the local item" (`05` errors table) isn't special-cased yet; it rolls back.
+- `suggestedCollection(for:)` / `suggestedFilter`: phases 9 and 7, where they're used.
+
+### Spec conflicts
+- Server `deleteCollection` **trashes** a collection's links, but S11 "Dissolve" moves them to Unsorted. Dissolve is implemented as `bulk(.move → unsorted)` + `deleteCollection`.
+- "Tagged {n} links" / "Archived {n} links" pluralise to "link" when n = 1.
+
+### `// BACKEND:` items
+- No unarchive endpoint: archive Undo is local-only (open question 4).
+- No restore-collection endpoint: dissolve Undo recreates the collection with a new id, losing `reasoning`/`createdBy`.
+
+### Check by hand
+- Tap the active tab while on a pushed screen → pops; tap again at root → scrolls to top (`TabView` must call the selection setter on re-tap).
+- Copy a link in Safari, return to AnyLink → accessory shows "Link on your clipboard" + Paste, with no alert.
+- Long-press a tile → Move to Trash → toast with Undo; shake also undoes.
