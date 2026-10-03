@@ -1,0 +1,2 @@
+{"type": "step", "step": "fetch", "_delayMs": 500}
+{"type": "failed", "failed": true, "domain": "dead-shop.example", "tint": "#9AA3AD", "stripe": "#17181B", "initial": "D", "reason": "not-found", "suggestedTitle": "Apple macbook air m4", "_delayMs": 1500}

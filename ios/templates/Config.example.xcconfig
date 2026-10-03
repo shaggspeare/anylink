@@ -1,0 +1,7 @@
+// Copy to Config.xcconfig (git-ignored) and fill in. Empty values in Debug → the app uses MockAPI.
+// `$()` keeps xcconfig from treating `//` in URLs as a comment.
+ANYLINK_API_BASE =
+ANYLINK_API_TOKEN =
+// ANYLINK_API_BASE = https:/$()/anylink.example.com
+SUPABASE_URL =
+SUPABASE_ANON_KEY =

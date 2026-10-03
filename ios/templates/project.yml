@@ -1,0 +1,130 @@
+# XcodeGen spec — copy to the repo root in Phase 0, then `xcodegen generate`.
+# Placeholders: bundle ids (app.anylink.*), DEVELOPMENT_TEAM, App Group, keychain group. See docs/10-decisions.md Q1.
+name: AnyLink
+options:
+  bundleIdPrefix: app.anylink
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+configFiles:
+  Debug: Config.xcconfig        # copy Config.example.xcconfig → Config.xcconfig (git-ignored)
+  Release: Config.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: ""                 # fill for device builds
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+
+packages:
+  AnyLinkKit:
+    path: Packages/AnyLinkKit
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.0.0"
+
+targets:
+  AnyLink:
+    type: application
+    platform: iOS
+    sources:
+      - AnyLink
+    dependencies:
+      - package: AnyLinkKit
+        products: [Models, QueryLanguage, Networking, Persistence, Store, DesignSystem, Fixtures]
+      - package: Supabase
+        product: Auth
+      - target: AnyLinkShare
+        embed: true
+    info:
+      path: AnyLink/Info.plist
+      properties:
+        CFBundleDisplayName: AnyLink
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations~iphone: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        CFBundleURLTypes:
+          - CFBundleURLName: app.anylink.ios
+            CFBundleURLSchemes: [anylink]
+        NSUserActivityTypes: [com.apple.corespotlightitem]
+        AnyLinkAPIBase: $(ANYLINK_API_BASE)
+        AnyLinkAPIToken: $(ANYLINK_API_TOKEN)
+        SupabaseURL: $(SUPABASE_URL)
+        SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+    entitlements:
+      path: AnyLink/AnyLink.entitlements
+      properties:
+        com.apple.security.application-groups: [group.app.anylink.ios]
+        keychain-access-groups: [$(AppIdentifierPrefix)app.anylink.ios.shared]
+        com.apple.developer.applesignin: [Default]
+        # com.apple.developer.associated-domains: ["applinks:<web domain>"]   # phase 13
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  AnyLinkShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ShareExtension
+    dependencies:
+      - package: AnyLinkKit
+        products: [Models, Networking, Persistence, DesignSystem]
+      - package: Supabase
+        product: Auth
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: AnyLink
+        AnyLinkAPIBase: $(ANYLINK_API_BASE)
+        AnyLinkAPIToken: $(ANYLINK_API_TOKEN)
+        SupabaseURL: $(SUPABASE_URL)
+        SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+    entitlements:
+      path: ShareExtension/AnyLinkShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.app.anylink.ios]
+        keychain-access-groups: [$(AppIdentifierPrefix)app.anylink.ios.shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios.share
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+  AnyLinkUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - AnyLinkUITests
+    dependencies:
+      - target: AnyLink
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios.uitests
+
+schemes:
+  AnyLink:
+    build:
+      targets:
+        AnyLink: all
+        AnyLinkShare: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - AnyLinkUITests
