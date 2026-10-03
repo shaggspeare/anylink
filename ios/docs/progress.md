@@ -132,3 +132,39 @@
 - Tap the active tab while on a pushed screen → pops; tap again at root → scrolls to top (`TabView` must call the selection setter on re-tap).
 - Copy a link in Safari, return to AnyLink → accessory shows "Link on your clipboard" + Paste, with no alert.
 - Long-press a tile → Move to Trash → toast with Undo; shake also undoes.
+
+---
+
+## Phase 4 · Library
+
+**Status:** Done
+
+### Done
+- `LibraryView`: large brand title, scope chips with counts (zero-count chips hidden except All), `UnsortedBanner` (scope All, Unsorted > 0 → Triage), offline notice, tiles grid, rows `List` grouped by save date when sort = Newest, sort menu (5 sorts), layout switch, both persisted in `@AppStorage`.
+- States: tiles · rows · skeleton (6 tiles while the first sync runs with no cache) · pull to refresh · entrance animation (`entranceScales` + stagger, skipped under Reduce Motion) · plain imported cards · "Nothing here yet." · offline · empty library (dashed tiles + three ways in) · select mode. Previews for each, plus dark and large type.
+- `LinkActions` (S7): context menu (Open Original, Share…, Copy Link, Move to… submenu with colour dots, Favorite/Unfavorite, Select, Move to Trash) with the 310-pt preview card, and the 4 VoiceOver rotor actions on tiles and rows.
+- Row swipe actions: leading Favorite (signal), trailing Trash (full swipe) + Move (periwinkle).
+- Select mode: Select All / Deselect All · "{n} Selected" · Done (ink glass); tiles tap-toggle, rows use `List(selection:)` + edit mode; glass bottom toolbar Move · Tag · Archive · Trash (confirmation); tab bar and accessory hidden.
+- Move sheet (collections with dots and counts, current excluded) and Tag sheet (field + 8 most-used tag suggestions).
+- Store logic (tested): `LibraryScope`, `LibrarySort` (incl. My order by `position`), `DateSections.group` (Today · Yesterday · Earlier this week · month / month year), `Router` selection.
+- UI tests: `testTrashAndUndoFromContextMenu` ✅, `testSelectModeTrashAsksForConfirmation` ✅. `AnyLinkUITests` gets `GENERATE_INFOPLIST_FILE` (it couldn't sign before).
+
+### Fixes / decisions
+- The paste accessory is now **disabled** (`tabViewBottomAccessory(isEnabled:)`, iOS 26.1+) rather than emptied in select mode and on detail screens: an empty accessory still draws glass over the bottom toolbar and swallows its taps. On iOS 26.0 it falls back to empty content, and the bug remains there. Raising the deployment target to 26.1 would remove the fallback: **owner's call**.
+- Confirmation dialogs attach per tab inside each `NavigationStack` (only the selected tab presents).
+
+### Not done
+- Drag-to-reorder in "My order" (P1).
+- Tapping the context-menu preview doesn't open the link (SwiftUI has no hook; would need UIKit).
+- Empty-state rows "Share from any app" (TipKit, phase 13) and "Import what you have" (onboarding, phase 10) have no action yet.
+- Images still use `AsyncImage`; the downsampling `ImageLoader` (`05` § Images) isn't built yet: fixtures have no hero images. Add it before live data (phase 11).
+
+### Spec conflicts
+- None new.
+
+### `// BACKEND:` items
+- None new.
+
+### Check by hand
+- VoiceOver on a tile: one element "Title, domain[, favourite]"; rotor shows Open original, Favorite, Move, Move to Trash.
+- Shake after a trash → Undo.
