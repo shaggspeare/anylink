@@ -5,9 +5,11 @@ public struct LinkRow: View {
     public let link: LinkItem
     public var isSelected: Bool = false
     public var selectMode: Bool = false
+    /// Replaces "domain · reading meta", e.g. "domain · collection" in filter results.
+    public var meta: String?
 
-    public init(link: LinkItem, isSelected: Bool = false, selectMode: Bool = false) {
-        self.link = link; self.isSelected = isSelected; self.selectMode = selectMode
+    public init(link: LinkItem, isSelected: Bool = false, selectMode: Bool = false, meta: String? = nil) {
+        self.link = link; self.isSelected = isSelected; self.selectMode = selectMode; self.meta = meta
     }
 
     public var body: some View {
@@ -19,12 +21,7 @@ public struct LinkRow: View {
                     .font(AL.Font.rowTitle)
                     .foregroundStyle(AL.ink)
                     .lineLimit(1)
-                HStack(spacing: 0) {
-                    Text(link.domain)
-                    if let meta = link.readingMeta {
-                        Text(" · \(meta)")
-                    }
-                }
+                Text(meta ?? [link.domain, link.readingMeta].compactMap { $0 }.joined(separator: " · "))
                 .font(.system(size: 11.5))
                 .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 .lineLimit(1)

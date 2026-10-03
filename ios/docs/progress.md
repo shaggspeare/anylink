@@ -232,3 +232,40 @@
 ### Check by hand
 - Overscroll the reader hero: it should stretch, not gap.
 - Settings → Open in Safari (phase 7) switches Open ↗ to Safari.
+
+---
+
+## Phase 7 · Collections, filters, Trash, Settings
+
+**Status:** Done
+
+### Done
+- `CollectionsView` (S10): glass + and avatar → Settings; built-in filter chips with counts (hidden at 0) → `Route.filter`; suggested-filter banner (Create / ✕, dismissals in `@AppStorage`); Unsorted card with lime Sort; collection grid + New collection cell; Custom filters list (monospaced query, count); tag cloud (top 10); quiet list (Import links, Trash {n}, Delete empty collections).
+- `CollectionNameSheet`: name + 5 swatches + **Add collection**; Rename reuses it with the name prefilled (no swatches — the API can't recolour).
+- `CollectionView` (S11): dot + title + "{n} links · made during import / · new links land here"; `WhyCard` for system-made collections until Keep (kept IDs per device + `keep` signal); **Sort {n} links one by one** for Unsorted; tag chips (single select); rows with swipes and S7 menu; Select mode with the shared toolbar; ⋯ Rename / Dissolve; empty copy.
+- `FilterResultsView` (S12): title, ink monospaced query chip + count, rows with "domain · collection", empty copy.
+- `TrashView` (S17): title + count line, sections by deletion day, rows (thumb .8, "from {collection} · {relative}"), swipe Restore (lime) / Delete (confirm), Empty (confirm), empty copy.
+- `SettingsView` (S18): account card, Capture (share-sheet hint, Shortcuts, clipboard toggle that also clears the accessory, "New links go to" — used by the Add sheet), Appearance thumbnails applied app-wide at once, Open links in (AnyLink | Safari), Show tips again (flag for TipKit in phase 13), Sign out, Delete account… (Mock), version footer.
+- Shared `LinkListRow` and `SelectionToolbar` (Library and Collection use them).
+- Store (tested): `BuiltInFilter`, `suggestedFilter`, `topTags`, `tags(in:)`, `trashSections` + local `trashedAt`, `deleteAccount`, `lastSynced`.
+- UI tests: dissolve → Undo restores the collection ✅, Delete empty collections reports a count ✅, appearance switches immediately ✅. 99 package tests, 11 UI tests.
+
+### Fixes
+- Confirmation dialogs now present from the screen on top (tab root when its path is empty, else the last pushed route). Attached only to the root, they silently failed on pushed screens.
+
+### Not done
+- Sign out does nothing yet (toast); the auth gate and Welcome arrive in phase 10.
+- Collection ⋯ "Sort" and "Share list" (P2).
+- "Import links" shows a toast until onboarding (phase 10).
+
+### Spec conflicts
+- S17 groups Trash by deletion day, but the API has no `deletedAt`: only links trashed on this device this session are dated; the rest fall under "Earlier".
+
+### `// BACKEND:` items
+- `deletedAt` on trashed links (`trashSections`).
+- A "keep" endpoint for auto-made collections (`CollectionView` WhyCard); kept state is per device.
+- `DELETE /api/account` (`LibraryStore.deleteAccount`, Mock only).
+
+### Check by hand
+- Settings → New links go to → Reading, then Paste: the Add sheet preselects Reading.
+- Turn off Clipboard suggestions: the accessory stops saying "Link on your clipboard".

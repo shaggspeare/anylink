@@ -542,3 +542,45 @@ import Fixtures
         #expect(store.alsoIn(nasa).allSatisfy { $0.collectionId == "reading" && $0.id != "nasa" })
     }
 }
+
+@MainActor
+@Suite struct CollectionsPresentationTests {
+    let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+
+    @Test func builtInFilterCounts() {
+        #expect(store.count(.favorites) == 3)
+        #expect(store.count(.videos) == 2)
+        #expect(store.count(.products) == store.links(in: .products, sortedBy: .newest).count)
+        for f in BuiltInFilter.allCases { #expect(store.count(f) == store.links(matching: f.query).count) }
+    }
+
+    @Test func suggestedFilterSkipsTakenAndDismissed() {
+        guard let s = store.suggestedFilter() else { Issue.record("expected a suggestion"); return }
+        #expect(s.count >= 3)
+        #expect(!store.collections.contains { $0.name.lowercased() == s.tag.lowercased() })
+        #expect(store.suggestedFilter(dismissed: [s.tag])?.tag != s.tag)
+        // "rust" is the name of a collection's tag but "Rust & async"… tag on ≥3 links must not match an existing filter query
+        #expect(store.suggestedFilter()?.query != "#rust" || !store.customFilters.contains { $0.smartQuery == "#rust" })
+    }
+
+    @Test func topTagsAndCollectionTags() {
+        let top = store.topTags()
+        #expect(top.count <= 10)
+        #expect(top.map(\.count) == top.map(\.count).sorted(by: >))
+        #expect(store.tags(in: "rust").contains("rust"))
+    }
+
+    @Test func trashSectionsDateLocalTrashes() {
+        store.trash(["nasa"])
+        let sections = store.trashSections()
+        #expect(sections.first?.title == "Today")
+        #expect(sections.first?.links.map(\.id) == ["nasa"])
+        #expect(sections.last?.title == "Earlier")
+        #expect(Set(sections.last?.links.map(\.id) ?? []) == ["tr1", "tr2"])
+    }
+
+    @Test func deleteAccountClearsLibrary() async {
+        #expect(await store.deleteAccount())
+        #expect(store.live.isEmpty && store.collections.isEmpty)
+    }
+}

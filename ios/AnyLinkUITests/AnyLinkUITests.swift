@@ -114,4 +114,44 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Price"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Tell me under"].exists)
     }
+
+    // MARK: - Collections, Trash, Settings (S10–S18)
+
+    @MainActor
+    func testDissolveThenUndoRestoresCollection() throws {
+        let app = launch()
+        app.tabBars.buttons["Collections"].tap()
+        let cooking = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Cooking,")).firstMatch
+        XCTAssertTrue(cooking.waitForExistence(timeout: 3))
+        cooking.tap()
+        XCTAssertTrue(app.staticTexts["WHY THIS EXISTS"].waitForExistence(timeout: 3))
+        app.buttons["Dissolve"].firstMatch.tap()   // the WhyCard's Dissolve
+        app.buttons["Dissolve collection"].tap()
+        let toast = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Cooking dissolved")).firstMatch
+        XCTAssertTrue(toast.waitForExistence(timeout: 3))
+        XCTAssertFalse(cooking.exists)
+        app.buttons["Undo"].tap()
+        XCTAssertTrue(cooking.waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testDeleteEmptyCollectionsReportsCount() throws {
+        let app = launch()
+        app.tabBars.buttons["Collections"].tap()
+        let delete = app.buttons["Delete empty collections"]
+        app.swipeUp(); app.swipeUp()
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        delete.tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Removed ")).firstMatch.waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testAppearanceAppliesImmediately() throws {
+        let app = launch()
+        app.tabBars.buttons["Collections"].tap()
+        app.buttons["Settings"].tap()
+        app.buttons["Dark"].tap()
+        XCTAssertTrue(app.buttons["Dark"].isSelected)
+        app.buttons["System"].tap()
+    }
 }

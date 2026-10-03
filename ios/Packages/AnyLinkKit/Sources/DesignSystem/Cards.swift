@@ -25,7 +25,7 @@ public struct CollectionCard: View {
                         .foregroundStyle(AL.ink)
                         .lineLimit(1)
                 }
-                Text("\(linkCount) links")
+                Text("\(linkCount) \(linkCount == 1 ? "link" : "links")")
                     .font(AL.Font.meta)
                     .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     .padding(.leading, 14)

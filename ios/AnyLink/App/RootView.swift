@@ -6,6 +6,7 @@ struct RootView: View {
     let env: AppEnvironment
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.undoManager) private var undoManager
+    @AppStorage("appearance") private var appearance: Appearance = .system
 
     var body: some View {
         MainTabs()
@@ -19,6 +20,7 @@ struct RootView: View {
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }
             .onOpenURL { env.router.handle($0) }
+            .preferredColorScheme(appearance.scheme)
     }
 }
 

@@ -14,6 +14,7 @@ public final class LibraryStore {
     public private(set) var order: [LinkItem.ID] = []
     public private(set) var collections: [LinkCollection] = []
     public private(set) var syncState: SyncState = .idle
+    public private(set) var lastSynced: Date?
     public var clipboardHasURL = false
 
     public let toasts: ToastCenter
@@ -25,6 +26,8 @@ public final class LibraryStore {
     @ObservationIgnored private var inflight: [Task<Void, Never>] = []
     @ObservationIgnored private var tail: Task<Void, Never>?
     @ObservationIgnored private var cachedIndex: LibraryIndex?
+    /// When links were trashed on this device (the API has no `deletedAt`).
+    public private(set) var trashedAt: [LinkItem.ID: Date] = [:]
 
     public init(api: any AnyLinkAPI, toasts: ToastCenter = ToastCenter(), snapshot: LibrarySnapshot? = nil,
                 crawl: (@Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>)? = nil) {
@@ -156,6 +159,7 @@ public final class LibraryStore {
         do {
             apply(try await api.library(since: nil))
             syncState = .idle
+            lastSynced = .now
         } catch AppError.offline {
             syncState = .offline
         } catch {
@@ -261,6 +265,8 @@ public final class LibraryStore {
     public func trash(_ ids: Set<LinkItem.ID>, announce: Bool = true) {
         let ids = Array(ids)
         let before = change(ids) { $0.deleted = true }
+        let now = Date()
+        for id in ids { trashedAt[id] = now }
         sync(rollback: { [weak self] in self?.put(before) }) { try await $0.bulk(.trash, ids: ids) }
         guard announce else { return }
         undo.register(ids.count == 1 ? "Moved to Trash" : "\(ids.count) links moved to Trash") { [weak self] in
@@ -370,6 +376,19 @@ public final class LibraryStore {
         collections[i] = LinkCollection(id: new, name: c.name, color: c.color, isSmart: c.isSmart, smartQuery: c.smartQuery,
                                         isInbox: c.isInbox, reasoning: c.reasoning, createdBy: c.createdBy)
         for l in ordered where l.collectionId == old { links[l.id]?.collectionId = new }
+    }
+
+    /// Mock only until the backend adds `DELETE /api/account`.
+    public func deleteAccount() async -> Bool {
+        do {
+            // BACKEND: DELETE /api/account doesn't exist yet (App Store 5.1.1(v)).
+            try await api.deleteAccount()
+            apply(LibrarySnapshot(links: [], trashed: [], collections: []))
+            return true
+        } catch {
+            toasts.show(Self.message(for: error))
+            return false
+        }
     }
 
     public func deleteEmptyCollections() async {

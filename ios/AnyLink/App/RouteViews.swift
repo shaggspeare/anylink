@@ -14,6 +14,7 @@ struct RouteView: View {
     var body: some View {
         content
             .toolbarVisibility(route.hidesTabBar ? .hidden : .automatic, for: .tabBar)
+            .confirmDialogs(in: router.tab, top: route)
     }
 
     @ViewBuilder
@@ -22,28 +23,15 @@ struct RouteView: View {
         case .link(let id):
             LinkDetailView(id: id)
         case .collection(let id):
-            LinkListScreen(title: store.name(of: id), links: store.links(in: id), orbs: .collection(.fromHex(store.collection(id)?.color ?? "#9AA3AD")))
-                .toolbar {
-                    if store.collection(id)?.isInbox != true {
-                        Menu("More", systemImage: "ellipsis") {
-                            Button("Rename", systemImage: "pencil") { router.sheet = .rename(id) }
-                            Button("Dissolve", systemImage: "trash", role: .destructive) { router.confirm = .dissolve(id) }
-                        }
-                    }
-                }
+            CollectionView(id: id)
         case .filter(let q, let title):
-            LinkListScreen(title: title, links: store.links(matching: q), orbs: .library)
+            FilterResultsView(query: q, title: title)
         case .trash:
-            LinkListScreen(title: "Trash", links: store.trash, orbs: .inbox)
-                .toolbar {
-                    if !store.trash.isEmpty {
-                        Button("Empty") { router.confirm = .emptyTrash(count: store.trash.count) }
-                    }
-                }
+            TrashView()
         case .triage:
             PlaceholderScreen(title: "Sort Unsorted", note: "Triage arrives in phase 9.")
         case .settings:
-            PlaceholderScreen(title: "Settings", note: "Settings arrive in phase 7.")
+            SettingsView()
         }
     }
 }
@@ -102,11 +90,18 @@ struct SheetHost: View {
     @Environment(\.dismiss) var dismiss
     @State private var text = ""
     @State private var busy = false
+    @AppStorage("defaultCollection") private var defaultCollectionRaw = "unsorted"
+    private var defaultCollection: String? { store.collection(defaultCollectionRaw) == nil ? nil : defaultCollectionRaw }
 
     var body: some View {
-        if case .addLink(let prefill, let collectionID) = sheet {
-            AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID)
-        } else {
+        switch sheet {
+        case .addLink(let prefill, let collectionID):
+            AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID ?? defaultCollection)
+        case .newCollection:
+            CollectionNameSheet()
+        case .rename(let id):
+            CollectionNameSheet(renaming: store.collection(id))
+        default:
             standard
         }
     }
@@ -170,29 +165,8 @@ struct SheetHost: View {
             }
             .navigationTitle("Tag \(ids.count) \(ids.count == 1 ? "link" : "links")")
             .navigationBarTitleDisplayMode(.inline)
-        case .newCollection:
-            VStack(spacing: 12) {
-                ALField("Name", text: $text)
-                Button("Create") {
-                    busy = true
-                    Task {
-                        _ = await store.createCollection(name: text, color: "#7C8CFF")
-                        dismiss()
-                    }
-                }
-                .buttonStyle(.alPrimary)
-                .disabled(text.isEmpty || busy)
-            }
-            .navigationTitle("New collection")
-        case .rename(let id):
-            VStack(spacing: 12) {
-                ALField("Name", text: $text)
-                    .onAppear { text = store.name(of: id) }
-                Button("Rename") { store.rename(id, to: text); dismiss() }
-                    .buttonStyle(.alPrimary)
-                    .disabled(text.isEmpty)
-            }
-            .navigationTitle("Rename")
+        case .newCollection, .rename:
+            EmptyView()
         }
     }
 }
@@ -221,18 +195,20 @@ extension SheetHost {
 // MARK: - Confirmations
 
 extension View {
-    func confirmDialogs(in tab: AppTab) -> some View { modifier(ConfirmDialogs(tab: tab)) }
+    /// Presents from the screen on top: the tab root when its path is empty, else the pushed route that is last.
+    func confirmDialogs(in tab: AppTab, top route: Route? = nil) -> some View { modifier(ConfirmDialogs(tab: tab, route: route)) }
 }
 
 private struct ConfirmDialogs: ViewModifier {
     let tab: AppTab
+    let route: Route?
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
 
     func body(content: Content) -> some View {
         @Bindable var router = router
         content.confirmationDialog(
-            title, isPresented: Binding(get: { router.confirm != nil && router.tab == tab }, set: { if !$0 { router.confirm = nil } }),
+            title, isPresented: Binding(get: { router.confirm != nil && router.tab == tab && router.path(tab).last == route }, set: { if !$0 { router.confirm = nil } }),
             titleVisibility: .visible, presenting: router.confirm
         ) { confirm in
             Button(action(confirm), role: .destructive) { perform(confirm) }
@@ -286,7 +262,8 @@ private struct ConfirmDialogs: ViewModifier {
         case .deleteForever(let ids):
             store.purge(ids)
         case .deleteAccount:
-            break // Phase 7 (Settings) wires this to the API and signs out.
+            // Sign-out to Welcome lands with onboarding (phase 10); until then the library is cleared and we go home.
+            Task { if await store.deleteAccount() { router.setPath(router.tab, []); router.tab = .library } }
         }
     }
 }

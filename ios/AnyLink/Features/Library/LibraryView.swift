@@ -146,26 +146,7 @@ struct LibraryView: View {
         .environment(\.editMode, .constant(router.isSelecting ? .active : .inactive))
     }
 
-    private func row(_ link: LinkItem) -> some View {
-        Button { router.open(.link(link.id)) } label: { LinkRow(link: link) }
-            .buttonStyle(.plain)
-            .disabled(router.isSelecting)
-            .tag(link.id)
-            .listRowBackground(Color.clear.frosted(0.62, radius: 0, rim: 0))
-            .linkActions(link)
-            .swipeActions(edge: .leading) {
-                Button(link.favorite == true ? "Unfavorite" : "Favorite", systemImage: "star") {
-                    store.setFavorite(link.id, link.favorite != true)
-                }
-                .tint(AL.signal)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button("Trash", systemImage: "trash", role: .destructive) { store.trash([link.id]) }
-                Button("Move", systemImage: "folder") { router.sheet = .moveLinks([link.id]) }
-                    .tint(AL.periwinkle)
-            }
-            .accessibilityIdentifier("row-\(link.id)")
-    }
+    private func row(_ link: LinkItem) -> some View { LinkListRow(link: link) }
 
     // MARK: - Toolbars
 
@@ -191,35 +172,7 @@ struct LibraryView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private var selectToolbar: some ToolbarContent {
-        let ids = router.selection
-        let allSelected = !links.isEmpty && ids.count == links.count
-        ToolbarItem(placement: .topBarLeading) {
-            Button(allSelected ? "Deselect All" : "Select All") {
-                router.selection = allSelected ? [] : Set(links.map(\.id))
-            }
-        }
-        ToolbarItem(placement: .principal) {
-            Text("\(ids.count) Selected").font(.headline)
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button("Done") { router.isSelecting = false }
-                .buttonStyle(.glassProminent)
-                .tint(AL.ink)
-        }
-        ToolbarItemGroup(placement: .bottomBar) {
-            Button("Move", systemImage: "folder") { router.sheet = .moveLinks(ids) }
-            Button("Tag", systemImage: "tag") { router.sheet = .tagLinks(ids) }
-            Button("Archive", systemImage: "archivebox") {
-                store.archive(ids)
-                router.isSelecting = false
-            }
-            Spacer()
-            Button("Trash", systemImage: "trash", role: .destructive) { router.confirm = .trash(ids) }
-                .tint(AL.destructive)
-        }
-    }
+    private var selectToolbar: some ToolbarContent { SelectionToolbar(links: links, store: store, router: router) }
 }
 
 // MARK: - Pieces
