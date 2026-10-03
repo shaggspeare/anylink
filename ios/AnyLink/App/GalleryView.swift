@@ -2,6 +2,7 @@
 import SwiftUI
 import DesignSystem
 import Models
+import Store
 
 struct GalleryView: View {
     @State private var keepBin = true
@@ -161,7 +162,7 @@ struct GalleryView: View {
     private var pasteAccessorySection: some View {
         section("PasteAccessory") {
             VStack(spacing: 12) {
-                PasteAccessory(detectedURL: URL(string: "https://example.com"))
+                PasteAccessory(hasURL: true)
                     .frosted(0.62, radius: 16)
                 PasteAccessory()
                     .frosted(0.62, radius: 16)
@@ -223,8 +224,8 @@ struct GalleryView: View {
     private var toastSection: some View {
         section("Toast") {
             VStack(spacing: 12) {
-                ToastView(item: ToastItem("Moved to Reading"))
-                ToastView(item: ToastItem("3 links trashed", undo: {}))
+                ToastView("Moved to Reading")
+                ToastView("3 links moved to Trash") {}
                 Button("Show live toast") { toasts.show("Saved to Unsorted", undo: {}) }
                     .buttonStyle(ALSmallButtonStyle(.soft))
             }

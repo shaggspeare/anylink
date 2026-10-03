@@ -3,8 +3,11 @@ import DesignSystem
 
 @main
 struct AnyLinkApp: App {
+    @State private var env: AppEnvironment
+
     init() {
         AL.registerFonts()
+        _env = State(initialValue: .current())
     }
 
     var body: some Scene {
@@ -13,10 +16,10 @@ struct AnyLinkApp: App {
             if ProcessInfo.processInfo.arguments.contains("-gallery") {
                 GalleryView()
             } else {
-                RootView()
+                RootView(env: env)
             }
             #else
-            RootView()
+            RootView(env: env)
             #endif
         }
     }
