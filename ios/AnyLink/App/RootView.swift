@@ -29,21 +29,31 @@ struct MainTabs: View {
         @Bindable var router = router
         TabView(selection: Binding(get: { router.tab }, set: { router.select($0) })) {
             Tab("Library", systemImage: "link", value: AppTab.library) {
-                NavigationStack(path: $router.library) { LibraryView().routes() }
+                NavigationStack(path: $router.library) { LibraryView().routes(.library) }
             }
             Tab("Collections", systemImage: "folder", value: AppTab.collections) {
-                NavigationStack(path: $router.collections) { CollectionsView().routes() }
+                NavigationStack(path: $router.collections) { CollectionsView().routes(.collections) }
             }
             Tab(value: AppTab.search, role: .search) {
-                NavigationStack(path: $router.search) { SearchView().routes() }
+                NavigationStack(path: $router.search) { SearchView().routes(.search) }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            if router.showsAccessory { AccessoryContent() }
-        }
+        .modifier(PasteAccessoryHost(enabled: router.showsAccessory))
         .sheet(item: $router.sheet) { SheetHost(sheet: $0) }
-        .confirmDialogs()
+    }
+}
+
+/// Disabled (not just emptied): an empty accessory still draws glass over the select-mode toolbar and eats its taps.
+private struct PasteAccessoryHost: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: enabled) { AccessoryContent() }
+        } else {
+            content.tabViewBottomAccessory { if enabled { AccessoryContent() } }
+        }
     }
 }
 
@@ -69,8 +79,10 @@ private struct AccessoryContent: View {
 }
 
 extension View {
-    func routes() -> some View {
+    /// Confirmations attach per tab: iOS 26 won't present one from the TabView while a bottom toolbar replaces the tab bar.
+    func routes(_ tab: AppTab) -> some View {
         navigationDestination(for: Route.self) { RouteView(route: $0) }
+            .confirmDialogs(in: tab)
     }
 }
 

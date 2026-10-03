@@ -48,7 +48,8 @@ public final class Router {
     public var search: [Route] = []
     public var sheet: SheetRoute?
     public var confirm: Confirm?
-    public var isSelecting = false
+    public var isSelecting = false { didSet { if !isSelecting { selection = [] } } }
+    public var selection: Set<LinkItem.ID> = []
     /// Bumped when the user taps the active tab while already at its root; roots scroll to top on change.
     public private(set) var scrollToTop: [AppTab: Int] = [:]
 
@@ -79,6 +80,15 @@ public final class Router {
     }
 
     public func open(_ r: Route) { setPath(tab, path(tab) + [r]) }
+
+    public func beginSelecting(with id: LinkItem.ID? = nil) {
+        isSelecting = true
+        selection = id.map { [$0] } ?? []
+    }
+
+    public func toggleSelection(_ id: LinkItem.ID) {
+        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+    }
 
     public var showsAccessory: Bool { !isSelecting && !(path(tab).last?.hidesTabBar ?? false) }
 

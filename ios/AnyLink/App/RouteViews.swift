@@ -97,9 +97,9 @@ struct LinkListScreen: View {
 
 struct SheetHost: View {
     let sheet: SheetRoute
-    @Environment(LibraryStore.self) private var store
-    @Environment(Router.self) private var router
-    @Environment(\.dismiss) private var dismiss
+    @Environment(LibraryStore.self) var store
+    @Environment(Router.self) var router
+    @Environment(\.dismiss) var dismiss
     @State private var text = ""
     @State private var busy = false
 
@@ -139,25 +139,45 @@ struct SheetHost: View {
             }
             .navigationTitle("New link")
         case .moveLinks(let ids):
-            List(store.collections.filter { $0.isSmart != true }) { c in
+            let current = Set(ids.compactMap { store.link($0)?.collectionId })
+            List(store.collections.filter { $0.isSmart != true && !(current.count == 1 && current.contains($0.id)) }) { c in
                 Button {
                     store.move(ids, to: c.id)
                     router.isSelecting = false
                     dismiss()
                 } label: {
-                    Label { Text(c.name) } icon: { Circle().fill(Color.fromHex(c.color)).frame(width: 10, height: 10) }
+                    HStack(spacing: 10) {
+                        Circle().fill(Color.fromHex(c.color)).frame(width: 10, height: 10)
+                        Text(c.name).foregroundStyle(AL.ink)
+                        Spacer()
+                        Text("\(store.count(in: c.id))").foregroundStyle(.secondary)
+                    }
                 }
             }
+            .listStyle(.plain)
+            .padding(-16)
             .navigationTitle("Move \(ids.count) \(ids.count == 1 ? "link" : "links")")
+            .navigationBarTitleDisplayMode(.inline)
         case .tagLinks(let ids):
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
                 ALField("#tag", text: $text)
                     .textInputAutocapitalization(.never)
-                Button("Tag") { store.tag(ids, text); dismiss() }
+                    .autocorrectionDisabled()
+                    .onSubmit { applyTag(ids, text) }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tagSuggestions(excluding: ids), id: \.self) { t in
+                            Button { applyTag(ids, t) } label: { ScopeChip("#\(t)") }
+                                .buttonStyle(.plain)
+                        }
+                    }
+                }
+                Button("Tag") { applyTag(ids, text) }
                     .buttonStyle(.alPrimary)
-                    .disabled(text.isEmpty)
+                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .navigationTitle("Tag")
+            .navigationTitle("Tag \(ids.count) \(ids.count == 1 ? "link" : "links")")
+            .navigationBarTitleDisplayMode(.inline)
         case .newCollection:
             VStack(spacing: 12) {
                 ALField("Name", text: $text)
@@ -185,20 +205,42 @@ struct SheetHost: View {
     }
 }
 
+extension SheetHost {
+    /// Most-used tags not already on every selected link.
+    func tagSuggestions(excluding ids: Set<LinkItem.ID>) -> [String] {
+        let selected = ids.compactMap { store.link($0) }
+        var counts: [String: Int] = [:]
+        for l in store.live { for t in l.tags { counts[t, default: 0] += 1 } }
+        return counts.keys
+            .filter { t in !selected.allSatisfy { $0.tags.contains(t) } }
+            .sorted { (counts[$0]!, $1) > (counts[$1]!, $0) }
+            .prefix(8).map { $0 }
+    }
+
+    func applyTag(_ ids: Set<LinkItem.ID>, _ tag: String) {
+        let t = tag.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return }
+        store.tag(ids, t)
+        router.isSelecting = false
+        dismiss()
+    }
+}
+
 // MARK: - Confirmations
 
 extension View {
-    func confirmDialogs() -> some View { modifier(ConfirmDialogs()) }
+    func confirmDialogs(in tab: AppTab) -> some View { modifier(ConfirmDialogs(tab: tab)) }
 }
 
 private struct ConfirmDialogs: ViewModifier {
+    let tab: AppTab
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
 
     func body(content: Content) -> some View {
         @Bindable var router = router
         content.confirmationDialog(
-            title, isPresented: Binding(get: { router.confirm != nil }, set: { if !$0 { router.confirm = nil } }),
+            title, isPresented: Binding(get: { router.confirm != nil && router.tab == tab }, set: { if !$0 { router.confirm = nil } }),
             titleVisibility: .visible, presenting: router.confirm
         ) { confirm in
             Button(action(confirm), role: .destructive) { perform(confirm) }

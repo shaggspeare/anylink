@@ -132,6 +132,11 @@ public final class LibraryStore {
         }
     }
 
+    #if DEBUG
+    /// Previews only: show loading/offline states without a network round trip.
+    public func previewSyncState(_ state: SyncState) { syncState = state }
+    #endif
+
     // MARK: - Link intents
 
     /// Shows the link at once, then replaces it with the server's copy.

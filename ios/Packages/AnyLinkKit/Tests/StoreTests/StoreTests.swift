@@ -295,3 +295,64 @@ import Fixtures
         #expect(!r.handle(URL(string: "https://anylink.app/about")!))
     }
 }
+
+@MainActor
+@Suite struct LibraryPresentationTests {
+    let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+
+    @Test func scopesFilterAndCount() {
+        #expect(store.scopeCount(.all) == 18)
+        for scope in LibraryScope.allCases {
+            #expect(store.links(in: scope, sortedBy: .newest).count == store.scopeCount(scope))
+        }
+        #expect(store.links(in: .videos, sortedBy: .newest).allSatisfy { $0.contentType == .video })
+        #expect(store.links(in: .unsorted, sortedBy: .newest).allSatisfy { $0.collectionId == "unsorted" })
+        #expect(Set(store.links(in: .favorites, sortedBy: .newest).map(\.id)) == ["nasa", "glass", "book"])
+    }
+
+    @Test func sorts() {
+        let newest = store.links(in: .all, sortedBy: .newest)
+        #expect(newest.map(\.createdAt) == newest.map(\.createdAt).sorted(by: >))
+        #expect(store.links(in: .all, sortedBy: .oldest).map(\.id) == newest.reversed().map(\.id))
+        let titles = store.links(in: .all, sortedBy: .title).map(\.title)
+        #expect(titles == titles.sorted { $0.localizedStandardCompare($1) == .orderedAscending })
+        let sites = store.links(in: .all, sortedBy: .site).map(\.domain)
+        #expect(sites == sites.sorted { $0.localizedStandardCompare($1) == .orderedAscending })
+    }
+
+    @Test func manualOrderUsesPositionThenStoreOrder() {
+        func l(_ id: String, _ p: Int?) -> LinkItem {
+            LinkItem(id: id, url: "", domain: "", title: id, excerpt: "", tint: "#000", stripe: "#FFF", initial: "A",
+                     contentType: .article, collectionId: "u", tags: [], size: .M, position: p, status: .ready, createdAt: "")
+        }
+        #expect(LibrarySort.manual.apply([l("a", nil), l("b", 2), l("c", 1), l("d", nil)]).map(\.id) == ["c", "b", "a", "d"])
+    }
+
+    @Test func dateSections() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        cal.firstWeekday = 2
+        let now = DateSections.date("2026-10-03T12:00:00Z")!   // Saturday
+        func l(_ id: String, _ at: String) -> LinkItem {
+            LinkItem(id: id, url: "", domain: "", title: id, excerpt: "", tint: "#000", stripe: "#FFF", initial: "A",
+                     contentType: .article, collectionId: "u", tags: [], size: .M, status: .ready, createdAt: at)
+        }
+        let links = [
+            l("t", "2026-10-03T08:00:00Z"), l("y", "2026-10-02T23:00:00Z"), l("w", "2026-09-28T09:00:00.500Z"),
+            l("s1", "2026-09-20T09:00:00Z"), l("s2", "2026-09-02T09:00:00Z"), l("old", "2025-12-01T09:00:00Z"),
+        ]
+        let sections = DateSections.group(links, now: now, calendar: cal)
+        #expect(sections.map(\.title) == ["Today", "Yesterday", "Earlier this week", "September", "December 2025"])
+        #expect(sections[3].links.map(\.id) == ["s1", "s2"])
+    }
+
+    @Test func selection() {
+        let r = Router()
+        r.beginSelecting(with: "nasa")
+        r.toggleSelection("iph")
+        r.toggleSelection("nasa")
+        #expect(r.selection == ["iph"])
+        r.isSelecting = false
+        #expect(r.selection.isEmpty)
+    }
+}

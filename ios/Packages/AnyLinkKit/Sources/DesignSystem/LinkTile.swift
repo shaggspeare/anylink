@@ -181,3 +181,13 @@ private let previewVideo = LinkItem(
         .background(AL.canvas)
         .dynamicTypeSize(.accessibility2)
 }
+
+/// Tiles shrink to .97 while pressed.
+public struct TilePressStyle: ButtonStyle {
+    public init() {}
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(AL.Motion.settle, value: configuration.isPressed)
+    }
+}
