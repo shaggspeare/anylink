@@ -349,3 +349,36 @@
 
 ### Check by hand
 - AirDrop a real Chrome export and a Telegram `result.json` to the simulator / device and import both.
+
+---
+
+## Phase 11 · Auth, live API, sync, offline
+
+**Status:** Done, against the documented contract (the backend is single-user; no live calls were made from here)
+
+### Done
+- **`LiveAPI`** (Networking): every `AnyLinkAPI` method mapped to the existing backend — `GET /api/v1/library`, `POST /api/v1/actions/<name>` with a JSON args array (`createLink` with the web's `handleSave` shape, `setNote`/`setFavorite`/`setLinkSize`/`moveLinks` per patch field, `moveLinks`/`tagLinks`/`archiveLinks`/`deleteLinks`/`restoreLinks`/`purgeLinks`, `reorder*`, `createCollection`, `createSmartCollection(query, name)`, `renameCollection`, `deleteCollection → {trashedIds}`, `deleteEmptyCollections`, `addHighlight`, `setAlertThreshold`, `importLinks`, `groupInbox`, `logSignal(action, {…})`), NDJSON `/api/crawl` and `/api/import/check`. Errors: no connection → `.offline`, 401 → `.unauthorized`, 404 → `.notFound`, other → `.server(code)`, bad JSON → `.decoding`. Action names checked against `../src/lib/db/actions.ts`.
+- **Outbox** (Store): queueable intents are `Codable` `PendingOp`s. Offline keeps the optimistic change, queues the op and shows "You're offline. Changes are saved and will sync when you're back." once. While anything is queued, new ops queue behind it (order holds). Drains on reconnect (`NWPathMonitor`), on app active and after each intent; non-offline failures retry with exponential backoff, 5 attempts, then a toast.
+- **Merge**: `refresh()` drains first; while ops are still pending, local state stays (server wins otherwise).
+- **Cache** (Persistence): SwiftData `LocalCache` in the App Group container (falls back to the app container); debounced save on every change; cold launch applies it before the network.
+- **401** → `onUnauthorized` → signed out to Welcome (the shared token can't be refreshed).
+- **`ImageLoader`** (DesignSystem): shared URLCache (32 MB / 256 MB) + ImageIO downsampling to display size; `HeroImage` uses it instead of `AsyncImage`.
+- `AppEnvironment.live()`: `LiveAPI` + cache when `ANYLINK_API_BASE` and `ANYLINK_API_TOKEN` are set (not under `-ui-testing`), else Mock.
+- Tests with a `URLProtocol` stub: optimistic intent → network failure → outbox → retry → success ✅; order kept; backoff then give up; 401 signs out; outbox survives relaunch; cold launch shows the cache before any request ✅; refresh keeps local while pending; library decodes; `createLink` body shape. 139 package tests, 15 UI tests.
+
+### Not done
+- Supabase Sign in with Apple / magic link (D22): the backend doesn't verify JWTs yet.
+- Shared-keychain token storage: lands with the share extension (phase 12), which is its only other reader.
+- `createCollection`/`createFilter`/`save` aren't queued offline (they need the server's id); they fail with the offline toast.
+
+### Spec conflicts
+- `02` § Persistence describes per-entity `@Model` mirrors; JSON blobs instead (D21).
+
+### `// BACKEND:` items
+- Per-user auth (Supabase JWT verification + RLS) — `AppEnvironment.live()`.
+- `DELETE /api/account` — `LiveAPI.deleteAccount` throws 501.
+- Title/excerpt edits — `LiveAPI.updateLink`.
+
+### Check by hand
+- Fix `ANYLINK_API_BASE` in `Config.xcconfig` (`https:/$()/host`), set `ANYLINK_API_TOKEN`, run against the dev server: library loads, edits stick after a refresh.
+- Airplane mode → favourite a link → toast says it'll sync → back online → it syncs.

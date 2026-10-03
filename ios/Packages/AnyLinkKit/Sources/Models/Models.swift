@@ -215,7 +215,7 @@ public struct LinkDraft: Sendable {
 
 // MARK: - API support types
 
-public struct LibrarySnapshot: Sendable, Decodable {
+public struct LibrarySnapshot: Sendable, Codable, Equatable {
     public let links: [LinkItem]
     public let trashed: [LinkItem]
     public let collections: [LinkCollection]

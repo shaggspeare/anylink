@@ -3,6 +3,7 @@ import Observation
 import Models
 import QueryLanguage
 import Networking
+import Persistence
 
 public enum SyncState: Equatable, Sendable { case idle, syncing, failed(AppError), offline }
 
@@ -10,9 +11,17 @@ public enum SyncState: Equatable, Sendable { case idle, syncing, failed(AppError
 /// on failure they roll back and show a toast.
 @MainActor @Observable
 public final class LibraryStore {
-    public internal(set) var links: [LinkItem.ID: LinkItem] = [:] { didSet { cachedIndex = nil } }
+    public internal(set) var links: [LinkItem.ID: LinkItem] = [:] { didSet { cachedIndex = nil; scheduleSave() } }
     public private(set) var order: [LinkItem.ID] = []
-    public private(set) var collections: [LinkCollection] = []
+    public private(set) var collections: [LinkCollection] = [] { didSet { scheduleSave() } }
+    /// Calls waiting for the network, oldest first. Persisted with the cache.
+    public private(set) var outbox: [OutboxItem] = []
+    /// Set by the app: a 401 signs the user out.
+    @ObservationIgnored public var onUnauthorized: (@MainActor () -> Void)?
+    /// First retry delay for a failing outbox call; doubles each attempt, 5 attempts.
+    @ObservationIgnored public var retryBase: Duration = .milliseconds(500)
+    @ObservationIgnored let cache: LocalCache?
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
     public private(set) var syncState: SyncState = .idle
     public private(set) var lastSynced: Date?
     public var clipboardHasURL = false
@@ -30,13 +39,17 @@ public final class LibraryStore {
     public private(set) var trashedAt: [LinkItem.ID: Date] = [:]
 
     public init(api: any AnyLinkAPI, toasts: ToastCenter = ToastCenter(), snapshot: LibrarySnapshot? = nil,
-                crawl: (@Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>)? = nil) {
+                crawl: (@Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>)? = nil,
+                cache: LocalCache? = nil) {
         self.api = api
+        self.cache = cache
         self.crawl = crawl ?? { await api.crawl($0) }
         self.toasts = toasts
         self.undo = UndoCenter(toasts: toasts)
         self.signals = SignalLogger(api: api)
-        if let snapshot { apply(snapshot) }
+        // Cold launch: the cached library shows before the network answers.
+        if let s = snapshot ?? cache?.loadSnapshot() { apply(s) }
+        outbox = cache?.loadOutbox().flatMap { try? JSONDecoder().decode([OutboxItem].self, from: $0) } ?? []
     }
 
     // MARK: - Derived
@@ -100,8 +113,9 @@ public final class LibraryStore {
     // MARK: - Sync plumbing
 
     public static func message(for error: Error) -> String {
-        // ponytail: .offline rolls back like any error until the phase-11 Outbox queues it instead.
-        "That didn't go through. Try again."
+        (error as? AppError) == .offline
+            ? "You're offline. Changes are saved and will sync when you're back."
+            : "That didn't go through. Try again."
     }
 
     /// Awaits every in-flight API call. Tests and pull-to-refresh use it.
@@ -124,14 +138,87 @@ public final class LibraryStore {
         inflight.append(task)
     }
 
-    private func sync(rollback: @escaping @MainActor () -> Void, _ op: @escaping @Sendable (any AnyLinkAPI) async throws -> Void) {
+    /// Runs `op` in order. Offline: the optimistic change stays and `op` waits in the outbox. A 401 signs out.
+    /// Anything else rolls back with a toast. While the outbox has items, new ops queue behind them.
+    private func sync(_ op: PendingOp, rollback: @escaping @MainActor () -> Void) {
         let api = api
         enqueue { [weak self] in
-            do { try await op(api) } catch {
+            guard let self else { return }
+            if !self.outbox.isEmpty {
+                self.queue(op)
+                await self.drain()
+                return
+            }
+            do {
+                try await op.run(api)
+            } catch AppError.offline {
+                self.queue(op)
+            } catch AppError.unauthorized {
                 rollback()
-                self?.toasts.show(Self.message(for: error))
+                self.onUnauthorized?()
+            } catch {
+                rollback()
+                self.toasts.show(Self.message(for: error))
             }
         }
+    }
+
+    private func queue(_ op: PendingOp) {
+        outbox.append(OutboxItem(op: op, attempts: 0))
+        persistOutbox()
+        if syncState != .offline {
+            syncState = .offline
+            toasts.show(Self.message(for: AppError.offline))
+        }
+    }
+
+    private func persistOutbox() {
+        if let data = try? JSONEncoder().encode(outbox) { cache?.saveOutbox(data) }
+    }
+
+    /// Sends queued calls in order. The app calls it when the network comes back and when it becomes active.
+    public func drainOutbox() {
+        guard !outbox.isEmpty else { return }
+        enqueue { [weak self] in await self?.drain() }
+    }
+
+    private func drain() async {
+        while let item = outbox.first {
+            do {
+                try await item.op.run(api)
+                outbox.removeFirst()
+                persistOutbox()
+            } catch AppError.offline {
+                syncState = .offline
+                return
+            } catch AppError.unauthorized {
+                onUnauthorized?()
+                return
+            } catch {
+                outbox[0].attempts += 1
+                if outbox[0].attempts >= 5 {
+                    outbox.removeFirst()
+                    toasts.show(Self.message(for: error))
+                }
+                persistOutbox()
+                try? await Task.sleep(for: retryBase * (1 << min(item.attempts, 4)))
+            }
+        }
+        if syncState == .offline { syncState = .idle }
+    }
+
+    private func scheduleSave() {
+        guard cache != nil else { return }
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let self else { return }
+            self.cache?.save(self.snapshot)
+        }
+    }
+
+    public var snapshot: LibrarySnapshot {
+        LibrarySnapshot(links: ordered.filter { $0.deleted != true }, trashed: trash, collections: collections)
     }
 
     @discardableResult
@@ -154,14 +241,25 @@ public final class LibraryStore {
         collections = snapshot.collections
     }
 
+    /// Full fetch, then merge: the server wins, except while local changes are still queued — then local stays.
     public func refresh() async {
+        if !outbox.isEmpty {
+            drainOutbox()
+            await settle()
+            if !outbox.isEmpty { syncState = .offline; return }
+        }
         syncState = .syncing
         do {
-            apply(try await api.library(since: nil))
+            let snap = try await api.library(since: nil)
+            guard outbox.isEmpty else { syncState = .offline; return }
+            apply(snap)
             syncState = .idle
             lastSynced = .now
         } catch AppError.offline {
             syncState = .offline
+        } catch AppError.unauthorized {
+            syncState = .failed(.unauthorized)
+            onUnauthorized?()
         } catch {
             syncState = .failed(error as? AppError ?? .unknown)
         }
@@ -211,7 +309,7 @@ public final class LibraryStore {
     public func move(_ ids: Set<LinkItem.ID>, to target: LinkCollection.ID) {
         let ids = Array(ids)
         let before = change(ids) { $0.collectionId = target }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.bulk(.move(to: target), ids: ids) }
+        sync(.move(ids, to: target)) { [weak self] in self?.put(before) }
         signals.log("move", linkIds: ids, collectionId: target)
         undo.register("Moved to \(name(of: target))") { [weak self] in self?.revertCollections(before) }
     }
@@ -221,25 +319,25 @@ public final class LibraryStore {
         for l in before { links[l.id]?.collectionId = l.collectionId }
         for (cid, group) in Dictionary(grouping: before, by: \.collectionId) {
             let ids = group.map(\.id)
-            sync(rollback: { [weak self] in self?.put(now) }) { try await $0.bulk(.move(to: cid), ids: ids) }
+            sync(.move(ids, to: cid)) { [weak self] in self?.put(now) }
         }
     }
 
     public func setFavorite(_ id: LinkItem.ID, _ on: Bool) {
         let before = change([id]) { $0.favorite = on }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.updateLink(id, LinkPatch(favorite: on)) }
+        sync(.patch(id, note: nil, favorite: on)) { [weak self] in self?.put(before) }
         toasts.show(on ? "Added to favorites" : "Removed from favorites")
     }
 
     public func setNote(_ id: LinkItem.ID, _ text: String) {
         let before = change([id]) { $0.note = text.isEmpty ? nil : text }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.updateLink(id, LinkPatch(note: text)) }
+        sync(.patch(id, note: text, favorite: nil)) { [weak self] in self?.put(before) }
         toasts.show("Note saved")
     }
 
     public func addHighlight(_ id: LinkItem.ID, quote: String) {
         let before = change([id]) { $0.highlights = ($0.highlights ?? []) + [Highlight(id: "local-\(UUID().uuidString)", quote: quote)] }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.addHighlight(id, quote: quote) }
+        sync(.highlight(id, quote: quote)) { [weak self] in self?.put(before) }
         toasts.show("Highlighted")
     }
 
@@ -248,14 +346,14 @@ public final class LibraryStore {
         guard !tag.isEmpty else { return }
         let ids = Array(ids)
         let before = change(ids) { if !$0.tags.contains(tag) { $0.tags.append(tag) } }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.bulk(.tag(tag), ids: ids) }
+        sync(.tag(ids, tag)) { [weak self] in self?.put(before) }
         toasts.show("Tagged \(ids.count) \(ids.count == 1 ? "link" : "links") #\(tag)")
     }
 
     public func archive(_ ids: Set<LinkItem.ID>) {
         let ids = Array(ids)
         let before = change(ids) { $0.archived = true }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.bulk(.archive, ids: ids) }
+        sync(.archive(ids)) { [weak self] in self?.put(before) }
         undo.register("Archived \(ids.count) \(ids.count == 1 ? "link" : "links")") { [weak self] in
             // BACKEND: no unarchive endpoint (10-decisions open question 4); Undo is local until one exists.
             self?.put(before)
@@ -267,7 +365,7 @@ public final class LibraryStore {
         let before = change(ids) { $0.deleted = true }
         let now = Date()
         for id in ids { trashedAt[id] = now }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.bulk(.trash, ids: ids) }
+        sync(.trash(ids)) { [weak self] in self?.put(before) }
         guard announce else { return }
         undo.register(ids.count == 1 ? "Moved to Trash" : "\(ids.count) links moved to Trash") { [weak self] in
             self?.restore(Set(ids), announce: false)
@@ -277,7 +375,7 @@ public final class LibraryStore {
     public func restore(_ ids: Set<LinkItem.ID>, announce: Bool = true) {
         let ids = Array(ids)
         let before = change(ids) { $0.deleted = false }
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.bulk(.restore, ids: ids) }
+        sync(.restore(ids)) { [weak self] in self?.put(before) }
         if announce, let first = before.first { toasts.show("Restored to \(name(of: first.collectionId))") }
     }
 
@@ -288,7 +386,7 @@ public final class LibraryStore {
         let oldOrder = order
         for id in ids { links[id] = nil }
         order.removeAll { ids.contains($0) }
-        sync(rollback: { [weak self] in self?.put(before); self?.order = oldOrder }) { try await $0.bulk(.purge, ids: ids) }
+        sync(.purge(ids)) { [weak self] in self?.put(before); self?.order = oldOrder }
     }
 
     public func emptyTrash() {
@@ -297,7 +395,7 @@ public final class LibraryStore {
     }
 
     func syncPriceAlert(id: LinkItem.ID, threshold: Double, currency: String, before: [LinkItem]) {
-        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.setPriceAlert(id, threshold: threshold, currency: currency) }
+        sync(.priceAlert(id, threshold: threshold, currency: currency)) { [weak self] in self?.put(before) }
     }
 
     // MARK: - Collection intents
@@ -329,7 +427,7 @@ public final class LibraryStore {
         guard let i = collections.firstIndex(where: { $0.id == id }) else { return }
         let old = collections[i]
         collections[i].name = newName
-        sync(rollback: { [weak self] in self?.replaceCollection(id, with: old) }) { try await $0.updateCollection(id, name: newName) }
+        sync(.rename(id, name: newName)) { [weak self] in self?.replaceCollection(id, with: old) }
     }
 
     private func replaceCollection(_ id: LinkCollection.ID, with c: LinkCollection) {
@@ -344,10 +442,7 @@ public final class LibraryStore {
         let memberIDs = ordered.filter { $0.collectionId == id && $0.deleted != true }.map(\.id)
         let before = change(memberIDs) { $0.collectionId = inbox }
         collections.remove(at: i)
-        sync(rollback: { [weak self] in self?.collections.insert(c, at: i); self?.put(before) }) { api in
-            if !memberIDs.isEmpty { try await api.bulk(.move(to: inbox), ids: memberIDs) }
-            _ = try await api.deleteCollection(id)
-        }
+        sync(.dissolve(id, members: memberIDs, inbox: inbox)) { [weak self] in self?.collections.insert(c, at: i); self?.put(before) }
         undo.register("\(c.name) dissolved — \(memberIDs.count) links back in Unsorted") { [weak self] in
             self?.undissolve(c, at: i, before: before)
         }

@@ -31,8 +31,13 @@ struct RootView: View {
             .environment(env.router)
             .toastOverlay(env.store.toasts, bottomOffset: env.router.showsAccessory ? 158 : 100)
             .task { await env.clipboard.observe() }
+            .task { await env.reachability.start() }
+            .task { if env.isLive { await env.store.refresh() } }
             .onChange(of: scenePhase, initial: true) { _, phase in
-                if phase == .active { Task { await env.clipboard.check() } }
+                if phase == .active {
+                    Task { await env.clipboard.check() }
+                    env.store.drainOutbox()
+                }
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }
             .onOpenURL { env.router.handle($0) }

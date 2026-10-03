@@ -105,7 +105,7 @@ import Fixtures
 
     @Test func trashRollsBack() async throws {
         let before = state
-        await api.failNext(.offline)
+        await api.failNext(.server(503))
         store.trash(["nasa"])
         await store.settle()
         #expect(state == before)

@@ -48,18 +48,40 @@ public struct HeroImage: View {
 
     public var body: some View {
         if let url {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    HeroFallback(tint: tint, stripe: stripe)
-                default:
-                    Rectangle().fill(AL.heroPlaceholder)
-                }
+            GeometryReader { g in
+                LoadedImage(url: url, size: g.size, tint: tint, stripe: stripe)
             }
         } else {
             HeroFallback(tint: tint, stripe: stripe)
+        }
+    }
+}
+
+/// Placeholder while loading, fallback on failure, the downsampled image on success.
+private struct LoadedImage: View {
+    let url: URL
+    let size: CGSize
+    let tint: Color
+    let stripe: Color
+    @Environment(\.displayScale) private var scale
+    @State private var image: CGImage?
+    @State private var failed = false
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(decorative: image, scale: scale).resizable().aspectRatio(contentMode: .fill)
+            } else if failed {
+                HeroFallback(tint: tint, stripe: stripe)
+            } else {
+                Rectangle().fill(AL.heroPlaceholder)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .clipped()
+        .task(id: url) {
+            let px = Int(max(size.width, size.height) * scale)
+            do { image = try await ImageLoader.shared.image(for: url, maxPixels: px) } catch { failed = true }
         }
     }
 }
