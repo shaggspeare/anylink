@@ -22,7 +22,7 @@ struct TriageView: View {
                     .tint(AL.lime)
                     .scaleEffect(y: 1.4)
                     .animation(AL.Motion.progress, value: model.progress)
-                    .accessibilityLabel("\(model.position) of \(model.total)")
+                    .accessibilityHidden(true)   // "{i} of {total}" in the title says it
                 suggestionPill(link)
                 SwipeCardStack(
                     items: Array(model.remaining.prefix(2)),
@@ -51,7 +51,7 @@ struct TriageView: View {
                 VStack(spacing: 0) {
                     Text("Sort Unsorted").font(.headline)
                     if !model.isDone {
-                        Text("\(model.position) of \(model.total)").font(.caption).foregroundStyle(.secondary)
+                        Text("\(model.position) of \(model.total)").font(.caption).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
                     }
                 }
             }
@@ -81,14 +81,17 @@ struct TriageView: View {
     }
 
     private func alternatives(_ link: LinkItem) -> some View {
-        HStack(spacing: 8) {
-            Text("Or:").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
-            ForEach(model.alternatives(for: link)) { c in
-                Button { model.file(link, into: c.id) } label: { ScopeChip(c.name) }
-                    .buttonStyle(.plain)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Text("Or:").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                ForEach(model.alternatives(for: link)) { c in
+                    Button { model.file(link, into: c.id) } label: { ScopeChip(c.name) }
+                        .buttonStyle(.plain)
+                }
             }
+            .padding(.horizontal, 16)
         }
-        .lineLimit(1)
+        .padding(.horizontal, -16)
     }
 
     private func bottomRow(_ link: LinkItem) -> some View {
@@ -96,7 +99,7 @@ struct TriageView: View {
         return HStack(spacing: 10) {
             Button { model.kill(link) } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(AL.onInk)
                     .frame(width: 60, height: 60)
                     .background(AL.ink, in: Circle())
@@ -119,7 +122,7 @@ struct TriageView: View {
         VStack(spacing: 14) {
             Spacer()
             Image(systemName: "checkmark")
-                .font(.system(size: 28, weight: .bold))
+                .font(.title.weight(.bold))
                 .foregroundStyle(AL.onAccent)
                 .frame(width: 64, height: 64)
                 .background(AL.lime, in: Circle())

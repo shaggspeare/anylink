@@ -66,10 +66,12 @@ struct AddLinkSheet: View {
                 Text("Paste anything.\nWe read the rest.")
                     .font(AL.Font.sheetHero).tracking(-1.4)
                     .foregroundStyle(AL.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
                     Circle().fill(store.clipboardHasURL ? AL.lime : AL.slate).frame(width: 8, height: 8)
                     Text(store.clipboardHasURL ? "There's a link on your clipboard" : "Nothing to paste yet — type a URL below")
                         .font(.footnote)
+                        .fixedSize(horizontal: false, vertical: true)
                         .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
                 }
                 PasteButton(payloadType: String.self) { strings in
@@ -85,7 +87,7 @@ struct AddLinkSheet: View {
 
                 Text("or type a URL").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 HStack(spacing: 8) {
-                    ALField("nasa.gov/missions/…", text: $typed, isURL: true)
+                    ALField("https://", text: $typed, isURL: true)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -93,7 +95,7 @@ struct AddLinkSheet: View {
                         .onSubmit { begin(typed) }
                     Button { begin(typed) } label: {
                         Image(systemName: "arrow.right")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.callout.weight(.semibold))
                             .foregroundStyle(AL.onInk)
                             .frame(width: AL.Control.md, height: AL.Control.md)
                             .background(AL.ink, in: Circle())
@@ -163,8 +165,9 @@ struct AddLinkSheet: View {
                     Button("Cancel") { model.cancel(); dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(model.isDone ? "Save" : "Save now", action: save)
+                    Button(action: save) { Text(model.isDone ? "Save" : "Save now").foregroundStyle(AL.onAccent) }
                         .buttonStyle(.glassProminent)
+                .foregroundStyle(AL.onAccent)
                         .tint(AL.signal)
                         .disabled(model.isSaving)
                 }
@@ -224,7 +227,6 @@ struct AddLinkSheet: View {
                             Text(model.excerpt)
                                 .font(AL.Font.lead)
                                 .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
-                                .lineLimit(3)
                             if model.isRefining {
                                 Text("✦ refining")
                                     .font(AL.Font.chip)

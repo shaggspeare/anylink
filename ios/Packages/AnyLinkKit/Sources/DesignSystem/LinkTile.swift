@@ -18,13 +18,15 @@ public struct LinkTile: View {
             hero
             body_
         }
-        .frame(height: 184)
+        .frame(minHeight: 184, alignment: .top)   // grows with Dynamic Type instead of clipping
         .frosted(0.62, radius: 18)
         .alShadow(AL.Shadow.card)
         .overlay(alignment: .topLeading) { selectBadge }
         .overlay { selectOutline }
-        .accessibilityElement(children: .combine)
+        // One element with the full text: the visible title and domain truncate by design.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")")
+        .accessibilityValue(link.readingMeta ?? "")
         .accessibilityAddTraits(.isButton)
     }
 
@@ -44,7 +46,7 @@ public struct LinkTile: View {
     private var videoDisc: some View {
         if link.contentType == .video {
             Image(systemName: "play.fill")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 34, height: 34)
                 .background(.black.opacity(0.45), in: Circle())
@@ -58,13 +60,13 @@ public struct LinkTile: View {
             HStack(spacing: 4) {
                 InitialBadge(link: link, size: 14)
                 Text(link.domain)
-                    .font(.system(size: 11))
+                    .font(.caption2)
                     .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if link.favorite == true {
                     Image(systemName: "star.fill")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(AL.signal)
                 }
             }
@@ -96,7 +98,7 @@ public struct LinkTile: View {
                         .fill(AL.lime)
                         .frame(width: 24, height: 24)
                     Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(AL.onAccent)
                 } else {
                     Circle()

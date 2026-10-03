@@ -40,7 +40,7 @@ struct ShareView: View {
     private var saved: some View {
         HStack(spacing: 14) {
             Image(systemName: "checkmark")
-                .font(.system(size: 20, weight: .bold)).foregroundStyle(AL.onAccent)
+                .font(.title3.weight(.bold)).foregroundStyle(AL.onAccent)
                 .frame(width: 48, height: 48).background(AL.lime, in: Circle())
                 .opacity(session.mode == .saving ? 0.4 : 1)
             VStack(alignment: .leading, spacing: 2) {
@@ -106,7 +106,7 @@ struct ShareView: View {
 
     private func message(_ text: String, system: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: system).font(.system(size: 30)).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+            Image(systemName: system).font(.largeTitle).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
             Text(text).font(AL.Font.lead).foregroundStyle(AL.ink).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

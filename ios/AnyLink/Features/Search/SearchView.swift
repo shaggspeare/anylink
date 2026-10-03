@@ -175,7 +175,7 @@ private struct SearchResultRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(highlighted(link.title)).font(AL.Font.rowTitle).foregroundStyle(AL.ink).lineLimit(2)
                         Text([link.domain, store.name(of: link.collectionId)].joined(separator: " · "))
-                            .font(.system(size: 11.5)).foregroundStyle(AL.ink.opacity(AL.Ink.a50)).lineLimit(1)
+                            .font(.caption).foregroundStyle(AL.ink.opacity(AL.Ink.a50)).lineLimit(1)
                     }
                     Spacer(minLength: 0)
                 }

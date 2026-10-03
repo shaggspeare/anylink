@@ -52,6 +52,7 @@ struct SelectionToolbar: ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Button("Done") { router.isSelecting = false }
                 .buttonStyle(.glassProminent)
+                .foregroundStyle(AL.onInk)
                 .tint(AL.ink)
         }
         ToolbarItemGroup(placement: .bottomBar) {
@@ -69,5 +70,14 @@ struct SelectionToolbar: ToolbarContent {
                 .tint(AL.destructive)
                 .disabled(ids.isEmpty)
         }
+    }
+}
+
+/// List section header at the raised secondary alpha (the system grey misses 4.5:1 over the orbs).
+struct SectionHeader: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+    var body: some View {
+        Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(AL.ink.opacity(AL.Ink.a60)).textCase(nil)
     }
 }

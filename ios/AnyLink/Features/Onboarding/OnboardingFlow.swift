@@ -130,7 +130,7 @@ struct OnboardingFlow: View {
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(AL.ink)
+                    .font(.title3.weight(.semibold)).foregroundStyle(AL.ink)
                     .frame(width: 40, height: 40)
                     .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -235,7 +235,7 @@ struct OnboardingFlow: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22)).foregroundStyle(on ? AL.ink : AL.ink.opacity(AL.Ink.a30))
+                    .font(.title2).foregroundStyle(on ? AL.ink : AL.ink.opacity(AL.Ink.a30))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name).font(AL.Font.rowTitle).foregroundStyle(AL.ink)
                     Text(detail).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
@@ -281,7 +281,7 @@ struct OnboardingFlow: View {
     private func bigButton(_ label: String, system: String, fill: Color, fg: Color, action: @escaping () -> Void) -> some View {
         VStack(spacing: 6) {
             Button(action: action) {
-                Image(systemName: system).font(.system(size: 24, weight: .bold)).foregroundStyle(fg)
+                Image(systemName: system).font(.title.weight(.bold)).foregroundStyle(fg)
                     .frame(width: 64, height: 64).background(fill, in: Circle())
             }
             .accessibilityLabel(label)
@@ -302,7 +302,7 @@ struct OnboardingFlow: View {
                     }
                 }
                 TextField(avoid ? "e.g. crypto, celebrity news" : "e.g. a talk on Rust async", text: text, axis: .vertical)
-                    .font(.system(size: 16))
+                    .font(.callout)
                     .lineLimit(2...4)
                     .padding(14)
                     .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))

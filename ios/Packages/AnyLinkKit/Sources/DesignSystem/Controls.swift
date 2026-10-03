@@ -89,13 +89,17 @@ public struct UnsortedBanner: View {
                     .padding(.leading, 16)
             }
             Spacer(minLength: 0)
-            Button("Sort", action: onSort)
-                .accessibilityIdentifier("unsorted-sort")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(AL.ink)
-                .frame(height: 40)
-                .padding(.horizontal, 16)
-                .background(AL.ink.opacity(AL.Ink.a06), in: Capsule())
+            Button(action: onSort) {
+                Text("Sort")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AL.ink)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: AL.Control.md)
+                    .background(AL.ink.opacity(AL.Ink.a06), in: Capsule())
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("unsorted-sort")
         }
         .padding(.init(top: 8, leading: 14, bottom: 8, trailing: 8))
         .frosted(0.62, radius: 18)
@@ -140,7 +144,7 @@ public struct PasteAccessory: View {
     public var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "link")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(hasURL ? AnyShapeStyle(AL.signal) : AnyShapeStyle(.secondary))
                 .accessibilityHidden(true)
             if !compact {
@@ -167,7 +171,7 @@ public struct PasteAccessory: View {
             } else {
                 Button(action: onNew) {
                     Text("New")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 16)
                         .frame(minHeight: 38)
@@ -194,7 +198,7 @@ public struct ALField: View {
 
     public var body: some View {
         TextField(placeholder, text: $text)
-            .font(.system(size: 16))
+            .font(.callout)
             .padding(.horizontal, 14)
             .frame(height: 44)
             .background(AL.ink.opacity(AL.Ink.a06), in: isURL ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: 14, style: .continuous)))
@@ -210,7 +214,7 @@ public struct Notice: View {
 
     public var body: some View {
         Text(text)
-            .font(.system(size: 13))
+            .font(.footnote)
             .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.init(top: 10, leading: 14, bottom: 10, trailing: 14))
@@ -233,7 +237,7 @@ public struct ALPrimaryButtonStyle: ButtonStyle {
             .font(AL.Font.brand(15, .semibold, relativeTo: .body))
             .foregroundStyle(AL.onInk)
             .frame(maxWidth: .infinity)
-            .frame(height: AL.Control.lg)
+            .frame(minHeight: AL.Control.lg)
             .background(AL.ink, in: Capsule())
             .opacity(configuration.isPressed ? 0.8 : 1)
         }
@@ -253,7 +257,7 @@ public struct ALSignalButtonStyle: ButtonStyle {
             .font(AL.Font.brand(15, .semibold, relativeTo: .body))
             .foregroundStyle(AL.onAccent)
             .frame(maxWidth: .infinity)
-            .frame(height: AL.Control.lg)
+            .frame(minHeight: AL.Control.lg)
             .background(AL.signal, in: Capsule())
             .shadow(color: AL.signal.opacity(isEnabled ? 0.7 : 0), radius: 15, y: 10)
             .opacity(configuration.isPressed ? 0.8 : 1)
@@ -271,7 +275,7 @@ public struct ALSmallButtonStyle: ButtonStyle {
         configuration.label
             .font(AL.Font.brand(13, .semibold, relativeTo: .footnote))
             .foregroundStyle(foreground)
-            .frame(height: AL.Control.sm)
+            .frame(minHeight: AL.Control.sm)
             .padding(.horizontal, 14)
             .background(background, in: Capsule())
             .opacity(configuration.isPressed ? 0.7 : 1)

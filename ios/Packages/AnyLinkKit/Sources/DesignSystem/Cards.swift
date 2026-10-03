@@ -33,7 +33,7 @@ public struct CollectionCard: View {
             .padding(.horizontal, 10)
             .padding(.bottom, 10)
         }
-        .frame(height: 150)
+        .frame(minHeight: 150, alignment: .top)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frosted(0.62, radius: 20)
     }
@@ -69,7 +69,7 @@ public struct NewCollectionCard: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(AL.ink.opacity(AL.Ink.a40))
                 Text("New collection")
                     .font(AL.Font.brand(14, .semibold, relativeTo: .subheadline))
@@ -102,7 +102,7 @@ public struct WhyCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AL.periwinkle)
                 Text("WHY THIS EXISTS")
                     .font(AL.Font.eyebrow)
@@ -172,6 +172,7 @@ public struct SwipeCardStack<Item: Identifiable, Card: View>: View {
                         .rotationEffect(.degrees(-4))
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
+                        .accessibilityIdentifier("swipe-card-back")
                 }
                 if let front = items.first {
                     styled(card(front))
@@ -181,6 +182,7 @@ public struct SwipeCardStack<Item: Identifiable, Card: View>: View {
                         .gesture(drag(front))
                         .id(front.id)
                         .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("swipe-card")
                         .accessibilityAction(named: Text(rightStamp(front))) { commit(front, .right) }
                         .accessibilityAction(named: Text(leftStamp)) { commit(front, .left) }
                 }

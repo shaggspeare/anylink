@@ -67,7 +67,11 @@ public enum AL {
     public static let inStock = Color(hex: 0x00A046)
     public static let destructive = Color(hex: 0xEF4444)
     public static let destructiveOnDark = Color(hex: 0xFF8A5C)
+    /// Destructive *text* (labels on glass): darker red in light mode for 4.5:1.
+    public static let destructiveText = Color.themed(0xC62828, 0xFF8A5C)
     public static let light = Color(hex: 0xF4F5F6)
+    /// The toast's Undo: signal on the dark toast; dark text on the light (dark-mode) toast, where orange fails 4.5:1.
+    public static let toastAction = Color.themed(0xFF5A1F, 0x17181B)
 
     // MARK: B additions
     public static let inStockFill = Color(hex: 0x00A046).opacity(0.14)
@@ -76,8 +80,9 @@ public enum AL {
 
     // MARK: Ink alphas
     public enum Ink {
-        public static let a85 = 0.85, a80 = 0.80, a75 = 0.75, a65 = 0.65, a60 = 0.60, a55 = 0.55
-        public static let a50 = 0.50, a45 = 0.45, a40 = 0.40, a30 = 0.30, a20 = 0.20, a16 = 0.16
+        public static let a85 = 0.85, a80 = 0.80, a75 = 0.76, a65 = 0.74, a60 = 0.74, a55 = 0.72
+        // D23: secondary-text alphas sit at ≥ .72 so small text keeps 4.5:1 over the orbs (accessibility audit).
+        public static let a50 = 0.72, a45 = 0.72, a40 = 0.40, a30 = 0.30, a20 = 0.20, a16 = 0.16
         public static let a12 = 0.12, a08 = 0.08, a06 = 0.06, a05 = 0.05
     }
 

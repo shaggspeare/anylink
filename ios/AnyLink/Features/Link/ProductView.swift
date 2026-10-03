@@ -265,9 +265,10 @@ struct ProductView: View {
             if let url { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
             Spacer()
             Button { router.openOriginal = url } label: {
-                Text("Open on \((link.retailerShortName ?? link.domain).capitalized)").fontWeight(.semibold)
+                Text("Open on \((link.retailerShortName ?? link.domain).capitalized)").fontWeight(.semibold).foregroundStyle(AL.onAccent)
             }
             .buttonStyle(.glassProminent)
+                .foregroundStyle(AL.onAccent)
             .tint(AL.signal)
         }
     }

@@ -33,7 +33,7 @@ struct SettingsView: View {
     var body: some View {
         List {
             Section { account }
-            Section("Capture") {
+            Section {
                 Button {
                     store.toasts.show("In Safari, tap Share, scroll the app row, tap More and pin AnyLink.")
                 } label: {
@@ -44,18 +44,16 @@ struct SettingsView: View {
                 } label: {
                     row("Siri & Shortcuts", detail: "“Save to AnyLink”", systemImage: "waveform")
                 }
-                Toggle(isOn: $clipboardSuggestions) {
-                    Label("Clipboard suggestions", systemImage: "doc.on.clipboard")
-                }
+                Toggle(isOn: $clipboardSuggestions) { Text("Clipboard suggestions").fixedSize(horizontal: false, vertical: true) }
                 .tint(AL.inStock)
                 .onChange(of: clipboardSuggestions) { _, on in if !on { store.clipboardHasURL = false } }
                 Picker(selection: $defaultCollection) {
                     ForEach(store.collections.filter { $0.isSmart != true }) { Text($0.name).tag($0.id) }
                 } label: {
-                    Label("New links go to", systemImage: "tray")
+                    Text("New links go to").fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            Section("Appearance") {
+            } header: { header("Capture") }
+            Section {
                 HStack(spacing: 12) {
                     ForEach(Appearance.allCases) { a in
                         Button { appearance = a } label: { AppearanceThumb(appearance: a, selected: appearance == a) }
@@ -66,13 +64,11 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 6)
                 .sensoryFeedback(.selection, trigger: appearance)
-            }
-            Section("Reading") {
-                Picker(selection: $openIn) {
+            } header: { header("Appearance") }
+            Section {
+                Picker("Open links in", selection: $openIn) {
                     Text("AnyLink").tag(OpenIn.app)
                     Text("Safari").tag(OpenIn.safari)
-                } label: {
-                    Label("Open links in", systemImage: "safari")
                 }
                 Button {
                     resetTips = true   // TipKit (phase 13) resets its datastore on next launch.
@@ -80,7 +76,7 @@ struct SettingsView: View {
                 } label: {
                     row("Show tips again", systemImage: "lightbulb")
                 }
-            }
+            } header: { header("Reading") }
             Section {
                 Button("Sign out") { signedIn = false }
                 Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
@@ -88,7 +84,7 @@ struct SettingsView: View {
             Section {
                 EmptyView()
             } footer: {
-                Text(version).frame(maxWidth: .infinity).padding(.top, 8)
+                Text(version).foregroundStyle(AL.ink.opacity(AL.Ink.a60)).frame(maxWidth: .infinity).padding(.top, 8)
             }
         }
         .tint(AL.ink)
@@ -99,18 +95,23 @@ struct SettingsView: View {
     private var account: some View {
         HStack(spacing: 14) {
             Image(systemName: "person.fill")
-                .font(.system(size: 22, weight: .semibold))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 52, height: 52)
                 .background(AL.periwinkle, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text("Your account").font(.headline)
                 Text("Apple ID · \(store.live.count) links · \(synced)")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
             }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Section headers at the raised secondary alpha: the system grey sits just under 4.5:1 here.
+    private func header(_ t: String) -> some View {
+        Text(t).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
     }
 
     private var synced: String {
@@ -121,7 +122,7 @@ struct SettingsView: View {
         HStack {
             Label(title, systemImage: systemImage).foregroundStyle(.primary)
             Spacer()
-            if let detail { Text(detail).foregroundStyle(.secondary) }
+            if let detail { Text(detail).foregroundStyle(AL.ink.opacity(AL.Ink.a60)) }
         }
     }
 

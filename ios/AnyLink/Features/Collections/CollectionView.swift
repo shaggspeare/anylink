@@ -136,7 +136,7 @@ struct FilterResultsView: View {
                 Text(title).font(AL.Font.largeTitle).tracking(-1.65).foregroundStyle(AL.ink).accessibilityAddTraits(.isHeader)
                 HStack(spacing: 8) {
                     Text(query.string)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.caption.monospaced())
                         .foregroundStyle(AL.onInk)
                         .padding(.horizontal, 10).frame(height: 24)
                         .background(AL.ink, in: Capsule())
@@ -182,7 +182,7 @@ struct TrashView: View {
                     .listRowBackground(Color.clear)
             }
             ForEach(sections) { section in
-                Section(section.title) {
+                Section {
                     ForEach(section.links) { link in
                         HStack(spacing: 12) {
                             HeroImage(link: link)
@@ -191,7 +191,7 @@ struct TrashView: View {
                                 .opacity(0.8)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(link.title).font(AL.Font.rowTitle).foregroundStyle(AL.ink).lineLimit(1)
-                                Text(meta(link)).font(.system(size: 11.5)).foregroundStyle(AL.ink.opacity(AL.Ink.a50)).lineLimit(1)
+                                Text(meta(link)).font(.caption).foregroundStyle(AL.ink.opacity(AL.Ink.a50)).lineLimit(1)
                             }
                         }
                         .frame(minHeight: 64)
@@ -207,6 +207,8 @@ struct TrashView: View {
                         .accessibilityAction(named: "Restore") { store.restore([link.id]) }
                         .accessibilityAction(named: "Delete forever") { router.confirm = .deleteForever([link.id]) }
                     }
+                } header: {
+                    SectionHeader(section.title)
                 }
             }
         }
@@ -216,8 +218,10 @@ struct TrashView: View {
         .toolbar {
             if !store.trash.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Empty", role: .destructive) { router.confirm = .emptyTrash(count: store.trash.count) }
-                        .tint(AL.destructive)
+                    // No destructive role: the system would re-tint the label to a red that misses 4.5:1 on glass.
+                    Button { router.confirm = .emptyTrash(count: store.trash.count) } label: {
+                        Text("Empty").fontWeight(.semibold).foregroundStyle(AL.destructiveText)
+                    }
                 }
             }
         }

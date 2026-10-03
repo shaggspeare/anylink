@@ -34,6 +34,7 @@ struct CollectionsView: View {
                             }
                             .buttonStyle(TilePressStyle())
                             .accessibilityLabel("\(c.name), \(store.count(in: c.id)) links")
+                            .accessibilityIdentifier("collection-\(c.id)")
                         }
                         NewCollectionCard { router.sheet = .newCollection }
                     }
@@ -55,7 +56,7 @@ struct CollectionsView: View {
                     .accessibilityLabel("New collection")
                 Button { router.open(.settings) } label: {
                     Image(systemName: "person.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 28, height: 28)
                         .background(AL.periwinkle, in: Circle())
@@ -98,7 +99,7 @@ struct CollectionsView: View {
             Button {
                 dismissedRaw = (dismissed.union([s.tag])).sorted().joined(separator: ",")
             } label: {
-                Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
+                Image(systemName: "xmark").font(.footnote.weight(.semibold))
                     .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     .frame(width: AL.Control.md, height: AL.Control.md)
             }
@@ -140,7 +141,7 @@ struct CollectionsView: View {
                             Circle().fill(AL.periwinkle).frame(width: 8, height: 8)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(f.name).font(AL.Font.rowTitle).foregroundStyle(AL.ink)
-                                Text(f.smartQuery ?? "").font(.system(size: 11, design: .monospaced)).foregroundStyle(AL.ink.opacity(AL.Ink.a45))
+                                Text(f.smartQuery ?? "").font(.caption.monospaced()).foregroundStyle(AL.ink.opacity(AL.Ink.a45))
                             }
                             Spacer()
                             Text("\(store.count(in: f.id))").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a50))

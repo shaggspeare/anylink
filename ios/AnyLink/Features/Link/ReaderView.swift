@@ -43,29 +43,32 @@ struct ReaderView: View {
 
     // MARK: Hero
 
+    /// Stretchy image under the scrim; at least 400 pt, taller when large type needs the room.
     private var hero: some View {
-        GeometryReader { g in
-            let pull = max(0, g.frame(in: .scrollView).minY)
-            HeroImage(link: link)
-                .frame(width: g.size.width, height: 400 + pull)
-                .clipped()
-                .overlay(ReaderScrim())
-                .overlay(alignment: .bottomLeading) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(eyebrow)
-                            .font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
-                            .foregroundStyle(.white.opacity(0.85))
-                        Text(link.title)
-                            .font(AL.Font.readerTitle).tracking(-1.2)
-                            .foregroundStyle(.white)
-                            .accessibilityAddTraits(.isHeader)
-                    }
-                    .shadow(color: .black.opacity(0.5), radius: 1.5, y: 1)
-                    .padding(20)
-                }
-                .offset(y: -pull)
+        ZStack(alignment: .bottomLeading) {
+            GeometryReader { g in
+                let pull = max(0, g.frame(in: .scrollView).minY)
+                HeroImage(link: link)
+                    .frame(width: g.size.width, height: g.size.height + pull)
+                    .clipped()
+                    .overlay(ReaderScrim())
+                    .offset(y: -pull)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(eyebrow.uppercased())
+                    .font(.caption2.weight(.semibold)).tracking(1.47)
+                    .foregroundStyle(.white)
+                Text(link.title)
+                    .font(AL.Font.readerTitle).tracking(-1.2)
+                    .foregroundStyle(.white)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .shadow(color: .black.opacity(0.5), radius: 1.5, y: 1)
+            .padding(20)
+            .padding(.top, 240)
         }
-        .frame(height: 400)
+        .frame(minHeight: 400)
     }
 
     private var eyebrow: String {
@@ -118,7 +121,7 @@ struct ReaderView: View {
 
     private var noteCard: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "pencil").font(.system(size: 14, weight: .semibold)).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+            Image(systemName: "pencil").font(.subheadline.weight(.semibold)).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
             if editingNote {
                 TextField("Why you saved this, what to do with it…", text: $noteDraft, axis: .vertical)
                     .font(AL.Font.brand(14, .regular, relativeTo: .subheadline))
@@ -165,7 +168,7 @@ struct ReaderView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
                     .overlay {
                         Image(systemName: "play.fill")
-                            .font(.system(size: 22, weight: .semibold)).foregroundStyle(.white)
+                            .font(.title2.weight(.semibold)).foregroundStyle(.white)
                             .frame(width: 56, height: 56)
                             .background(.black.opacity(0.45), in: Circle())
                     }
@@ -246,7 +249,7 @@ struct ReaderView: View {
             }
             if let url { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
             Spacer()
-            Button { router.openOriginal = url } label: { Text("Open ↗").fontWeight(.semibold) }
+            Button { router.openOriginal = url } label: { Text("Open ↗").fontWeight(.semibold).foregroundStyle(AL.onAccent) }
                 .buttonStyle(.glassProminent)
                 .tint(AL.signal)
         }

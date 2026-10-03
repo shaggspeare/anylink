@@ -129,6 +129,7 @@ public struct InitialBadge: View {
             .foregroundStyle(stripe)
             .frame(width: size, height: size)
             .background(tint, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .accessibilityHidden(true)   // decorative: the domain next to it is read instead
     }
 }
 
@@ -159,8 +160,9 @@ public struct ReaderScrim: View {
     public var body: some View {
         LinearGradient(
             stops: [
-                .init(color: .black.opacity(0.80), location: 0),
-                .init(color: .black.opacity(0.35), location: 0.5),
+                .init(color: .black.opacity(0.85), location: 0),
+                .init(color: .black.opacity(0.70), location: 0.35),
+                .init(color: .black.opacity(0.35), location: 0.6),
                 .init(color: .clear, location: 1),
             ],
             startPoint: .bottom,

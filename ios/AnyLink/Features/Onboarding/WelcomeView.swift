@@ -15,7 +15,7 @@ struct WelcomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(spacing: 8) {
-                    Image(systemName: "link").font(.system(size: 22, weight: .bold)).foregroundStyle(AL.signal)
+                    Image(systemName: "link").font(.title2.weight(.bold)).foregroundStyle(AL.signal)
                     Text("AnyLink").font(AL.Font.brand(17, .semibold, relativeTo: .headline)).tracking(-0.6)
                 }
                 .accessibilityElement(children: .combine)
@@ -36,16 +36,16 @@ struct WelcomeView: View {
                             else { Image(systemName: "apple.logo") }
                             Text("Sign in with Apple")
                         }
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(scheme == .dark ? .black : .white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: AL.Control.lg)
+                        .frame(minHeight: AL.Control.lg)
                         .background(scheme == .dark ? Color.white : Color.black, in: Capsule())
                     }
                     .disabled(signingIn)
                     Button { emailSheet = true } label: {
                         Text("Continue with email")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.body.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .frame(height: AL.Control.lg - 14)
                     }
@@ -77,7 +77,8 @@ struct WelcomeView: View {
     private var demo: some View {
         VStack(spacing: 10) {
             Text("nasa.gov/missions/artemis/suit-cost")
-                .font(.system(size: 12, design: .monospaced))
+                .font(.caption.monospaced())
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(AL.ink.opacity(AL.Ink.a75))
                 .padding(.horizontal, 12).frame(height: 30)
                 .background(AL.ink.opacity(AL.Ink.a06), in: Capsule())
@@ -103,6 +104,7 @@ struct WelcomeView: View {
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Example: a pasted NASA link becomes a card titled A full NASA space suit costs $12 million")
+        .accessibilityIdentifier("tile-welcome-demo")
     }
 
     private func pillar(_ title: String, _ detail: String) -> some View {

@@ -136,7 +136,7 @@ struct LibraryView: View {
                 nothingHere.listRowBackground(Color.clear).selectionDisabled()
             } else if sort == .newest {
                 ForEach(DateSections.group(links)) { section in
-                    Section(section.title) { ForEach(section.links) { row($0) } }
+                    Section { ForEach(section.links) { row($0) } } header: { SectionHeader(section.title) }
                 }
             } else {
                 Section { ForEach(links) { row($0) } }

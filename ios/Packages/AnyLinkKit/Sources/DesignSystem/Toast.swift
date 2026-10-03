@@ -12,14 +12,14 @@ public struct ToastView: View {
     public var body: some View {
         HStack(spacing: 8) {
             Text(message)
-                .font(.system(size: 14))
+                .font(.subheadline)
                 .foregroundStyle(AL.onInk)
                 .lineLimit(2)
             Spacer(minLength: 0)
             if let onUndo {
                 Button("Undo", action: onUndo)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AL.signal)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AL.toastAction)
                     .padding(.horizontal, 12)
                     .frame(minHeight: 36)
             }

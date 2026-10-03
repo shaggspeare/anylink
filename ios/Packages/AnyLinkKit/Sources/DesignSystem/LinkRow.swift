@@ -22,20 +22,22 @@ public struct LinkRow: View {
                     .foregroundStyle(AL.ink)
                     .lineLimit(1)
                 Text(meta ?? [link.domain, link.readingMeta].compactMap { $0 }.joined(separator: " · "))
-                .font(.system(size: 11.5))
+                .font(.caption)
                 .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 .lineLimit(1)
             }
             Spacer(minLength: 0)
             if link.favorite == true {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(AL.signal)
             }
         }
         .frame(height: 64)
-        .accessibilityElement(children: .combine)
+        // One element with the full text: the visible title and domain truncate by design.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")")
+        .accessibilityValue(link.readingMeta ?? "")
     }
 
     private var thumbnail: some View {
@@ -50,7 +52,7 @@ public struct LinkRow: View {
             if isSelected {
                 Circle().fill(AL.lime).frame(width: 24, height: 24)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(AL.onAccent)
             } else {
                 Circle()
