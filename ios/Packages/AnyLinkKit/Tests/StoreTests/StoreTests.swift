@@ -682,3 +682,99 @@ import Fixtures
         #expect(!m.results.isEmpty)
     }
 }
+
+/// Records signals so tests can assert on them.
+actor SignalSpy: AnyLinkAPI {
+    let inner: MockAPI
+    private(set) var actions: [String] = []
+    init(_ inner: MockAPI) { self.inner = inner }
+    func logSignal(_ signal: Signal) async { actions.append(signal.action) }
+    func crawl(_ url: URL) async -> AsyncThrowingStream<CrawlEvent, Error> { await inner.crawl(url) }
+    func checkImportedLinks() async -> AsyncThrowingStream<LinkCheckEvent, Error> { await inner.checkImportedLinks() }
+    func library(since: Date?) async throws -> LibrarySnapshot { try await inner.library(since: since) }
+    func createLink(_ d: LinkDraft) async throws -> LinkItem { try await inner.createLink(d) }
+    func updateLink(_ id: LinkItem.ID, _ p: LinkPatch) async throws { try await inner.updateLink(id, p) }
+    func bulk(_ a: BulkAction, ids: [LinkItem.ID]) async throws { try await inner.bulk(a, ids: ids) }
+    func reorder(_ ids: [LinkItem.ID]) async throws { try await inner.reorder(ids) }
+    func reorderCollections(_ ids: [LinkCollection.ID]) async throws { try await inner.reorderCollections(ids) }
+    func createCollection(name: String, color: String) async throws -> LinkCollection { try await inner.createCollection(name: name, color: color) }
+    func createFilter(name: String, query: String) async throws -> LinkCollection { try await inner.createFilter(name: name, query: query) }
+    func updateCollection(_ id: LinkCollection.ID, name: String) async throws { try await inner.updateCollection(id, name: name) }
+    func deleteCollection(_ id: LinkCollection.ID) async throws -> [LinkItem.ID] { try await inner.deleteCollection(id) }
+    func deleteEmptyCollections() async throws -> [LinkCollection.ID] { try await inner.deleteEmptyCollections() }
+    func addHighlight(_ id: LinkItem.ID, quote: String) async throws { try await inner.addHighlight(id, quote: quote) }
+    func setPriceAlert(_ id: LinkItem.ID, threshold: Double, currency: String) async throws { try await inner.setPriceAlert(id, threshold: threshold, currency: currency) }
+    func importLinks(_ items: [ImportItem]) async throws -> ImportResult { try await inner.importLinks(items) }
+    func groupInbox(_ p: GroupingPriorities) async throws -> [GroupedResult] { try await inner.groupInbox(p) }
+    func deleteAccount() async throws { try await inner.deleteAccount() }
+}
+
+@MainActor
+@Suite struct TriageModelTests {
+    let spy = SignalSpy(MockAPI.fixtures(latency: false))
+    let store: LibraryStore
+    let model: TriageModel
+
+    init() {
+        store = LibraryStore(api: spy, snapshot: Fixtures.library)
+        model = TriageModel(store: store)
+    }
+
+    @Test func heuristicOnFixtures() {
+        #expect(model.suggestion(for: store.link("ytprod")!)?.id == "rust")      // rust-tagged → Rust & async
+        #expect(model.suggestion(for: store.link("water")!)?.id == "reading")    // space → Reading
+        #expect(model.suggestion(for: store.link("shuttle")!)?.id == "reading")
+        #expect(model.suggestion(for: store.link("plants")!)?.id == "home")
+        #expect(model.suggestion(for: store.link("iph")!) == nil)                // → "Choose a collection"
+    }
+
+    @Test func queueAndProgress() {
+        #expect(model.total == 5)
+        #expect(model.position == 1)
+        let first = model.current!
+        model.skip(first)
+        #expect(model.current?.id != first.id)
+        #expect(model.position == 2)
+        #expect(model.progress == 0.2)
+    }
+
+    @Test func everyActionHasUndoAndLogsASignal() async {
+        let links = model.remaining
+        let accepted = links.first { model.suggestion(for: $0) != nil }!
+        model.accept(accepted)
+        #expect(store.link(accepted.id)?.collectionId != "unsorted")
+        store.toasts.performUndo()
+        #expect(model.remaining.contains { $0.id == accepted.id })
+
+        let killed = model.current!
+        model.kill(killed)
+        #expect(store.toasts.current?.undo != nil)
+        store.toasts.performUndo()
+        #expect(model.remaining.contains { $0.id == killed.id })
+
+        let skipped = model.current!
+        model.skip(skipped)
+        store.toasts.performUndo()
+        #expect(model.current?.id == skipped.id)
+
+        model.file(skipped, into: "cooking")
+        #expect(store.toasts.current?.undo != nil)
+
+        try? await Task.sleep(for: .milliseconds(50))
+        let actions = await spy.actions
+        for a in ["accept", "move", "kill", "later"] { #expect(actions.contains(a), "missing \(a)") }
+    }
+
+    @Test func undoRestoresQueueOrder() {
+        let order = model.remaining.map(\.id)
+        model.kill(model.current!)
+        store.toasts.performUndo()
+        #expect(model.remaining.map(\.id) == order)
+    }
+
+    @Test func doneWhenEmpty() {
+        for l in model.remaining { model.kill(l) }
+        #expect(model.isDone)
+        #expect(model.progress == 1)
+    }
+}

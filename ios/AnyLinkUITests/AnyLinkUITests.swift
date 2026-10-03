@@ -182,4 +182,19 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Saved filters"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["artemis"].exists)
     }
+
+    // MARK: - Triage (S14)
+
+    @MainActor
+    func testTriageFromBannerWithUndo() throws {
+        let app = launch()
+        app.buttons["unsorted-sort"].tap()
+        XCTAssertTrue(app.staticTexts["1 of 5"].waitForExistence(timeout: 3))
+        app.buttons["Later"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 5"].waitForExistence(timeout: 2))
+        app.buttons["Move to Trash"].tap()
+        XCTAssertTrue(app.staticTexts["Moved to Trash"].waitForExistence(timeout: 2))
+        app.buttons["Undo"].tap()
+        XCTAssertTrue(app.staticTexts["2 of 5"].waitForExistence(timeout: 2))
+    }
 }

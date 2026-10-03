@@ -144,6 +144,7 @@ public struct SwipeCardStack<Item: Identifiable, Card: View>: View {
     let leftStamp: String
     let onCommit: (Item, SwipeDirection) -> Void
     let card: (Item) -> Card
+    let showsButtons: Bool
 
     @State private var offset: CGSize = .zero
     @State private var committing = false
@@ -153,18 +154,20 @@ public struct SwipeCardStack<Item: Identifiable, Card: View>: View {
         items: [Item],
         rightStamp: @escaping (Item) -> String = { _ in "Keep" },
         leftStamp: String = "Bin",
+        showsButtons: Bool = true,
         onCommit: @escaping (Item, SwipeDirection) -> Void,
         @ViewBuilder card: @escaping (Item) -> Card
     ) {
         self.items = items; self.rightStamp = rightStamp; self.leftStamp = leftStamp
-        self.onCommit = onCommit; self.card = card
+        self.showsButtons = showsButtons; self.onCommit = onCommit; self.card = card
     }
 
     public var body: some View {
         VStack(spacing: 20) {
             ZStack {
                 if items.count > 1 {
-                    styled(card(items[1]))
+                    // Blank: the front card is translucent (.86), so the back card's text would show through.
+                    styled(card(items[1]).opacity(0))
                         .scaleEffect(0.95)
                         .rotationEffect(.degrees(-4))
                         .allowsHitTesting(false)
@@ -182,7 +185,7 @@ public struct SwipeCardStack<Item: Identifiable, Card: View>: View {
                         .accessibilityAction(named: Text(leftStamp)) { commit(front, .left) }
                 }
             }
-            if let front = items.first {
+            if showsButtons, let front = items.first {
                 HStack(spacing: 12) {
                     Button(leftStamp) { commit(front, .left) }
                         .buttonStyle(.alPrimary)
@@ -195,7 +198,7 @@ public struct SwipeCardStack<Item: Identifiable, Card: View>: View {
         .sensoryFeedback(.success, trigger: items.first?.id)
     }
 
-    private func styled(_ v: Card) -> some View {
+    private func styled(_ v: some View) -> some View {
         v.frosted(0.86, radius: 26).alShadow(AL.Shadow.window)
     }
 

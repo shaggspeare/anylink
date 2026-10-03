@@ -90,6 +90,7 @@ public struct UnsortedBanner: View {
             }
             Spacer(minLength: 0)
             Button("Sort", action: onSort)
+                .accessibilityIdentifier("unsorted-sort")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(AL.ink)
                 .frame(height: 40)

@@ -29,7 +29,7 @@ struct RouteView: View {
         case .trash:
             TrashView()
         case .triage:
-            PlaceholderScreen(title: "Sort Unsorted", note: "Triage arrives in phase 9.")
+            TriageView(store: store)
         case .settings:
             SettingsView()
         }

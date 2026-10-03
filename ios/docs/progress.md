@@ -293,3 +293,28 @@
 
 ### Check by hand
 - On iOS 26 the search tab collapses the tab bar to a circle while searching; after Close it stays collapsed until another tab is picked from the circle. That's system behaviour.
+
+---
+
+## Phase 9 · Sort Unsorted (triage)
+
+**Status:** Done
+
+### Done
+- `TriageModel` (Store): queue derived live from the inbox (so Undo returns a link to its place), Later set, `{i} of {total}`, progress, suggestion via `LibraryStore.suggestedCollection(for:)` (most shared tags, ties by domain), 3 "Or:" alternatives. Actions: accept (signal `accept` + move), file into another (signal `reject` for the skipped suggestion + `move`), kill (signal `kill` + trash), skip/Later (signal `later` + "Skipped for now" with Undo). Every action has Undo.
+- `TriageView` (S14): title + "{i} of {total}", Done, lime progress bar, "✦ Looks like **{collection}**" pill, `SwipeCardStack` (right stamp = collection name, left = TRASH; right with no suggestion opens the Move sheet), card (hero, "domain · meta · saved from {source}", title, excerpt, tags), "Or:" chips, bottom row (ink trash circle · glass Later · signal **{collection} →** / **Choose a collection**), done state ("Unsorted is clear" + Back to library).
+- Entry points: Library banner, Collections Unsorted card, Unsorted collection button (from earlier phases).
+- `SwipeCardStack` gets `showsButtons`; the back card renders blank so its text doesn't show through the translucent front card.
+- Tests: heuristic on fixtures (rust → Rust & async ✅, space → Reading ✅, home → Home, none for #apple), queue/progress, every action has Undo + logs a signal ✅ (via a recording API spy), Undo restores queue order. UI test: banner → Later → Trash → Undo. 114 package tests, 13 UI tests.
+
+### Not done
+- None.
+
+### Spec conflicts
+- None.
+
+### `// BACKEND:` items
+- (Spec) a server-side suggestion per inbox link, later.
+
+### Check by hand
+- Swipe the card right/left with VoiceOver on: the named actions are the collection name and "Trash".
