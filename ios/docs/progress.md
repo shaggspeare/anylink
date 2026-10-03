@@ -32,3 +32,29 @@
 ### Check by hand
 - Launch in simulator: confirm "AnyLink" title visible, orbs render in both light and dark mode
 - Verify Instrument Sans PostScript names logged in console on launch
+
+---
+
+## Phase 1 · Models, fixtures, MockAPI, query language
+
+**Status:** Done
+
+### Done
+- `Models`: all structs from spec §3 with `05` §1 changes — `LinkItem`, `LinkCollection`, `CrawlResult`, `CrawlFailure`, `CrawlEvent` (custom `Decodable`), `LinkDraft`, `LibrarySnapshot`, `LinkPatch`, `BulkAction`, `LinkCheckEvent`, `ImportItem`, `ImportResult`, `GroupingPriorities`, `GroupedResult`, `Signal`, `AppError`. Computed helpers: `isBroken`, `hasNote`, `readingMeta`, `retailerShortName`.
+- `Fixtures`: loads `library.json` (18 links + 2 trashed + 7 collections) and all 3 crawl NDJSON fixtures. 6 decode tests.
+- `Networking`: `AnyLinkAPI` protocol (20 methods), `MockAPI` actor (latency, `failNext`, crawl replay via `_delayMs`), `NDJSONDecoder`. 4 tests including crawl replay ordering and failNext.
+- `QueryLanguage`: parser, evaluator, `LibraryIndex` (precomputed haystacks + duplicate detection), `SearchToken`, round-trip serialisation. Full grammar: text, `#tag`, `field:value`, `type:`, `is:`, `created:` with `>/<`, negation, `match:or`. Archived links excluded unless `is:archived` present.
+- Tests: all 20 rows from the `06` test table pass, crawl replay ordering, 5,000-link perf test (< 16 ms query time). 37 tests total, all green.
+- `verify.sh` passes (xcodegen + swift test + xcodebuild build).
+
+### Not done
+- Nothing — all tasks complete.
+
+### Spec conflicts
+- `created:>2026-09-30` matches `ramen` (2026-09-30T18:00:00Z) via string comparison — this matches the web app behaviour, as noted in the spec.
+
+### `// BACKEND:` items
+- None added (existing gaps documented in `05` §7 remain).
+
+### Check by hand
+- Run `swift test --package-path Packages/AnyLinkKit` and confirm 37/37 pass.
