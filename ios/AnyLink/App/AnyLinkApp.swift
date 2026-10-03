@@ -14,6 +14,7 @@ struct AnyLinkApp: App {
             UserDefaults.standard.set(true, forKey: "onboarded")
         }
         _env = State(initialValue: .current())
+        AppTips.configure()
     }
 
     var body: some Scene {

@@ -236,3 +236,28 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         #expect(!store.recentCollections.contains { $0.isInbox == true || $0.isSmart == true })
     }
 }
+
+import CoreSpotlight
+
+@Suite struct SpotlightTests {
+    @Test func itemCarriesTitleSummaryDomain() {
+        let l = Fixtures.links.first { $0.id == "nasa" }!
+        let item = Spotlight.item(for: l)
+        #expect(item.uniqueIdentifier == "nasa")
+        #expect(item.domainIdentifier == "links")
+        #expect(item.attributeSet.title == l.title)
+        #expect(item.attributeSet.contentDescription == l.excerpt)
+        #expect(item.attributeSet.keywords?.contains("nasa.gov") == true)
+    }
+
+    @MainActor
+    @Test func continuationOpensTheLink() {
+        let activity = NSUserActivity(activityType: CSSearchableItemActionType)
+        activity.userInfo = [CSSearchableItemActivityIdentifier: "nasa"]
+        let r = Router()
+        r.tab = .search
+        if let id = Spotlight.linkID(from: activity) { r.handle(URL(string: "anylink://link/\(id)")!) }
+        #expect(r.tab == .library && r.library == [.link("nasa")])
+        #expect(Spotlight.linkID(from: NSUserActivity(activityType: "other")) == nil)
+    }
+}

@@ -4,6 +4,8 @@ import Models
 import Networking
 import Fixtures
 import Store
+import TipKit
+import AppIntents
 
 enum Appearance: String, CaseIterable, Identifiable {
     case system, light, dark
@@ -34,16 +36,15 @@ struct SettingsView: View {
         List {
             Section { account }
             Section {
+                TipView(ShareSheetTip())
                 Button {
                     store.toasts.show("In Safari, tap Share, scroll the app row, tap More and pin AnyLink.")
                 } label: {
                     row("Share sheet", systemImage: "square.and.arrow.up")
                 }
-                Button {
-                    if let url = URL(string: "shortcuts://") { openURL(url) }
-                } label: {
-                    row("Siri & Shortcuts", detail: "“Save to AnyLink”", systemImage: "waveform")
-                }
+                ShortcutsLink()
+                    .shortcutsLinkStyle(.automaticOutline)
+                    .frame(maxWidth: .infinity)
                 Toggle(isOn: $clipboardSuggestions) { Text("Clipboard suggestions").fixedSize(horizontal: false, vertical: true) }
                 .tint(AL.inStock)
                 .onChange(of: clipboardSuggestions) { _, on in if !on { store.clipboardHasURL = false } }
@@ -71,7 +72,7 @@ struct SettingsView: View {
                     Text("Safari").tag(OpenIn.safari)
                 }
                 Button {
-                    resetTips = true   // TipKit (phase 13) resets its datastore on next launch.
+                    resetTips = true   // TipKit resets its datastore on next launch (Tips.resetDatastore must run before configure).
                     store.toasts.show("Tips will show again.")
                 } label: {
                     row("Show tips again", systemImage: "lightbulb")

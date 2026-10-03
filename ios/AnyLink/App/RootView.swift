@@ -1,6 +1,8 @@
 import SwiftUI
+import TipKit
 import DesignSystem
 import Store
+import CoreSpotlight
 
 struct RootView: View {
     let env: AppEnvironment
@@ -43,10 +45,16 @@ struct RootView: View {
             .task { await env.clipboard.observe() }
             .task { await env.reachability.start() }
             .task {
+                IntentBridge.store = env.store
                 if env.isLive { await env.store.refresh() }
                 await syncWithExtension()
+                await Spotlight.reindex(env.store.live)
+            }
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                if let id = Spotlight.linkID(from: activity) { env.router.handle(URL(string: "anylink://link/\(id)")!) }
             }
             .onChange(of: scenePhase, initial: true) { _, phase in
+                if phase == .background { Task { await Spotlight.reindex(env.store.live) } }
                 if phase == .active {
                     Task { await env.clipboard.check() }
                     env.store.drainOutbox()
@@ -121,6 +129,7 @@ private struct AccessoryContent: View {
             onPaste: { urls in router.sheet = .addLink(prefill: urls.first, collectionID: collectionID) },
             onNew: { router.sheet = .addLink(prefill: nil, collectionID: collectionID) }
         )
+        .popoverTip(PasteTip())
     }
 }
 

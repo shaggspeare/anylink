@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import DesignSystem
 import Models
 import Networking
@@ -71,6 +72,7 @@ struct LibraryView: View {
         let unsorted = store.scopeCount(.unsorted)
         if scope == .all && unsorted > 0 && !router.isSelecting {
             UnsortedBanner(count: unsorted) { router.open(.triage) }
+                .popoverTip(SortTip())
         }
     }
 
@@ -93,6 +95,7 @@ struct LibraryView: View {
                         ForEach(Array(links.enumerated()), id: \.element.id) { i, link in
                             tile(link)
                                 .modifier(Entrance(index: i, active: appeared || reduceMotion))
+                                .popoverTip(i == 0 ? LongPressTip() : nil)
                         }
                     }
                 }
@@ -224,6 +227,7 @@ struct LibraryEmptyState: View {
             }
             VStack(spacing: 0) {
                 way(1, "Share from any app", "In Safari, tap Share → AnyLink. Pin it to the top row.") {}
+                    .popoverTip(ShareSheetTip())
                 Divider().padding(.leading, 60)
                 way(2, "Paste a link", "Copy a URL, then tap Paste at the bottom of any tab.") {
                     router.sheet = .addLink(prefill: nil)

@@ -410,3 +410,35 @@
 
 ### Check by hand
 - Instruments → Allocations on the extension while sharing: stays under 40 MB.
+
+---
+
+## Phase 13 · Native extras & polish
+
+**Status:** Done (universal links wait on the web domain — open question 1)
+
+### Done
+- **Accessibility**: `performAccessibilityAudit()` runs on 10 screens (Library, Reader, Collections, Settings, Search, Triage, Add idle, Add ready, Trash, Welcome) with **zero failures** ✅. Fixes behind that: every fixed font size → a text style (D24); tiles/cards/buttons use minimum heights; secondary-text contrast floor (D23); tiles/rows/cards are single VoiceOver elements with full labels + reading-time value; signal buttons get dark labels, destructive text a darker red, the toast's Undo dark on the light toast; the reader hero grows with large type; banner Sort is 44 pt; decorative progress/badges hidden.
+  - The audit's known false positives are handled by *verification*, not blanket ignores: contrast hits are re-measured on the rendered pixels (pass at ≥ 4.5:1); "partially unsupported" Dynamic Type hits are accepted only for labels a separate test proves grow > 1.5× at accessibility L; children of a combined VoiceOver element, content scrolled under the floating glass, the system `PasteButton`, and the floating medium-detent sheet (audited expanded) are documented exceptions; element-less contrast hits from morphing glass must reproduce after a settle.
+- **Spotlight** (`Spotlight`, Store): live links indexed with title, summary, domain + tags as keywords; reindexed after sync and on backgrounding (trash/purge drop out); `onContinueUserActivity(CSSearchableItemActionType)` opens the link. Tested mapping + continuation ✅.
+- **App Intents**: `SaveLinkIntent` (URL + optional `CollectionEntity`, "Saved to {name}.") saves through the running store, or leaves a `PendingSave` when the app isn't running; `AnyLinkShortcuts` with "Save to AnyLink" / "Save link in AnyLink"; Settings shows a `ShortcutsLink`. Metadata extracted into the bundle ✅.
+- **TipKit**: Paste, LongPress (first tile), Search, Sort (Unsorted banner), ShareSheet (Settings + empty state); "Show tips again" resets the datastore on next launch; tips are hidden under `-ui-testing`.
+- **App icon** placeholder (light / dark / tinted chain mark, periwinkle-ink-signal) and a launch screen colour that follows the canvas token.
+- Haptics checked against `03` §7 (success on ready/save/swipe commit, selection on scope/sort/segments/select, warning on destructive confirms). Reduce Motion (entrance, shimmer, pulses, demo float, fly-out), Reduce Transparency (`Frosted` → paper, orbs hidden) and Increase Contrast (covered by the D23 floor, above the spec's .60/.65) are in place.
+- 146 package tests, 19 UI tests.
+
+### Not done
+- Universal links / Associated Domains: needs the web domain (open question 1). `Router.handle` already routes `https://…/links/{id}`.
+- Icon Composer layered icon: the PNG set is a placeholder.
+- "Save to AnyLink" in Shortcuts and a Spotlight tap were verified through metadata and unit tests, not by driving Shortcuts/Spotlight UI.
+
+### Spec conflicts
+- `03` ink alphas and exact pt sizes yield to WCAG/Dynamic Type (D23, D24).
+
+### `// BACKEND:` items
+- None new.
+
+### Check by hand
+- Shortcuts app → "Save to AnyLink" with a URL → the link lands in Unsorted.
+- Spotlight: search a saved title → tap → the reader opens.
+- Settings → Show tips again → relaunch → tips reappear.

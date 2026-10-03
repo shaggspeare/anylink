@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import DesignSystem
 import Models
 import QueryLanguage
@@ -56,6 +57,7 @@ struct SearchView: View {
     private var narrow: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Narrow it down").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                .popoverTip(SearchTip())
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(model.suggestedTokens) { t in
