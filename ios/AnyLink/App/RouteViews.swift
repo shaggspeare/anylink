@@ -20,7 +20,7 @@ struct RouteView: View {
     private var content: some View {
         switch route {
         case .link(let id):
-            PlaceholderScreen(title: store.link(id)?.title ?? "Link", note: "Reader and product pages arrive in phase 6.")
+            LinkDetailView(id: id)
         case .collection(let id):
             LinkListScreen(title: store.name(of: id), links: store.links(in: id), orbs: .collection(.fromHex(store.collection(id)?.color ?? "#9AA3AD")))
                 .toolbar {

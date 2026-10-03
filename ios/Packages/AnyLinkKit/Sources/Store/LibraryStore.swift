@@ -10,7 +10,7 @@ public enum SyncState: Equatable, Sendable { case idle, syncing, failed(AppError
 /// on failure they roll back and show a toast.
 @MainActor @Observable
 public final class LibraryStore {
-    public private(set) var links: [LinkItem.ID: LinkItem] = [:] { didSet { cachedIndex = nil } }
+    public internal(set) var links: [LinkItem.ID: LinkItem] = [:] { didSet { cachedIndex = nil } }
     public private(set) var order: [LinkItem.ID] = []
     public private(set) var collections: [LinkCollection] = []
     public private(set) var syncState: SyncState = .idle
@@ -288,6 +288,10 @@ public final class LibraryStore {
     public func emptyTrash() {
         purge(Set(trash.map(\.id)))
         toasts.show("Trash emptied")
+    }
+
+    func syncPriceAlert(id: LinkItem.ID, threshold: Double, currency: String, before: [LinkItem]) {
+        sync(rollback: { [weak self] in self?.put(before) }) { try await $0.setPriceAlert(id, threshold: threshold, currency: currency) }
     }
 
     // MARK: - Collection intents

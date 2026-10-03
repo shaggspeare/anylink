@@ -13,30 +13,36 @@ private struct LinkActions: ViewModifier {
     let link: LinkItem
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
-    @Environment(\.openURL) private var openURL
-
-    private var url: URL? { URL(string: link.url) }
-    private var isFavorite: Bool { link.favorite == true }
 
     func body(content: Content) -> some View {
         Group {
             if router.isSelecting {
                 content
             } else {
-                content.contextMenu { menu } preview: { LinkPreviewCard(link: link, collection: store.name(of: link.collectionId)) }
+                content.contextMenu { LinkMenuItems(link: link) } preview: {
+                    LinkPreviewCard(link: link, collection: store.name(of: link.collectionId))
+                }
             }
         }
-        .accessibilityAction(named: "Open original") { open() }
-        .accessibilityAction(named: isFavorite ? "Unfavorite" : "Favorite") { store.setFavorite(link.id, !isFavorite) }
+        .accessibilityAction(named: "Open original") { router.openOriginal = URL(string: link.url) }
+        .accessibilityAction(named: link.favorite == true ? "Unfavorite" : "Favorite") { store.setFavorite(link.id, link.favorite != true) }
         .accessibilityAction(named: "Move") { router.sheet = .moveLinks([link.id]) }
         .accessibilityAction(named: "Move to Trash") { store.trash([link.id]) }
     }
+}
 
-    private func open() { if let url { openURL(url) } }
+/// S7 items, shared by the context menu and the detail screens' ⋯ menu.
+struct LinkMenuItems: View {
+    let link: LinkItem
+    var inDetail = false
+    @Environment(LibraryStore.self) private var store
+    @Environment(Router.self) private var router
 
-    @ViewBuilder
-    private var menu: some View {
-        Button("Open Original", systemImage: "arrow.up.right") { open() }
+    private var url: URL? { URL(string: link.url) }
+    private var isFavorite: Bool { link.favorite == true }
+
+    var body: some View {
+        Button("Open Original", systemImage: "arrow.up.right") { router.openOriginal = url }
         if let url {
             ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") }
         }
@@ -52,14 +58,19 @@ private struct LinkActions: ViewModifier {
                 }
             }
         } label: {
-            Label("Move to…", systemImage: "folder")
+            Label(inDetail ? "Add to collection" : "Move to…", systemImage: "folder")
         }
-        Button(isFavorite ? "Unfavorite" : "Favorite", systemImage: isFavorite ? "star.slash" : "star") {
-            store.setFavorite(link.id, !isFavorite)
+        if !inDetail {
+            Button(isFavorite ? "Unfavorite" : "Favorite", systemImage: isFavorite ? "star.slash" : "star") {
+                store.setFavorite(link.id, !isFavorite)
+            }
+            Button("Select", systemImage: "checkmark.circle") { router.beginSelecting(with: link.id) }
         }
-        Button("Select", systemImage: "checkmark.circle") { router.beginSelecting(with: link.id) }
         Divider()
-        Button("Move to Trash", systemImage: "trash", role: .destructive) { store.trash([link.id]) }
+        Button("Move to Trash", systemImage: "trash", role: .destructive) {
+            store.trash([link.id])
+            if inDetail { router.setPath(router.tab, router.path(router.tab).dropLast()) }
+        }
     }
 }
 

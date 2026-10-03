@@ -89,4 +89,29 @@ final class AnyLinkUITests: XCTestCase {
         read("not a link", in: app)
         XCTAssertTrue(app.staticTexts["That doesn't look like a link — it should start with https://"].waitForExistence(timeout: 2))
     }
+
+    // MARK: - Link detail (S15, S16)
+
+    @MainActor
+    func testHighlightFromEditMenu() throws {
+        let app = launch()
+        app.buttons["tile-nasa"].tap()
+        let text = app.textViews.firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 3))
+        text.doubleTap()
+        let highlight = app.buttons["Highlight"].firstMatch
+        if !highlight.waitForExistence(timeout: 2) { text.press(forDuration: 1.0) }
+        XCTAssertTrue(app.menuItems["Highlight"].firstMatch.waitForExistence(timeout: 2) || highlight.exists)
+        (app.menuItems["Highlight"].firstMatch.exists ? app.menuItems["Highlight"].firstMatch : highlight).tap()
+        XCTAssertTrue(app.staticTexts["Highlighted"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testProductPageShowsPriceCard() throws {
+        let app = launch()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Products")).firstMatch.tap()
+        app.buttons["tile-iph"].tap()
+        XCTAssertTrue(app.staticTexts["Price"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Tell me under"].exists)
+    }
 }

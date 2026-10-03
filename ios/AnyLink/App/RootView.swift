@@ -9,6 +9,7 @@ struct RootView: View {
 
     var body: some View {
         MainTabs()
+            .modifier(OpenOriginalHost())
             .environment(env.store)
             .environment(env.router)
             .toastOverlay(env.store.toasts, bottomOffset: env.router.showsAccessory ? 158 : 100)

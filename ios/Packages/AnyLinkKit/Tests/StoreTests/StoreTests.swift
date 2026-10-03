@@ -472,3 +472,73 @@ import Fixtures
         #expect(m.collectionID == "unsorted")   // never auto-selected
     }
 }
+
+@MainActor
+@Suite struct LinkPresentationTests {
+    @Test func proseRuleCountsOnlyRealParagraphs() {
+        let para = "one two three four five six seven eight nine ten"   // 10 words
+        #expect(ArticleBody.proseWordCount([para, "By Jane Doe", "Photo: NASA"]) == 10)
+        #expect(!ArticleBody.hasEnoughProse([para, para, para]))          // 30
+        #expect(ArticleBody.hasEnoughProse([para, para, para, para]))     // 40
+        #expect(!ArticleBody.hasEnoughProse(Array(repeating: "short caption of seven words here", count: 20)))
+        #expect(!ArticleBody.hasEnoughProse(nil))
+        #expect(ArticleBody.hasEnoughProse(Fixtures.links.first { $0.id == "nasa" }?.articleText))
+    }
+
+    var product: ProductDetails { Fixtures.links.first { $0.id == "iph" }!.product! }
+
+    @Test func percentSinceSaved() {
+        let s = PriceSummary(product)
+        let f = s.first!.price, l = s.latest!.price
+        #expect(s.percentSinceSaved == (f > l ? Int(((f - l) / f * 100).rounded()) : nil))
+        var up = product
+        up.priceHistory = [PriceSnapshot(date: "2026-09-01", price: 100), PriceSnapshot(date: "2026-09-10", price: 120)]
+        #expect(PriceSummary(up).percentSinceSaved == nil)
+        up.priceHistory = [PriceSnapshot(date: "2026-09-01", price: 100), PriceSnapshot(date: "2026-09-10", price: 100)]
+        #expect(PriceSummary(up).percentSinceSaved == nil)
+        up.priceHistory = [PriceSnapshot(date: "2026-09-01", price: 200), PriceSnapshot(date: "2026-09-10", price: 150)]
+        #expect(PriceSummary(up).percentSinceSaved == 25)
+    }
+
+    @Test func chartHidesWithFewerThanTwoSnapshots() {
+        var p = product
+        #expect(PriceSummary(p).showsChart)
+        p.priceHistory = [PriceSnapshot(date: "2026-09-01", price: 100)]
+        #expect(!PriceSummary(p).showsChart)
+        p.priceHistory = []
+        #expect(!PriceSummary(p).showsChart)
+    }
+
+    @Test func rangesAndDomain() {
+        let s = PriceSummary(product)
+        #expect(s.points(in: .all).count == product.priceHistory.count)
+        #expect(s.points(in: .month).count <= s.points(in: .quarter).count)
+        #expect(s.points(in: .month).count >= 2)
+        let d = s.yDomain(for: s.points(in: .all))
+        #expect(d.contains(product.alertThreshold!))
+        #expect(s.points(in: .all).allSatisfy { d.contains($0.price) })
+    }
+
+    @Test func formatsWithGrouping() {
+        #expect(PriceSummary.format(52999, "₴").hasPrefix("₴52"))
+        #expect(PriceSummary.format(52999, "₴").count == 7)   // ₴52,999 / ₴52 999
+    }
+
+    @Test func priceAlertIntentAndRollback() async throws {
+        let api = MockAPI.fixtures(latency: false)
+        let store = LibraryStore(api: api, snapshot: Fixtures.library)
+        store.setPriceAlert("iph", threshold: 45000)
+        #expect(store.link("iph")?.product?.alertThreshold == 45000)
+        await store.settle()
+        await api.failNext(.server(500))
+        store.setPriceAlert("iph", threshold: 1)
+        await store.settle()
+        #expect(store.link("iph")?.product?.alertThreshold == 45000)
+    }
+
+    @Test func alsoIn() {
+        let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+        let nasa = store.link("nasa")!
+        #expect(store.alsoIn(nasa).allSatisfy { $0.collectionId == "reading" && $0.id != "nasa" })
+    }
+}

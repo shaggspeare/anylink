@@ -201,3 +201,34 @@
 ### Check by hand
 - **Your `Config.xcconfig` has `ANYLINK_API_BASE = https://…` unescaped**, so it reaches the app as `https:` (xcconfig treats `//` as a comment). The app now ignores a base without a host and falls back to the Mock crawl. Write it as `https:/$()/your-host` to crawl live (`Config.example.xcconfig` documents this).
 - Paste a real link with a live base configured: the card should develop step by step.
+
+---
+
+## Phase 6 · Link detail
+
+**Status:** Done
+
+### Done
+- `LinkDetailView` picks `ProductView` (product with details) or `ReaderView`.
+- `ReaderView` (S15): stretchy 400-pt hero with the black reader scrim, eyebrow + white `readerTitle`; glass back, ★ and ⋯ (S7 items + "Add to collection"); chip row (collection → Move sheet, tags → `Route.filter(#tag)`, "Saved {date}", slate **Gone** chip for broken links); lime note card edited in place (saves on submit/blur, "Note saved"); article text in `HighlightableText` (UITextView, Instrument Sans 17, spacing per spec, highlights on lime .60, **Highlight** in the edit menu); excerpt + "summary only" notice under 40 words of prose; video variant (190-pt thumb, play disc, notice); "Also in {collection}" mini cards with See all; bottom glass toolbar Note · Highlight · Share · **Open ↗**.
+- `ProductView` (S16): white image card, retailer badge + stock chip, `productTitle`, `price` with "−{n}% since saved" (hidden ≤ 0), "Was … when you saved it on … · rating ★ (reviews)", Price card (1M/3M/All, Swift Charts line + points with emphasised last point, dashed alert rule with label, "Checked twice daily…" under 2 snapshots, "Tell me under" decimal field saved on submit/blur, push toggle behind `FeatureFlags.pricePush`, last-check line), specs card (3 rows + Show all), bottom ★ · Share · **Open on {Retailer}**.
+- `SafariView` + `OpenOriginalHost`: every "open original" goes through `Router.openOriginal` and honours `@AppStorage("openIn")` (in-app / Safari; Settings in phase 7).
+- Store (tested): `ArticleBody.hasEnoughProse` (< 40 words of 8+-word paragraphs) ✅, `PriceSummary` (% since saved hidden ≤ 0 ✅, chart hidden < 2 snapshots ✅, ranges, y-domain incl. threshold, grouped price format), `setPriceAlert` intent with rollback, `alsoIn`.
+- UI tests: `testHighlightFromEditMenu` ✅ (double-tap a word → Highlight → "Highlighted"), `testProductPageShowsPriceCard` ✅.
+
+### Decisions (logged D18–D20)
+- No `preferredControlTintColor` on `SFSafariViewController`: deprecated in iOS 26.
+
+### Not done
+- The Highlight toolbar button needs a selection first; with none it shows "Select some text, then tap Highlight." (S15 says "or shows a tip"; TipKit lands in phase 13.)
+- Highlights match the first occurrence of the quote (no stored offsets in the model).
+
+### Spec conflicts
+- None new.
+
+### `// BACKEND:` items
+- Price push notifications (`FeatureFlags.pricePush`, off).
+
+### Check by hand
+- Overscroll the reader hero: it should stretch, not gap.
+- Settings → Open in Safari (phase 7) switches Open ↗ to Safari.

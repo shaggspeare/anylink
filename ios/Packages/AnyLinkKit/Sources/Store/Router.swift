@@ -48,6 +48,8 @@ public final class Router {
     public var search: [Route] = []
     public var sheet: SheetRoute?
     public var confirm: Confirm?
+    /// Set to open a link's original; RootView presents it per the "Open links in" setting.
+    public var openOriginal: URL?
     public var isSelecting = false { didSet { if !isSelecting { selection = [] } } }
     public var selection: Set<LinkItem.ID> = []
     /// Bumped when the user taps the active tab while already at its root; roots scroll to top on change.
