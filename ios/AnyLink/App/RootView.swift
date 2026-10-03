@@ -15,6 +15,16 @@ struct RootView: View {
             if signedIn { main } else { WelcomeView { signIn() } }
         }
         .preferredColorScheme(appearance.scheme)
+        .onChange(of: signedIn, initial: true) { _, on in
+            UserDefaults(suiteName: "group.app.anylink.ios")?.set(on, forKey: "signedIn")
+        }
+    }
+
+    /// Saves what the share extension left behind and tells it which collections to offer.
+    private func syncWithExtension() async {
+        guard let shared = env.shared else { return }
+        await env.store.drainPendingSaves(from: shared)
+        shared.saveRecentCollections(env.store.recentCollections)
     }
 
     private func signIn() {
@@ -32,11 +42,15 @@ struct RootView: View {
             .toastOverlay(env.store.toasts, bottomOffset: env.router.showsAccessory ? 158 : 100)
             .task { await env.clipboard.observe() }
             .task { await env.reachability.start() }
-            .task { if env.isLive { await env.store.refresh() } }
+            .task {
+                if env.isLive { await env.store.refresh() }
+                await syncWithExtension()
+            }
             .onChange(of: scenePhase, initial: true) { _, phase in
                 if phase == .active {
                     Task { await env.clipboard.check() }
                     env.store.drainOutbox()
+                    Task { await syncWithExtension() }
                 }
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }

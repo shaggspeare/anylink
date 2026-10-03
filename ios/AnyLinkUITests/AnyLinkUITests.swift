@@ -238,4 +238,35 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 3))
         XCTAssertLessThan(Date().timeIntervalSince(start), 120)
     }
+
+    // MARK: - Share extension (S9)
+
+    @MainActor
+    func testShareFromSafariSavesToUnsorted() throws {
+        let app = launch()                                       // signs in, publishes the App Group flag
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
+
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        safari.launch()
+        safari.open(URL(string: "https://example.com/share-test")!)
+        // iOS 26 Safari keeps Share under the ⋯ menu.
+        let more = safari.buttons["MoreMenuButton"]
+        XCTAssertTrue(more.waitForExistence(timeout: 15))
+        sleep(2)
+        more.tap()
+        let share = safari.buttons["Share"].firstMatch
+        XCTAssertTrue(share.waitForExistence(timeout: 5))
+        share.tap()
+        let anylink = safari.descendants(matching: .any).matching(identifier: "AnyLink").firstMatch
+        XCTAssertTrue(anylink.waitForExistence(timeout: 5))
+        anylink.tap()
+        let saved = safari.staticTexts["Saved to Unsorted"]
+        let start = Date()
+        XCTAssertTrue(saved.waitForExistence(timeout: 5))
+        XCTAssertLessThan(Date().timeIntervalSince(start), 5)
+        safari.buttons["Done"].firstMatch.tap()
+
+        app.activate()
+        XCTAssertTrue(app.staticTexts["Example Domain"].waitForExistence(timeout: 5) || app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "example.com")).firstMatch.waitForExistence(timeout: 5))
+    }
 }

@@ -12,6 +12,8 @@ struct AppEnvironment {
     let clipboard: ClipboardWatcher
     let reachability: Reachability
     let isLive: Bool
+    /// App Group store shared with the share extension (pending saves, recent collections).
+    let shared: LocalCache?
 
     init(api: any AnyLinkAPI, snapshot: LibrarySnapshot? = nil, cache: LocalCache? = nil, isLive: Bool = false) {
         // /api/crawl already exists (and doesn't check the token yet), so crawl live whenever a base URL is set.
@@ -22,6 +24,7 @@ struct AppEnvironment {
         clipboard = ClipboardWatcher(store: store)
         reachability = Reachability(store: store)
         self.isLive = isLive
+        shared = cache ?? LocalCache.appGroup()
         // A 401 (after the token can't be refreshed) signs out to Welcome.
         store.onUnauthorized = { UserDefaults.standard.set(false, forKey: "signedIn") }
     }

@@ -12,8 +12,22 @@ import Models
 }
 
 /// The app's offline cache (App Group container in the app, in-memory in tests and previews).
+/// A link the share extension saved without reaching the API. The app drains these into the library.
+public struct PendingSave: Codable, Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public var url: String
+    public var title: String?
+    public var note: String?
+    public var collectionId: String?
+    public let createdAt: Date
+    public init(id: UUID = UUID(), url: String, title: String? = nil, note: String? = nil, collectionId: String? = nil, createdAt: Date = .now) {
+        self.id = id; self.url = url; self.title = title; self.note = note; self.collectionId = collectionId; self.createdAt = createdAt
+    }
+}
+
 @MainActor
 public final class LocalCache {
+    let container: ModelContainer
     let context: ModelContext
 
     public init(inMemory: Bool = false, url: URL? = nil) throws {
@@ -25,7 +39,8 @@ public final class LocalCache {
         } else {
             config = ModelConfiguration()
         }
-        context = ModelContext(try ModelContainer(for: CacheBlob.self, configurations: config))
+        container = try ModelContainer(for: CacheBlob.self, configurations: config)
+        context = ModelContext(container)
     }
 
     /// The App Group store shared with the share extension, falling back to the app's own container.
@@ -35,18 +50,21 @@ public final class LocalCache {
         return (try? LocalCache(url: url)) ?? (try? LocalCache())
     }
 
-    func read(_ key: String) -> Data? {
-        try? context.fetch(FetchDescriptor<CacheBlob>(predicate: #Predicate { $0.key == key })).first?.data
+    /// `fresh` reads through a new context: the app and the share extension write the same store from two processes.
+    func read(_ key: String, fresh: Bool = false) -> Data? {
+        let ctx = fresh ? ModelContext(container) : context
+        return try? ctx.fetch(FetchDescriptor<CacheBlob>(predicate: #Predicate { $0.key == key })).first?.data
     }
 
-    func write(_ key: String, _ data: Data) {
-        if let row = try? context.fetch(FetchDescriptor<CacheBlob>(predicate: #Predicate { $0.key == key })).first {
+    func write(_ key: String, _ data: Data, fresh: Bool = false) {
+        let ctx = fresh ? ModelContext(container) : context
+        if let row = try? ctx.fetch(FetchDescriptor<CacheBlob>(predicate: #Predicate { $0.key == key })).first {
             row.data = data
             row.savedAt = .now
         } else {
-            context.insert(CacheBlob(key: key, data: data))
+            ctx.insert(CacheBlob(key: key, data: data))
         }
-        try? context.save()
+        try? ctx.save()
     }
 
     public func loadSnapshot() -> LibrarySnapshot? {
@@ -60,4 +78,30 @@ public final class LocalCache {
     /// The outbox is opaque to Persistence: Store encodes its own pending operations.
     public func loadOutbox() -> Data? { read("outbox") }
     public func saveOutbox(_ data: Data) { write("outbox", data) }
+
+    // MARK: - Shared with the share extension
+
+    public func pendingSaves() -> [PendingSave] {
+        read("pendingSaves", fresh: true).flatMap { try? JSONDecoder().decode([PendingSave].self, from: $0) } ?? []
+    }
+
+    public func upsertPendingSave(_ save: PendingSave) {
+        var all = pendingSaves()
+        if let i = all.firstIndex(where: { $0.id == save.id }) { all[i] = save } else { all.append(save) }
+        if let data = try? JSONEncoder().encode(all) { write("pendingSaves", data, fresh: true) }
+    }
+
+    public func removePendingSaves(_ ids: Set<UUID>) {
+        let rest = pendingSaves().filter { !ids.contains($0.id) }
+        if let data = try? JSONEncoder().encode(rest) { write("pendingSaves", data, fresh: true) }
+    }
+
+    /// The four collections the extension offers under "Move to", written by the app.
+    public func recentCollections() -> [LinkCollection] {
+        read("recentCollections", fresh: true).flatMap { try? JSONDecoder().decode([LinkCollection].self, from: $0) } ?? []
+    }
+
+    public func saveRecentCollections(_ c: [LinkCollection]) {
+        if let data = try? JSONEncoder().encode(c) { write("recentCollections", data, fresh: true) }
+    }
 }

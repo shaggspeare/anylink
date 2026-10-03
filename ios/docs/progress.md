@@ -382,3 +382,31 @@
 ### Check by hand
 - Fix `ANYLINK_API_BASE` in `Config.xcconfig` (`https:/$()/host`), set `ANYLINK_API_TOKEN`, run against the dev server: library loads, edits stick after a refresh.
 - Airplane mode → favourite a link → toast says it'll sync → back online → it syncs.
+
+---
+
+## Phase 12 · Share Extension
+
+**Status:** Done
+
+### Done
+- `ShareViewController` hosts `ShareView` in a `UIHostingController`; gets the URL from a URL attachment or the first http(s) link in shared text (`NSItemProvider.loadItem`), title from `attributedContentText`.
+- `ShareSession` (Store, tested): saves at once — `createLink` via `LiveAPI` when a backend is configured, else (or offline) a `PendingSave` in the App Group store; status line (crawl drives "Summary and tags are on the way" → "Summary and tags added"; pending shows "Saved — it will sync when you're online."); Move-to chips (4 most recent collections) update the headline to "Saved to {name}"; note on Done; signed-out and no-link states. No `LibraryStore` in the extension; thumb is the identity fallback (no image decoding).
+- App side: drains `PendingSave`s into the library on launch and on becoming active, publishes `recentCollections`, mirrors `signedIn` into the App Group defaults.
+- `LocalCache`: `PendingSave` upsert/remove and recent collections, read through a fresh `ModelContext` (two processes share the store).
+- Tests: live save < 1 s, move + note reach the API, pending → app drain lands in the right collection with the note, offline falls back to pending, signed-out / no-link. UI test `testShareFromSafariSavesToUnsorted` ✅: Safari → ⋯ → Share → AnyLink shows "Saved to Unsorted", and the link appears in the app after it returns to the foreground. 144 package tests, 16 UI tests.
+
+### Not done
+- Memory under 40 MB: not measured in Instruments from here (no images are decoded; check by hand).
+- "Open AnyLink" button in the signed-out state: share extensions can't open the containing app, so it's text only.
+- Shared-keychain token: the extension reads the same build-time `ANYLINK_API_TOKEN` (D22); move to the keychain with per-user auth.
+
+### Spec conflicts
+- S9's signed-out state has a button that opens `anylink://`; extensions can't open URLs, so it's text only.
+
+### `// BACKEND:` items
+- Per-user token in the shared keychain (`ShareViewController`).
+- Server-side enrichment of a link saved before the crawl finished (existing gap).
+
+### Check by hand
+- Instruments → Allocations on the extension while sharing: stays under 40 MB.

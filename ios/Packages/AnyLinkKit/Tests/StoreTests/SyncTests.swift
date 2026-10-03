@@ -172,3 +172,67 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         }
     }
 }
+
+@MainActor
+@Suite struct ShareSessionTests {
+    let url = URL(string: "https://www.theverge.com/2026/10/story")!
+
+    @Test func savesImmediatelyWhenLive() async throws {
+        let api = MockAPI.fixtures(latency: false)
+        let cache = try LocalCache(inMemory: true)
+        cache.saveRecentCollections([LinkCollection(id: "reading", name: "Reading", color: "#7C8CFF")])
+        let s = ShareSession(api: api, cache: cache, signedIn: true)
+        let start = ContinuousClock.now
+        await s.start(url: url, title: "A story")
+        #expect(ContinuousClock.now - start < .seconds(1))
+        #expect(s.mode == .saved)
+        #expect(s.headline == "Saved to Unsorted")
+        await s.move(to: s.recent[0])
+        #expect(s.headline == "Saved to Reading")
+        await s.finish(note: "for later")
+        let server = try await api.library(since: nil).links.first { $0.id == s.saved?.id }
+        #expect(server?.collectionId == "reading")
+        #expect(server?.note == "for later")
+    }
+
+    @Test func pendingWithoutBackendThenAppDrains() async throws {
+        let cache = try LocalCache(inMemory: true)
+        let s = ShareSession(api: nil, cache: cache, signedIn: true)
+        await s.start(url: url, title: "A story")
+        #expect(s.mode == .pending)
+        await s.move(to: LinkCollection(id: "ios", name: "iOS design", color: "#7C8CFF"))
+        await s.finish(note: "tab bars")
+        #expect(cache.pendingSaves().count == 1)
+
+        let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+        await store.drainPendingSaves(from: cache)
+        #expect(cache.pendingSaves().isEmpty)
+        let added = store.live.first!
+        #expect(added.url == url.absoluteString && added.collectionId == "ios" && added.note == "tab bars")
+    }
+
+    @Test func offlineFallsBackToPending() async throws {
+        let api = MockAPI.fixtures(latency: false)
+        await api.failNext(.offline)
+        let cache = try LocalCache(inMemory: true)
+        let s = ShareSession(api: api, cache: cache, signedIn: true)
+        await s.start(url: url, title: nil)
+        #expect(s.mode == .pending)
+        #expect(cache.pendingSaves().map(\.url) == [url.absoluteString])
+    }
+
+    @Test func signedOutAndNoLink() async {
+        let a = ShareSession(api: nil, cache: nil, signedIn: false)
+        await a.start(url: url, title: nil)
+        #expect(a.mode == .signedOut)
+        let b = ShareSession(api: nil, cache: nil, signedIn: true)
+        await b.start(url: nil, title: nil)
+        #expect(b.mode == .noLink)
+    }
+
+    @Test func recentCollectionsOrder() {
+        let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+        #expect(store.recentCollections.count == 4)
+        #expect(!store.recentCollections.contains { $0.isInbox == true || $0.isSmart == true })
+    }
+}
