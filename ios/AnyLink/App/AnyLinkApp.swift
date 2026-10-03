@@ -9,7 +9,15 @@ struct AnyLinkApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-gallery") {
+                GalleryView()
+            } else {
+                RootView()
+            }
+            #else
             RootView()
+            #endif
         }
     }
 }

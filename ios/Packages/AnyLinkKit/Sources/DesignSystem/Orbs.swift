@@ -15,6 +15,7 @@ public struct Orbs: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.alForceSolid) private var forceSolid
 
     public init(_ variant: OrbVariant) {
         self.variant = variant
@@ -23,7 +24,7 @@ public struct Orbs: View {
     private var darkFactor: Double { colorScheme == .dark ? 0.45 : 1.0 }
 
     public var body: some View {
-        if reduceTransparency { return AnyView(Color.clear) }
+        if reduceTransparency || forceSolid { return AnyView(Color.clear) }
         return AnyView(
             GeometryReader { geo in
                 ZStack {

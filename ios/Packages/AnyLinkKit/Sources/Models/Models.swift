@@ -106,7 +106,7 @@ public extension LinkItem {
 
     var readingMeta: String? {
         switch contentType {
-        case .video: return "▶ Video"
+        case .video: return "\u{25B6}\u{FE0E} Video"
         case .product:
             guard let p = product, let price = p.price else { return nil }
             return "\(p.currency)\(Int(price))"

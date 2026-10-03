@@ -6,7 +6,16 @@ import CoreText
 extension AL {
     public enum Font {
         public static func brand(_ size: CGFloat, _ weight: SwiftUI.Font.Weight, relativeTo style: SwiftUI.Font.TextStyle) -> SwiftUI.Font {
-            .custom("InstrumentSans-Regular", size: size, relativeTo: style).weight(weight)
+            .custom(postScriptName(weight), size: size, relativeTo: style)
+        }
+
+        static func postScriptName(_ weight: SwiftUI.Font.Weight) -> String {
+            switch weight {
+            case .bold, .heavy, .black: "InstrumentSans-Regular_Bold"
+            case .semibold: "InstrumentSans-Regular_SemiBold"
+            case .medium: "InstrumentSans-Regular_Medium"
+            default: "InstrumentSans-Regular"
+            }
         }
 
         // Type scale from 03-design-system §2
@@ -30,7 +39,7 @@ extension AL {
 
     public static func registerFonts() {
         #if canImport(CoreText)
-        guard let url = Bundle.module.url(forResource: "InstrumentSans-Variable", withExtension: "ttf", subdirectory: "Fonts") else {
+        guard let url = Bundle.module.url(forResource: "InstrumentSans-Variable", withExtension: "ttf") else {
             #if DEBUG
             print("[AL] ⚠ InstrumentSans-Variable.ttf not found in bundle")
             #endif
