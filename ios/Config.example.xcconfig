@@ -1,0 +1,6 @@
+// Copy to Config.xcconfig (git-ignored) and fill in values for device/live builds.
+ANYLINK_API_BASE = https://anylink.app
+ANYLINK_API_TOKEN =
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
+DEVELOPMENT_TEAM =
