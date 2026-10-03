@@ -1,5 +1,6 @@
 import Foundation
 import Models
+import Networking
 
 public enum Fixtures {
     public static let library: LibrarySnapshot = {
@@ -21,4 +22,18 @@ public enum Fixtures {
     public static let crawlSuccessLines = crawlLines("crawl-success")
     public static let crawlExcerptOnlyLines = crawlLines("crawl-excerpt-only")
     public static let crawlFailedLines = crawlLines("crawl-failed")
+}
+
+extension MockAPI {
+    public static func fixtures(latency: Bool = true) -> MockAPI {
+        MockAPI(
+            links: Fixtures.links, trashed: Fixtures.trashed, collections: Fixtures.collections,
+            crawlLines: [
+                "success": Fixtures.crawlSuccessLines,
+                "excerpt-only": Fixtures.crawlExcerptOnlyLines,
+                "failed": Fixtures.crawlFailedLines,
+            ],
+            latency: latency
+        )
+    }
 }

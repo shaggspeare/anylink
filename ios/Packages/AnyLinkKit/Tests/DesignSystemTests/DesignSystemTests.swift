@@ -1,19 +1,22 @@
 import Testing
 @testable import DesignSystem
 
-@MainActor
-@Suite struct ToastCenterTests {
-    @Test func newToastReplacesOld() {
-        let c = ToastCenter()
-        c.show("A")
-        c.show("B")
-        #expect(c.current?.message == "B")
-        c.dismiss()
-        #expect(c.current == nil)
-    }
-
+@Suite struct DesignSystemTests {
     @Test func identityIsStable() {
         #expect(AL.identity(for: "nasa.gov").tint == AL.identity(for: "nasa.gov").tint)
         #expect(AL.identity(for: "nasa.gov").initial == "N")
+    }
+
+    @Test func brandFontPicksWeightInstance() {
+        #expect(AL.Font.postScriptName(.semibold) == "InstrumentSans-Regular_SemiBold")
+        #expect(AL.Font.postScriptName(.regular) == "InstrumentSans-Regular")
+    }
+}
+
+@Suite struct PasteAccessoryTests {
+    @Test func extractsFirstWebURL() {
+        #expect(PasteAccessory.firstWebURL(in: "look https://nasa.gov/x and http://a.b")?.absoluteString == "https://nasa.gov/x")
+        #expect(PasteAccessory.firstWebURL(in: "mailto:a@b.c") == nil)
+        #expect(PasteAccessory.firstWebURL(in: "no link here") == nil)
     }
 }

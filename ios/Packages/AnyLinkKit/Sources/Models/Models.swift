@@ -19,7 +19,7 @@ public struct PriceSnapshot: Codable, Hashable, Sendable {
     public let date: String
     public let price: Double
     public var day: Date? { Self.dayFormatter.date(from: date) }
-    private nonisolated(unsafe) static let dayFormatter: DateFormatter = {
+    private static let dayFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()
 }
@@ -285,6 +285,10 @@ public struct Signal: Codable, Sendable {
     public let linkIds: [String]?
     public let collectionId: String?
     public let payload: [String: String]?
+
+    public init(action: String, linkId: String? = nil, linkIds: [String]? = nil, collectionId: String? = nil, payload: [String: String]? = nil) {
+        self.action = action; self.linkId = linkId; self.linkIds = linkIds; self.collectionId = collectionId; self.payload = payload
+    }
 }
 
 // MARK: - Errors

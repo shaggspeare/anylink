@@ -103,59 +103,80 @@ public struct UnsortedBanner: View {
 
 // MARK: - PasteAccessory
 
+/// Content of `.tabViewBottomAccessory`. The clipboard is only read through `PasteButton`, so no paste alert.
+// Inside system glass, hierarchical styles (.primary/.secondary) stay legible as the glass adapts to what's
+// beneath it; AL.ink would follow the adapted scheme and wash out.
 public struct PasteAccessory: View {
-    public var detectedURL: URL?
+    public var hasURL: Bool
     public var collectionName: String?
-    public var onNew: () -> Void = {}
+    public var compact: Bool
+    public var onPaste: ([URL]) -> Void
+    public var onNew: () -> Void
 
-    public init(detectedURL: URL? = nil, collectionName: String? = nil, onNew: @escaping () -> Void = {}) {
-        self.detectedURL = detectedURL; self.collectionName = collectionName; self.onNew = onNew
+    public init(hasURL: Bool = false, collectionName: String? = nil, compact: Bool = false,
+                onPaste: @escaping ([URL]) -> Void = { _ in }, onNew: @escaping () -> Void = {}) {
+        self.hasURL = hasURL; self.collectionName = collectionName; self.compact = compact
+        self.onPaste = onPaste; self.onNew = onNew
     }
 
-    private var hasURL: Bool { detectedURL != nil }
+    private var title: String {
+        if let collectionName { return "Paste into \(collectionName)" }
+        return hasURL ? "Link on your clipboard" : "Paste a link"
+    }
+    private var subtitle: String? {
+        if collectionName != nil { return "Saves straight to this collection" }
+        return hasURL ? "Paste to save it" : nil
+    }
+
+    nonisolated static func firstWebURL(in text: String) -> URL? {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let range = NSRange(text.startIndex..., in: text)
+        return detector?.matches(in: text, range: range).lazy
+            .compactMap(\.url)
+            .first { $0.scheme == "http" || $0.scheme == "https" }
+    }
 
     public var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "link")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(hasURL ? AL.signal : AL.ink.opacity(AL.Ink.a45))
-            VStack(alignment: .leading, spacing: 1) {
-                if hasURL {
-                    Text(collectionName != nil ? "Paste into \(collectionName!)" : "Link on your clipboard")
+                .foregroundStyle(hasURL ? AnyShapeStyle(AL.signal) : AnyShapeStyle(.secondary))
+                .accessibilityHidden(true)
+            if !compact {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
                         .font(AL.Font.brand(14, .semibold, relativeTo: .subheadline))
-                        .foregroundStyle(AL.ink)
-                    Text(collectionName != nil ? "Saves straight to this collection" : "Paste to save it")
-                        .font(AL.Font.meta)
-                        .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
-                } else {
-                    Text("Paste a link")
-                        .font(AL.Font.brand(14, .semibold, relativeTo: .subheadline))
-                        .foregroundStyle(AL.ink)
+                        .foregroundStyle(.primary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(AL.Font.meta)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .lineLimit(1)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
             if hasURL {
-                // PasteButton placeholder — actual PasteButton wired in Phase 3
-                Text("Paste")
-                    .font(.system(size: 14, weight: .semibold))
+                // String covers both URL-typed items (Safari "Copy Link") and plain text holding a link.
+                PasteButton(payloadType: String.self) { strings in onPaste(strings.compactMap(Self.firstWebURL)) }
+                    .buttonBorderShape(.capsule)
+                    .tint(AL.lime)
+                    .labelStyle(.titleAndIcon)
                     .foregroundStyle(AL.onAccent)
-                    .padding(.horizontal, 16)
-                    .frame(height: 38)
-                    .background(AL.lime, in: Capsule())
             } else {
                 Button(action: onNew) {
                     Text("New")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AL.ink)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 16)
-                        .frame(height: 38)
+                        .frame(minHeight: 38)
                         .background(AL.ink.opacity(AL.Ink.a08), in: Capsule())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("New link")
             }
         }
         .padding(.horizontal, 16)
-        .frame(minHeight: 52)
     }
 }
 
@@ -295,9 +316,10 @@ extension ButtonStyle where Self == ALSignalButtonStyle {
 
 #Preview("PasteAccessory") {
     VStack(spacing: 20) {
-        PasteAccessory(detectedURL: URL(string: "https://example.com"))
+        PasteAccessory(hasURL: true)
         PasteAccessory()
-        PasteAccessory(detectedURL: URL(string: "https://x.com"), collectionName: "Reading")
+        PasteAccessory(hasURL: true, collectionName: "Reading")
+        PasteAccessory(hasURL: true, compact: true)
     }
     .padding()
 }
@@ -327,7 +349,7 @@ extension ButtonStyle where Self == ALSignalButtonStyle {
 #Preview("Controls — Dark, Large Type") {
     VStack(spacing: 12) {
         UnsortedBanner(count: 12) {}
-        PasteAccessory(detectedURL: URL(string: "https://example.com"))
+        PasteAccessory(hasURL: true)
         Notice("Excerpt only.")
         ScopeChip("All", count: 18, isSelected: true)
     }

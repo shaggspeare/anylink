@@ -196,12 +196,3 @@ public actor MockAPI: @preconcurrency AnyLinkAPI {
         links = []; trashed = []; collections = []
     }
 }
-
-// MARK: - Convenience initializer with Fixtures
-
-extension MockAPI {
-    public static func withFixtures(latency: Bool = true) -> MockAPI {
-        // Caller must pass fixture data — this avoids a circular dependency on Fixtures
-        MockAPI(links: [], trashed: [], collections: [], latency: latency)
-    }
-}

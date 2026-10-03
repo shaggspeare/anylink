@@ -113,7 +113,7 @@ public struct InitialBadge: View {
 // MARK: - Hex parsing helper
 
 extension Color {
-    static func fromHex(_ hex: String) -> Color {
+    public static func fromHex(_ hex: String) -> Color {
         let clean = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
         return Color(hex: UInt32(clean, radix: 16) ?? 0x9AA3AD)
     }
