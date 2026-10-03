@@ -38,7 +38,7 @@ struct MainTabs: View {
                 NavigationStack(path: $router.collections) { CollectionsView().routes(.collections) }
             }
             Tab(value: AppTab.search, role: .search) {
-                NavigationStack(path: $router.search) { SearchView().routes(.search) }
+                NavigationStack(path: $router.search) { SearchView(store: store).routes(.search) }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)

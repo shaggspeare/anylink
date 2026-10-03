@@ -154,4 +154,32 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Dark"].isSelected)
         app.buttons["System"].tap()
     }
+
+    // MARK: - Search (S13)
+
+    @MainActor
+    func testSearchTokensSnippetsAndSaveAsFilter() throws {
+        let app = launch()
+        app.tabBars.buttons["Search"].tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.tap()
+        field.typeText("type:video ")
+        XCTAssertTrue(app.staticTexts["Links · 2"].waitForExistence(timeout: 3))
+        XCTAssertEqual((field.value as? String)?.contains("type:video"), false)
+
+        field.buttons["Clear text"].firstMatch.tap()
+        field.typeText("artemis")
+        let snippet = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "In the")).firstMatch
+        XCTAssertTrue(snippet.waitForExistence(timeout: 3))
+
+        app.buttons["Save as filter"].tap()
+        app.alerts.buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Saved as a filter in Collections"].waitForExistence(timeout: 3))
+        app.buttons["Close"].firstMatch.tap()
+        app.swipeUp()
+        // The search tab keeps the tab bar collapsed; the empty state lists the same store.customFilters as Collections.
+        XCTAssertTrue(app.staticTexts["Saved filters"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["artemis"].exists)
+    }
 }

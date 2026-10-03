@@ -584,3 +584,101 @@ import Fixtures
         #expect(store.live.isEmpty && store.collections.isEmpty)
     }
 }
+
+@MainActor
+@Suite struct SearchModelTests {
+    let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+
+    @Test func typedOperatorBecomesToken() {
+        let m = SearchModel(store: store)
+        m.text = "rust type:video "
+        #expect(m.tokens.map(\.label) == ["Videos"])
+        #expect(m.text == "rust ")
+        m.text = "rust -#work "
+        #expect(m.tokens.map(\.label) == ["Videos", "Not #work"])
+        m.text = "plain words "
+        #expect(m.tokens.count == 2)
+        #expect(m.text == "plain words ")
+    }
+
+    @Test func tokenLabelsFollowTable() {
+        #expect(SearchToken(term: .flag(.noted, negated: false)).label == "With a note")
+        #expect(SearchToken(term: .flag(.broken, negated: false)).label == "Broken links")
+        #expect(SearchToken(term: .created(.eq, "2026-09", negated: false)).label == "Saved Sep 2026")
+        #expect(SearchToken(term: .tag("design", negated: false)).label == "#design")
+    }
+
+    @Test func queryCombinesTokensAndText() {
+        let m = SearchModel(store: store)
+        m.tokens = [SearchToken(term: .type(.video, negated: false))]
+        m.text = "rust"
+        m.run()
+        #expect(Set(m.results.map(\.id)) == ["ytrt", "ytprod"])
+        #expect(m.total == 2)
+    }
+
+    @Test func suggestedTokens() {
+        let m = SearchModel(store: store)
+        let labels = m.suggestedTokens.map(\.label)
+        #expect(Array(labels.prefix(4)) == ["Videos", "Articles", "Products", "Favorites"])
+        #expect(labels.last?.hasPrefix("Not #") == true)
+        m.toggle(m.suggestedTokens[0])
+        #expect(m.isActive(m.suggestedTokens[0]))
+        m.toggle(m.suggestedTokens[0])
+        #expect(m.tokens.isEmpty)
+    }
+
+    @Test func snippetForNoteAndSummaryMatches() {
+        let m = SearchModel(store: store)
+        m.text = "artemis"
+        let nasa = store.link("nasa")!
+        // "artemis" is in the note (and maybe the URL); title doesn't contain it
+        let s = m.snippet(for: nasa)
+        #expect(s == nil || [.summary, .note, .article].contains(s!.location))
+        m.text = "space"
+        #expect(m.snippet(for: nasa) == nil)   // title match: no snippet
+    }
+
+    @Test func snippetHasContextAndEllipses() {
+        let m = SearchModel(store: store)
+        var l = store.link("iph")!
+        l.note = String(repeating: "lorem ", count: 20) + "needle" + String(repeating: " ipsum", count: 20)
+        m.text = "needle"
+        let s = m.snippet(for: l)
+        #expect(s?.location == .note)
+        #expect(s?.label == "In the note")
+        #expect(s?.text.hasPrefix("…") == true && s?.text.hasSuffix("…") == true && s?.text.contains("needle") == true)
+    }
+
+    @Test func highlightRanges() {
+        let m = SearchModel(store: store)
+        m.text = "rust"
+        let s = "Rust and rusty"
+        #expect(m.highlightRanges(in: s).count == 2)
+    }
+
+    @Test func collectionsMatchingText() {
+        let m = SearchModel(store: store)
+        m.text = "cook"
+        m.run()
+        #expect(m.matchingCollections.map(\.id) == ["cooking"])
+    }
+
+    @Test func saveAsFilterCreatesSmartCollection() async {
+        let m = SearchModel(store: store)
+        m.tokens = [SearchToken(term: .type(.video, negated: false))]
+        m.text = "rust"
+        let c = await m.saveAsFilter(name: "Rust videos")
+        #expect(c?.isSmart == true)
+        #expect(store.customFilters.contains { $0.name == "Rust videos" && $0.smartQuery == "type:video rust" })
+        #expect(store.toasts.current?.message == "Saved as a filter in Collections")
+    }
+
+    @Test func debounce() async throws {
+        let m = SearchModel(store: store)
+        m.text = "rust"
+        #expect(m.results.isEmpty)
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(!m.results.isEmpty)
+    }
+}

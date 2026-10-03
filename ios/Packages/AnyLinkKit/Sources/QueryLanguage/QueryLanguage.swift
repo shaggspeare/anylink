@@ -225,7 +225,7 @@ extension Term {
         }
     }
 
-    var serialized: String {
+    public var serialized: String {
         let prefix = isNegated ? "-" : ""
         switch self {
         case .text(let s, _):
@@ -304,6 +304,34 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
 }
 
 extension SearchToken {
+    /// Labels per the `06` token table.
+    public init(term: Term) {
+        let label: String
+        switch term {
+        case .type(let t, let neg):
+            let base = switch t { case .video: "Videos"; case .article: "Articles"; case .product: "Products" }
+            label = neg ? "Not \(base)" : base
+        case .flag(let f, let neg):
+            let base = switch f {
+            case .favorite: "Favorites"; case .noted: "With a note"; case .untagged: "Untagged"
+            case .broken: "Broken links"; case .duplicate: "Duplicates"; case .archived: "Archived"
+            }
+            label = neg ? "Not \(base)" : base
+        case .tag(let t, let neg):
+            label = neg ? "Not #\(t)" : "#\(t)"
+        case .created(let cmp, let v, let neg):
+            var text = v
+            if cmp == .eq, let d = try? Date("\(v)-01T00:00:00Z", strategy: .iso8601), v.count == 7 {
+                text = d.formatted(.dateTime.month(.abbreviated).year().locale(Locale(identifier: "en_US")))
+            }
+            let prefix = cmp == .gt ? "after " : cmp == .lt ? "before " : ""
+            label = (neg ? "Not saved " : "Saved ") + prefix + text
+        case .field, .text:
+            label = term.serialized
+        }
+        self.init(id: term.serialized, label: label, term: term)
+    }
+
     public static let suggestions: [SearchToken] = [
         SearchToken(id: "type:video", label: "Videos", term: .type(.video, negated: false)),
         SearchToken(id: "type:article", label: "Articles", term: .type(.article, negated: false)),

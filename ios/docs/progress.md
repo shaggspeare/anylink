@@ -269,3 +269,27 @@
 ### Check by hand
 - Settings → New links go to → Reading, then Paste: the Add sheet preselects Reading.
 - Turn off Clipboard suggestions: the accessory stops saying "Link on your clipboard".
+
+---
+
+## Phase 8 · Search
+
+**Status:** Done
+
+### Done
+- `SearchModel` (Store): 120 ms debounce, typed operators become tokens when followed by a space (`type:video ` → **Videos**), query = tokens + typed terms, suggested tokens (types, Favorites, top 3 tags, "Not #{top tag}") with toggle, first 50 results + total, collections whose names match, highlight ranges, snippets ("In the summary/note/article" + "…context…"), Save as filter.
+- `SearchToken(term:)` labels per the `06` table (incl. "Saved Sep 2026"); `Term.serialized` is public.
+- `SearchView` (S13): large title, "Narrow it down" chips (✓ when active), `.searchable(text:tokens:)` with prompt "Search links, #tags…", keyboard submit runs at once; empty state (Recently saved · Saved filters · hint); results ("Links · {n}" + Save as filter alert prefilled from the query → toast), rows with lime/onAccent match highlighting, snippet box for non-title matches, "Show all {n} matches" → `Route.filter`, Collections chips, "No matches."
+- Tests: 10 `SearchModelTests`; UI test `testSearchTokensSnippetsAndSaveAsFilter` ✅ (token, snippet, save as filter). 109 package tests, 12 UI tests.
+
+### Not done
+- `.searchSuggestions` completions in the field (the chips row covers suggestions).
+
+### Spec conflicts
+- S13 shows two tag tokens (#{top}, #{second}); `06` says top 3. Followed `06`.
+
+### `// BACKEND:` items
+- None.
+
+### Check by hand
+- On iOS 26 the search tab collapses the tab bar to a circle while searching; after Close it stays collapsed until another tab is picked from the circle. That's system behaviour.
