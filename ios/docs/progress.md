@@ -168,3 +168,36 @@
 ### Check by hand
 - VoiceOver on a tile: one element "Title, domain[, favourite]"; rotor shows Open original, Favorite, Move, Move to Trash.
 - Shake after a trash → Undo.
+
+---
+
+## Phase 5 · Capture (Add sheet)
+
+**Status:** Done
+
+### Done
+- `AddLinkModel` (Store): phases idle/crawling/ready/failed, step 0–3, per-field `edited` flags (title, excerpt, tags) so `done` never overwrites user edits, URL normalisation (adds `https://`), slug title guess for failures, tag add/remove, suggested tags (crawler + library tags mentioned, max 8), suggested collection (✦, never auto-selected), cancel, save / save-now.
+- `LibraryStore.suggestedCollection(tags:domain:)` / `(for:)` (most shared tags, ties by domain) and `tagsByUse`. Triage (phase 9) reuses them.
+- `AddLinkSheet`: idle (medium, eyebrow, hero, clipboard line, `PasteButton`, typed URL + ink → button, invalid-URL copy, "Faster from Safari" card) → large session: Cancel · New link · Save now/Save; developing card (shimmer → identity fallback → preview → done; hero 170 → 150), status line with pulsing dot, collection chips, tag skeletons → lime pills + "+ suggestion" chips + free entry, note field, pinned "Save to {collection}". Excerpt-only and failed notices with spec copy. Success haptics on ready and on save. Previews for each state.
+- `LiveCrawler` (Networking): `POST /api/crawl` NDJSON, 70 s timeout, bearer token, 400 → `invalid-url`, missing terminal → `network`. Tested with a `URLProtocol` stub. Used automatically when `ANYLINK_API_BASE` has a host.
+- `MockAPI.crawl`: cancellable (`onTermination` cancels the replay; counts `crawlsStarted`/`crawlsCancelled`), rewrites the success stream's domain/canonical URL to the pasted URL (`05` §5).
+- Tests: title edited while refining survives `done` ✅, edited tags survive, all three Mock streams, cancel stops the network task (asserted on MockAPI) ✅, save after done / mid-crawl copy, normalisation. UI tests run success, excerpt-only, failed and invalid-URL flows ✅. 87 package tests, 6 UI tests.
+
+### Fixes
+- `AnyLinkAPI.crawl` / `checkImportedLinks` are now `async`. They were sync requirements implemented by the `MockAPI` actor through `@preconcurrency`, which **traps at runtime** when called through `any AnyLinkAPI`. `MockAPI` now conforms without `@preconcurrency`.
+- Clipboard detection is off under `-ui-testing` so the accessory is deterministic.
+
+### Not done
+- Mid-crawl save stops the stream: there's no endpoint to PATCH title/excerpt afterwards, so the link keeps what was known (see BACKEND).
+- ⌘N shortcut (iPad, phase 14). The "Faster from Safari" card's tip (TipKit, phase 13).
+- A failed crawl's `domain/tint/stripe/initial` aren't sent with the draft (`LinkDraft` has no slot); MockAPI derives them. Revisit with `LiveAPI.createLink` in phase 11.
+
+### Spec conflicts
+- S8 says `PasteButton(payloadType: URL.self)`; it uses `String` + URL extraction, as in phase 3 (a `URL` payload stays disabled for plain-text links). The system button's label is "Paste", not "Paste & read" (`PasteButton` labels can't be changed).
+
+### `// BACKEND:` items
+- `AddLinkModel.save`: mid-crawl enrichment for a saved link (`05` § Gaps) — the server should finish it, or expose title/excerpt PATCH.
+
+### Check by hand
+- **Your `Config.xcconfig` has `ANYLINK_API_BASE = https://…` unescaped**, so it reaches the app as `https:` (xcconfig treats `//` as a comment). The app now ignores a base without a host and falls back to the Mock crawl. Write it as `https:/$()/your-host` to crawl live (`Config.example.xcconfig` documents this).
+- Paste a real link with a live base configured: the card should develop step by step.
