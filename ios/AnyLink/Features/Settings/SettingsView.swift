@@ -28,6 +28,7 @@ struct SettingsView: View {
     @AppStorage(ClipboardWatcher.settingKey) private var clipboardSuggestions = true
     @AppStorage("defaultCollection") private var defaultCollection = "unsorted"
     @AppStorage("resetTipsOnLaunch") private var resetTips = false
+    @AppStorage("signedIn") private var signedIn = true
 
     var body: some View {
         List {
@@ -81,7 +82,7 @@ struct SettingsView: View {
                 }
             }
             Section {
-                Button("Sign out") { store.toasts.show("Sign-in arrives with onboarding.") }
+                Button("Sign out") { signedIn = false }
                 Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
             }
             Section {

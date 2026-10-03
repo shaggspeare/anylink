@@ -229,7 +229,9 @@ struct LibraryEmptyState: View {
                     router.sheet = .addLink(prefill: nil)
                 }
                 Divider().padding(.leading, 60)
-                way(3, "Import what you have", "Browser bookmarks or Telegram Saved Messages.") {}
+                way(3, "Import what you have", "Browser bookmarks or Telegram Saved Messages.") {
+                    router.showsOnboarding = true
+                }
             }
             .frosted(0.62, radius: 18)
         }

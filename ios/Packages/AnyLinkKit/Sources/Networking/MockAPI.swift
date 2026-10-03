@@ -78,8 +78,51 @@ public actor MockAPI: AnyLinkAPI {
         return String(decoding: data, as: UTF8.self)
     }
 
+    /// Mirrors `/api/import/check`: up to 600 unchecked imported links per call, a line per link, `remaining` at the end.
+    /// With latency on, 1,284 links take about 3 s in total.
     public func checkImportedLinks() -> AsyncThrowingStream<LinkCheckEvent, Error> {
-        AsyncThrowingStream { $0.finish() }
+        let batch = Array(links.indices.filter { links[$0].httpStatus == nil && links[$0].importMeta != nil }.prefix(600))
+        var dead: [LinkCheckEvent.DeadLink] = []
+        var events: [LinkCheckEvent] = [LinkCheckEvent(type: "start", total: batch.count)]
+        for (n, i) in batch.enumerated() {
+            let status = Self.mockStatus(for: links[i].url)
+            links[i].httpStatus = status
+            if [0, 1, 404, 410].contains(status) {
+                dead.append(.init(id: links[i].id, url: links[i].url, title: links[i].title, status: status))
+            }
+            events.append(LinkCheckEvent(type: "progress", checked: n + 1, deadCount: dead.count))
+        }
+        let remaining = links.filter { $0.httpStatus == nil && $0.importMeta != nil }.count
+        events.append(LinkCheckEvent(type: "done", checked: batch.count, dead: dead, deadCount: dead.count, remaining: remaining))
+
+        let latency = latency
+        let step = 21   // 50 ms per 21 links ≈ 3 s for a 1,284-link run, across however many requests it takes
+        let (stream, cont) = AsyncThrowingStream.makeStream(of: LinkCheckEvent.self)
+        let task = Task {
+            for (i, e) in events.enumerated() {
+                if latency, i % step == 0 { try? await Task.sleep(for: .milliseconds(50)) }
+                if Task.isCancelled { break }
+                cont.yield(e)
+            }
+            cont.finish()
+        }
+        cont.onTermination = { _ in task.cancel() }
+        return stream
+    }
+
+    /// Deterministic: hosts saying dead/gone → 404, parked → 1, otherwise ~9 % fail by URL hash.
+    static func mockStatus(for url: String) -> Int {
+        let host = URL(string: url)?.host() ?? ""
+        if host.contains("dead") || host.contains("gone") { return 404 }
+        if host.contains("parked") { return 1 }
+        let h = url.unicodeScalars.reduce(UInt32(7)) { ($0 &* 31) &+ $1.value } % 100
+        switch h {
+        case ..<4: return 404
+        case ..<5: return 410
+        case ..<7: return 1
+        case ..<9: return 0
+        default: return 200
+        }
     }
 
     public func library(since: Date?) async throws -> LibrarySnapshot {
@@ -204,14 +247,58 @@ public actor MockAPI: AnyLinkAPI {
         links[i].product?.alertThreshold = threshold
     }
 
+    private var inboxID: String { collections.first { $0.isInbox == true }?.id ?? "unsorted" }
+
     public func importLinks(_ items: [ImportItem]) async throws -> ImportResult {
         try maybeThrow(); await delay()
-        return ImportResult(links: [], skipped: 0)
+        func key(_ u: String) -> String { var k = u.lowercased(); while k.hasSuffix("/") { k.removeLast() }; return k }
+        var existing = Set((links + trashed).map { key($0.url) })
+        let tints = ["#FF5A1F", "#7C8CFF", "#D6F24B", "#9AA3AD", "#17181B", "#E0855A"]
+        var added: [LinkItem] = []
+        for item in items where existing.insert(key(item.url)).inserted {
+            let host = URL(string: item.url)?.host() ?? item.url
+            let domain = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+            let h = Int(domain.unicodeScalars.reduce(UInt32(5)) { ($0 &* 33) &+ $1.value } % UInt32(tints.count))
+            let tint = tints[h]
+            added.append(LinkItem(
+                id: UUID().uuidString, url: item.url, domain: domain, title: item.title, excerpt: "",
+                tint: tint, stripe: tint == "#17181B" || tint == "#7C8CFF" ? "#FFFFFF" : "#17181B",
+                initial: String(domain.prefix(1)).uppercased(),
+                contentType: domain.contains("youtube") ? .video : .article,
+                collectionId: inboxID, tags: [], size: .M, status: .ready,
+                createdAt: item.meta.savedAt ?? Date().formatted(.iso8601),
+                source: item.source, importMeta: item.meta
+            ))
+        }
+        links.append(contentsOf: added)
+        return ImportResult(links: added, skipped: items.count - added.count)
     }
 
+    /// Port of the web `groupByMetadata` fallback: deepest folder (or Telegram context), else domain; groups of 3+.
     public func groupInbox(_ priorities: GroupingPriorities) async throws -> [GroupedResult] {
         try maybeThrow(); await delay()
-        return []
+        let inbox = inboxID
+        let alive = links.filter { $0.collectionId == inbox && ![0, 1, 404, 410].contains($0.httpStatus ?? 200) }
+        var buckets: [(String, [String])] = []
+        for l in alive {
+            let note = l.importMeta?.folder ?? l.importMeta?.context
+            let k = note?.split(separator: "/").last.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 } ?? l.domain
+            if let i = buckets.firstIndex(where: { $0.0 == k }) { buckets[i].1.append(l.id) } else { buckets.append((k, [l.id])) }
+        }
+        let avoid = priorities.avoid.lowercased()
+        let groups = buckets.filter { $0.1.count >= 3 && (avoid.isEmpty || !$0.0.lowercased().contains(avoid)) }
+            .sorted { $0.1.count > $1.1.count }
+        let colors = ["#FF5A1F", "#D6F24B", "#7C8CFF", "#9AA3AD", "#E0855A"]
+        var results: [GroupedResult] = []
+        for (n, g) in groups.enumerated() {
+            let reasoning = "Grouped because \(g.1.count) links came from the same place."
+            let name = g.0.prefix(1).uppercased() + g.0.dropFirst()
+            let c = LinkCollection(id: UUID().uuidString, name: name, color: colors[n % colors.count], reasoning: reasoning, createdBy: "system")
+            collections.append(c)
+            for i in links.indices where g.1.contains(links[i].id) { links[i].collectionId = c.id }
+            results.append(GroupedResult(collection: c, linkIds: g.1, reasoning: reasoning))
+        }
+        return results
     }
 
     public nonisolated func logSignal(_ signal: Signal) async {}

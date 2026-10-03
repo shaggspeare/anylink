@@ -1,0 +1,186 @@
+{
+ "name": "Saved Messages",
+ "type": "saved_messages",
+ "id": 1,
+ "messages": [
+  {
+   "id": 1,
+   "type": "message",
+   "date": "2026-01-10T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "for the redesign "
+    },
+    {
+     "type": "link",
+     "text": "https://www.smashingmagazine.com/2026/08/liquid-glass-legibility/"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "type": "message",
+   "date": "2026-02-11T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "watch later "
+    },
+    {
+     "type": "link",
+     "text": "https://www.youtube.com/watch?v=rust-async-talk"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "message",
+   "date": "2026-03-12T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "apartment ideas "
+    },
+    {
+     "type": "link",
+     "text": "https://www.dezeen.com/2026/06/small-apartment-storage/"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "message",
+   "date": "2026-04-13T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "apartment ideas "
+    },
+    {
+     "type": "link",
+     "text": "https://www.ikea.com/us/en/p/kallax-shelf-unit/"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "message",
+   "date": "2026-05-14T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "good read on attention "
+    },
+    {
+     "type": "link",
+     "text": "https://aeon.co/essays/attention-is-a-muscle"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "type": "message",
+   "date": "2026-06-15T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "plants for the north window "
+    },
+    {
+     "type": "link",
+     "text": "https://www.thesill.com/blog/low-light-plants"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "type": "message",
+   "date": "2026-07-16T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "try this "
+    },
+    {
+     "type": "link",
+     "text": "https://cooking.nytimes.com/recipes/miso-salmon"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "type": "message",
+   "date": "2026-08-17T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "link",
+     "text": "https://dead-shop.example/apple-macbook-air-m4"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "type": "message",
+   "date": "2026-01-18T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "conference talk "
+    },
+    {
+     "type": "link",
+     "text": "https://www.youtube.com/watch?v=swiftui-performance"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "type": "message",
+   "date": "2026-02-10T09:30:00",
+   "from": "Me",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "mortgage calculator "
+    },
+    {
+     "type": "link",
+     "text": "https://www.nerdwallet.com/mortgages/calculator"
+    }
+   ]
+  },
+  {
+   "id": 99,
+   "type": "message",
+   "date": "2026-08-01T09:00:00",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "call mum"
+    }
+   ]
+  },
+  {
+   "id": 100,
+   "type": "message",
+   "date": "2026-08-02T09:00:00",
+   "text_entities": [
+    {
+     "type": "text_link",
+     "text": "the essay on craft",
+     "href": "https://www.paulgraham.com/taste.html"
+    }
+   ]
+  }
+ ]
+}

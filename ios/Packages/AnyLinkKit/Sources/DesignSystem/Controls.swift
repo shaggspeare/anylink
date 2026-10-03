@@ -222,7 +222,13 @@ public struct Notice: View {
 
 public struct ALPrimaryButtonStyle: ButtonStyle {
     public init() {}
-    public func makeBody(configuration: Configuration) -> some View {
+    public func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+
+    private struct Styled: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        var body: some View { styled.opacity(isEnabled ? 1 : 0.35) }
+        @ViewBuilder private var styled: some View {
         configuration.label
             .font(AL.Font.brand(15, .semibold, relativeTo: .body))
             .foregroundStyle(AL.onInk)
@@ -230,20 +236,28 @@ public struct ALPrimaryButtonStyle: ButtonStyle {
             .frame(height: AL.Control.lg)
             .background(AL.ink, in: Capsule())
             .opacity(configuration.isPressed ? 0.8 : 1)
+        }
     }
 }
 
 public struct ALSignalButtonStyle: ButtonStyle {
     public init() {}
-    public func makeBody(configuration: Configuration) -> some View {
+    public func makeBody(configuration: Configuration) -> some View { Styled(configuration: configuration) }
+
+    private struct Styled: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        var body: some View { styled.opacity(isEnabled ? 1 : 0.35) }
+        @ViewBuilder private var styled: some View {
         configuration.label
             .font(AL.Font.brand(15, .semibold, relativeTo: .body))
             .foregroundStyle(AL.onAccent)
             .frame(maxWidth: .infinity)
             .frame(height: AL.Control.lg)
             .background(AL.signal, in: Capsule())
-            .shadow(color: AL.signal.opacity(0.7), radius: 15, y: 10)
+            .shadow(color: AL.signal.opacity(isEnabled ? 0.7 : 0), radius: 15, y: 10)
             .opacity(configuration.isPressed ? 0.8 : 1)
+        }
     }
 }
 

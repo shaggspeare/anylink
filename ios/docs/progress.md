@@ -318,3 +318,34 @@
 
 ### Check by hand
 - Swipe the card right/left with VoiceOver on: the named actions are the collection name and "Trash".
+
+---
+
+## Phase 10 · Onboarding & import
+
+**Status:** Done
+
+### Done
+- **Parsers** (`ImportParsers`, Store): a straight port of the web app's `src/lib/import/parse.ts` — Netscape bookmark HTML (folder trail via `<H3>`/`</DL>` stack, entities, `ADD_DATE` → ISO, non-web hrefs dropped, title fallback `titleFromURL`), Telegram `result.json` (Saved Messages or full export, `link`/`url`/`text_link` entities, message text as context ≤ 500, first sentence as title), dispatch by extension, merge (first URL wins, max 5,000), error cases. All web `parse.test.ts` cases ported ✅, plus synthetic samples in `Fixtures` (`sample-bookmarks.html`: 25 links / 4 folders; `sample-telegram.json`: 11 links) with count tests ✅.
+- **Models aligned with the backend**: `ImportItem` = `{url, title, source, meta}`; `GroupingPriorities` = `{focus, topics, kept, killed, avoid}`; `LinkCheckEvent` decodes `dead` as a count (`progress`) or a list (`done`).
+- **MockAPI**: `importLinks` (dedupes against the library, skipped count), `checkImportedLinks` (600 per request + `remaining`, deterministic statuses, ~3 s for a 1,284-link run ✅), `groupInbox` (port of the web `groupByMetadata` fallback: deepest folder / Telegram context, else domain; groups of 3+; respects "avoid").
+- **`OnboardingModel`**: files per source with spec error copy, merged count, import (+ failure copy), resumable check loop, Gone/Parked/No answer groups (status 404·410 / 1 / 0) with default selection, trash selected, 8-card sample round-robin across domains, keep/bin with `keep`/`kill` signals (bin → Trash), suggestion chips from folders + domains, grouping, result binning → `dissolve` (links back to Unsorted, Undo) with signals.
+- **UI**: `WelcomeView` (S1; demo card floats unless Reduce Motion; Mock Apple sign-in; email sheet → "Check your inbox…"), `OnboardingFlow` (S2–S5: header indicator + Skip, source cards with steps / chosen strip / errors, `fileImporter` with security-scoped reads, Clean ring + glass pill + selectable groups, Keep or bin stack + 64-pt buttons, the two questions with chips, grouping wait, result cards with `KeepBinSegment` and the glass footer).
+- **Gating**: signed out → Welcome; first sign-in with an empty library → onboarding; "Import links" (Collections) and the empty-state row re-enter it. Settings Sign out → Welcome; Delete account → clears and signs out. UI tests run signed in; `-welcome` / `-onboarding` open those screens. A DEBUG "Load sample exports" button feeds the fixtures.
+- `.alPrimary` / `.alSignal` dim when disabled.
+- Tests: 128 package tests; UI tests `testWelcomeSignsInWithMockAuth` ✅ and `testOnboardingEndToEndOnMock` ✅ (~27 s, gate < 2 min). 15 UI tests total.
+
+### Not done
+- Clean step resume banner on next launch (the check itself is resumable; the banner isn't built).
+- "Review all" dead-link list (optional in S3).
+- Real Sign in with Apple / magic link: phase 11.
+
+### Spec conflicts
+- `05` §2 models `LinkCheckEvent.dead` as `[DeadLink]`; the backend sends a count on `progress` and the list on `done`. Decoding handles both.
+- `ImportItem` / `GroupingPriorities` shapes in `05` didn't match the backend (`ImportedLink`, `Priorities`); the models now follow the backend.
+
+### `// BACKEND:` items
+- Supabase Apple sign-in and magic link (`WelcomeView`).
+
+### Check by hand
+- AirDrop a real Chrome export and a Telegram `result.json` to the simulator / device and import both.

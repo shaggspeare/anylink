@@ -7,9 +7,25 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.undoManager) private var undoManager
     @AppStorage("appearance") private var appearance: Appearance = .system
+    @AppStorage("signedIn") private var signedIn = false
+    @AppStorage("onboarded") private var onboarded = false
 
     var body: some View {
-        MainTabs()
+        Group {
+            if signedIn { main } else { WelcomeView { signIn() } }
+        }
+        .preferredColorScheme(appearance.scheme)
+    }
+
+    private func signIn() {
+        signedIn = true
+        // First launch with an empty library goes through onboarding.
+        if !onboarded && env.store.live.isEmpty { env.router.showsOnboarding = true }
+    }
+
+    private var main: some View {
+        @Bindable var router = env.router
+        return MainTabs()
             .modifier(OpenOriginalHost())
             .environment(env.store)
             .environment(env.router)
@@ -20,7 +36,15 @@ struct RootView: View {
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }
             .onOpenURL { env.router.handle($0) }
-            .preferredColorScheme(appearance.scheme)
+            .fullScreenCover(isPresented: $router.showsOnboarding) {
+                OnboardingFlow(store: env.store) {
+                    onboarded = true
+                    env.router.showsOnboarding = false
+                }
+                .environment(env.store)
+                .environment(env.router)
+                .preferredColorScheme(appearance.scheme)
+            }
     }
 }
 

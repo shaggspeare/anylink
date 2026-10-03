@@ -59,6 +59,9 @@ public struct ImportMeta: Codable, Hashable, Sendable {
     public var folder: String?
     public var savedAt: String?
     public var context: String?
+    public init(folder: String? = nil, savedAt: String? = nil, context: String? = nil) {
+        self.folder = folder; self.savedAt = savedAt; self.context = context
+    }
 }
 
 // MARK: - LinkItem
@@ -238,32 +241,55 @@ public enum BulkAction: Sendable {
     case archive, trash, restore, purge
 }
 
-public struct LinkCheckEvent: Sendable {
+/// `/api/import/check` NDJSON line. `progress` carries `dead` as a count; `done` carries the dead links.
+public struct LinkCheckEvent: Sendable, Equatable {
     public let type: String
     public let total: Int?
     public let checked: Int?
     public let dead: [DeadLink]?
+    public let deadCount: Int?
     public let remaining: Int?
     public let reason: String?
 
-    public struct DeadLink: Codable, Sendable {
+    public struct DeadLink: Codable, Sendable, Equatable {
         public let id: String
         public let url: String
         public let title: String
         public let status: Int
+        public init(id: String, url: String, title: String, status: Int) { self.id = id; self.url = url; self.title = title; self.status = status }
+    }
+
+    public init(type: String, total: Int? = nil, checked: Int? = nil, dead: [DeadLink]? = nil, deadCount: Int? = nil, remaining: Int? = nil, reason: String? = nil) {
+        self.type = type; self.total = total; self.checked = checked; self.dead = dead; self.deadCount = deadCount; self.remaining = remaining; self.reason = reason
     }
 }
 
 extension LinkCheckEvent: Decodable {
-    private enum CodingKeys: String, CodingKey { case type, total, checked, dead, remaining, reason }
+    private enum K: String, CodingKey { case type, total, checked, dead, remaining, reason }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        type = try c.decode(String.self, forKey: .type)
+        total = try c.decodeIfPresent(Int.self, forKey: .total)
+        checked = try c.decodeIfPresent(Int.self, forKey: .checked)
+        remaining = try c.decodeIfPresent(Int.self, forKey: .remaining)
+        reason = try c.decodeIfPresent(String.self, forKey: .reason)
+        if let list = try? c.decodeIfPresent([DeadLink].self, forKey: .dead) {
+            dead = list; deadCount = list.count
+        } else {
+            dead = nil; deadCount = try? c.decodeIfPresent(Int.self, forKey: .dead)
+        }
+    }
 }
 
-public struct ImportItem: Codable, Sendable {
+/// One link from an export file. Matches the backend's `ImportedLink`.
+public struct ImportItem: Codable, Hashable, Sendable {
     public var url: String
-    public var title: String?
-    public var folder: String?
-    public var savedAt: String?
-    public var context: String?
+    public var title: String
+    public var source: String          // "chrome" | "telegram"
+    public var meta: ImportMeta
+    public init(url: String, title: String, source: String, meta: ImportMeta = ImportMeta()) {
+        self.url = url; self.title = title; self.source = source; self.meta = meta
+    }
 }
 
 public struct ImportResult: Codable, Sendable {
@@ -272,16 +298,25 @@ public struct ImportResult: Codable, Sendable {
     public init(links: [LinkItem], skipped: Int) { self.links = links; self.skipped = skipped }
 }
 
-public struct GroupingPriorities: Codable, Sendable {
-    public var focus: String?
-    public var topics: [String]?
-    public var kept: [String]?
+/// Matches the backend's `Priorities` (`groupInbox`).
+public struct GroupingPriorities: Codable, Sendable, Equatable {
+    public var focus: String
+    public var topics: [String]
+    public var kept: [String]
+    public var killed: [String]
+    public var avoid: String
+    public init(focus: String = "", topics: [String] = [], kept: [String] = [], killed: [String] = [], avoid: String = "") {
+        self.focus = focus; self.topics = topics; self.kept = kept; self.killed = killed; self.avoid = avoid
+    }
 }
 
-public struct GroupedResult: Codable, Sendable {
+public struct GroupedResult: Codable, Sendable, Equatable {
     public let collection: LinkCollection
     public let linkIds: [String]
     public let reasoning: String
+    public init(collection: LinkCollection, linkIds: [String], reasoning: String) {
+        self.collection = collection; self.linkIds = linkIds; self.reasoning = reasoning
+    }
 }
 
 public struct Signal: Codable, Sendable {

@@ -173,7 +173,7 @@ struct CollectionsView: View {
 
     private var quietList: some View {
         VStack(spacing: 0) {
-            quietRow("Import links") { store.toasts.show("Import arrives with onboarding.") }
+            quietRow("Import links") { router.showsOnboarding = true }
             Divider().padding(.leading, 14)
             quietRow("Trash", detail: "\(store.trash.count)") { router.open(.trash) }
             Divider().padding(.leading, 14)

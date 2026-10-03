@@ -19,6 +19,14 @@ public enum Fixtures {
         return text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
     }
 
+    /// Synthetic Chrome bookmarks export (25 http links, 4 folders, 1 bookmarklet) and Telegram result.json (11 links).
+    public static func sample(_ name: String) -> Data {
+        let parts = name.split(separator: ".")
+        guard let url = Bundle.module.url(forResource: String(parts[0]), withExtension: String(parts[1])),
+              let data = try? Data(contentsOf: url) else { return Data() }
+        return data
+    }
+
     public static let crawlSuccessLines = crawlLines("crawl-success")
     public static let crawlExcerptOnlyLines = crawlLines("crawl-excerpt-only")
     public static let crawlFailedLines = crawlLines("crawl-failed")

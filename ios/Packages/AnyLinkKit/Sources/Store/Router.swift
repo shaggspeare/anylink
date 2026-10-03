@@ -48,6 +48,8 @@ public final class Router {
     public var search: [Route] = []
     public var sheet: SheetRoute?
     public var confirm: Confirm?
+    /// Presents the onboarding flow (first launch with an empty library, or "Import links").
+    public var showsOnboarding = false
     /// Set to open a link's original; RootView presents it per the "Open links in" setting.
     public var openOriginal: URL?
     public var isSelecting = false { didSet { if !isSelecting { selection = [] } } }

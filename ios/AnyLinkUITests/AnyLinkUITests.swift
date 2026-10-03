@@ -1,9 +1,9 @@
 import XCTest
 
 final class AnyLinkUITests: XCTestCase {
-    private func launch() -> XCUIApplication {
+    private func launch(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing"]
+        app.launchArguments = ["-ui-testing"] + extra
         app.launch()
         return app
     }
@@ -196,5 +196,46 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Moved to Trash"].waitForExistence(timeout: 2))
         app.buttons["Undo"].tap()
         XCTAssertTrue(app.staticTexts["2 of 5"].waitForExistence(timeout: 2))
+    }
+
+    // MARK: - Welcome + onboarding (S1–S5)
+
+    @MainActor
+    func testWelcomeSignsInWithMockAuth() throws {
+        let app = launch(["-welcome"])
+        XCTAssertTrue(app.staticTexts["Paste anything.\nWe read the rest."].waitForExistence(timeout: 3))
+        app.buttons["Sign in with Apple"].tap()
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testOnboardingEndToEndOnMock() throws {
+        let start = Date()
+        let app = launch(["-onboarding"])
+        XCTAssertTrue(app.staticTexts["Bring your links"].waitForExistence(timeout: 3))
+        app.buttons["Load sample exports"].tap()
+        let importButton = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Import ")).firstMatch
+        XCTAssertTrue(importButton.waitForExistence(timeout: 2))
+        importButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Every link answered or was flagged"].waitForExistence(timeout: 15))
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@ OR label == %@", "Move ", "Continue")).firstMatch.tap()
+
+        XCTAssertTrue(app.staticTexts["Keep or bin?"].waitForExistence(timeout: 3))
+        for i in 0..<8 {
+            let b = app.buttons[i % 3 == 0 ? "Bin" : "Keep"]
+            guard b.waitForExistence(timeout: 2) else { break }
+            b.tap()
+        }
+        XCTAssertTrue(app.staticTexts["What are you working on right now?"].waitForExistence(timeout: 3))
+        app.buttons["Next"].tap()
+        XCTAssertTrue(app.staticTexts["Anything you'd rather never see again?"].waitForExistence(timeout: 3))
+        app.buttons["Build my collections"].tap()
+
+        let made = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "We made")).firstMatch
+        XCTAssertTrue(made.waitForExistence(timeout: 10))
+        app.buttons["Open my library"].tap()
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 3))
+        XCTAssertLessThan(Date().timeIntervalSince(start), 120)
     }
 }

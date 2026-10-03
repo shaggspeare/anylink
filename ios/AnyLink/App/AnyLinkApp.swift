@@ -7,6 +7,12 @@ struct AnyLinkApp: App {
 
     init() {
         AL.registerFonts()
+        if AppConfig.isUITesting {
+            // UI tests start signed in and onboarded unless they ask for those screens.
+            let args = ProcessInfo.processInfo.arguments
+            UserDefaults.standard.set(!args.contains("-welcome"), forKey: "signedIn")
+            UserDefaults.standard.set(true, forKey: "onboarded")
+        }
         _env = State(initialValue: .current())
     }
 
@@ -17,6 +23,7 @@ struct AnyLinkApp: App {
                 GalleryView()
             } else {
                 RootView(env: env)
+                    .onAppear { if ProcessInfo.processInfo.arguments.contains("-onboarding") { env.router.showsOnboarding = true } }
             }
             #else
             RootView(env: env)

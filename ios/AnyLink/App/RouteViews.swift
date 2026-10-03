@@ -262,8 +262,13 @@ private struct ConfirmDialogs: ViewModifier {
         case .deleteForever(let ids):
             store.purge(ids)
         case .deleteAccount:
-            // Sign-out to Welcome lands with onboarding (phase 10); until then the library is cleared and we go home.
-            Task { if await store.deleteAccount() { router.setPath(router.tab, []); router.tab = .library } }
+            Task {
+                guard await store.deleteAccount() else { return }
+                router.setPath(router.tab, [])
+                router.tab = .library
+                UserDefaults.standard.set(false, forKey: "onboarded")
+                UserDefaults.standard.set(false, forKey: "signedIn")
+            }
         }
     }
 }
