@@ -58,3 +58,38 @@
 
 ### Check by hand
 - Run `swift test --package-path Packages/AnyLinkKit` and confirm 37/37 pass.
+
+---
+
+## Phase 2 · Design system components + Gallery
+
+**Status:** Done
+
+### Done
+- `Frosted` (+ `alForceSolid` env override so previews/Gallery can show the Reduce Transparency look; the system value is read-only).
+- `HeroFallback` (Canvas bands + circle), `HeroImage` (AsyncImage → placeholder → fallback), `InitialBadge` (14/18/24/32), `CardScrim`, `ReaderScrim`.
+- `LinkTile` (184 pt, 92 pt hero, video disc, favourite star, select outline + lime check), `LinkRow` (64 pt, select check).
+- `ScopeChip`, `KeepBinSegment`, `UnsortedBanner`, `PasteAccessory` (UI only, Paste capsule placeholder), `ALField`, `Notice`, button styles (`.alPrimary`, `.alSignal`, `ALSmallButtonStyle(.lime/.ink/.soft)`, `ALLimeButtonStyle`).
+- `CollectionCard` + `NewCollectionCard`, `WhyCard`, `SwipeCardStack` (drag + stamps + fly-out, Bin/Keep buttons, VoiceOver named actions, Reduce Motion skips fly-out).
+- `Toast` + `ToastCenter` (5 s auto-hide, new replaces old) + `.toastOverlay`.
+- DEBUG `GalleryView` via launch arg `-gallery`, with Dark / Reduce Transparency / Large Type toggles.
+- Previews: light, dark, Reduce Transparency, large Dynamic Type.
+- Tests: `ToastCenter` replace/dismiss, identity stability (38 total).
+
+### Fixed from phase 0
+- **Instrument Sans never loaded**: `.process` flattens `Resources/Fonts`, so the `subdirectory:` lookup failed. Fixed; `AL.Font.brand` now uses the per-weight PostScript names (`InstrumentSans-Regular_SemiBold`, …) logged at launch.
+- `"▶ Video"` rendered as a colour emoji; now uses U+25B6 + text variation selector.
+
+### Not done
+- Tile press scale .97 and rotor actions: wired with the real actions in phase 4 (they need the store).
+- `PasteAccessory` uses a styled placeholder instead of `PasteButton`; real one in phase 3.
+- Increase Contrast ink bump: phase 13 accessibility pass.
+
+### Spec conflicts
+- `ScopeChip` text alpha is `.72` in `03` §6; there is no `Ink.a72` token, used `a75`.
+
+### `// BACKEND:` items
+- None.
+
+### Check by hand
+- Launch with `-gallery`; swipe the card stack both ways, use the Bin/Keep buttons, toggle Env menu options.
