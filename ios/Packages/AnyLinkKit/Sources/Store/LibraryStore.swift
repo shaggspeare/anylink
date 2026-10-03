@@ -20,12 +20,16 @@ public final class LibraryStore {
     public let undo: UndoCenter
     public let signals: SignalLogger
     @ObservationIgnored public let api: any AnyLinkAPI
+    /// `/api/crawl` client. Defaults to `api.crawl`; the app swaps in `LiveCrawler` when a backend is configured.
+    @ObservationIgnored public let crawl: @Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>
     @ObservationIgnored private var inflight: [Task<Void, Never>] = []
     @ObservationIgnored private var tail: Task<Void, Never>?
     @ObservationIgnored private var cachedIndex: LibraryIndex?
 
-    public init(api: any AnyLinkAPI, toasts: ToastCenter = ToastCenter(), snapshot: LibrarySnapshot? = nil) {
+    public init(api: any AnyLinkAPI, toasts: ToastCenter = ToastCenter(), snapshot: LibrarySnapshot? = nil,
+                crawl: (@Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>)? = nil) {
         self.api = api
+        self.crawl = crawl ?? { await api.crawl($0) }
         self.toasts = toasts
         self.undo = UndoCenter(toasts: toasts)
         self.signals = SignalLogger(api: api)
@@ -62,6 +66,33 @@ public final class LibraryStore {
     }
 
     public func count(in id: LinkCollection.ID) -> Int { links(in: id).count }
+
+    /// The collection whose links share the most tags with these, ties broken by domain overlap. Never the inbox or a filter.
+    public func suggestedCollection(tags: [String], domain: String, excluding linkID: LinkItem.ID? = nil) -> LinkCollection? {
+        let wanted = Set(tags.map { $0.lowercased() })
+        var best: (score: (Int, Int), c: LinkCollection)?
+        for c in collections where c.isInbox != true && c.isSmart != true {
+            var shared = 0, sameSite = 0
+            for l in live where l.collectionId == c.id && l.id != linkID {
+                shared += l.tags.reduce(0) { $0 + (wanted.contains($1.lowercased()) ? 1 : 0) }
+                if l.domain == domain { sameSite += 1 }
+            }
+            let score = (shared, sameSite)
+            if score > (0, 0), score > (best?.score ?? (0, 0)) { best = (score, c) }
+        }
+        return best?.c
+    }
+
+    public func suggestedCollection(for link: LinkItem) -> LinkCollection? {
+        suggestedCollection(tags: link.tags, domain: link.domain, excluding: link.id)
+    }
+
+    /// All tags in the live library, most used first.
+    public var tagsByUse: [String] {
+        var counts: [String: Int] = [:]
+        for l in live { for t in l.tags { counts[t, default: 0] += 1 } }
+        return counts.keys.sorted { (counts[$0]!, $1) > (counts[$1]!, $0) }
+    }
 
     // MARK: - Sync plumbing
 
@@ -141,7 +172,7 @@ public final class LibraryStore {
 
     /// Shows the link at once, then replaces it with the server's copy.
     @discardableResult
-    public func save(_ draft: LinkDraft) async -> LinkItem? {
+    public func save(_ draft: LinkDraft, stillReading: Bool = false) async -> LinkItem? {
         let cr = draft.crawl
         let host = URL(string: draft.url)?.host() ?? draft.url
         let temp = LinkItem(
@@ -162,7 +193,8 @@ public final class LibraryStore {
             links[temp.id] = nil
             links[saved.id] = saved
             if let i = order.firstIndex(of: temp.id) { order[i] = saved.id }
-            undo.register("Saved to \(name(of: saved.collectionId))") { [weak self] in self?.trash([saved.id], announce: false) }
+            let label = "Saved to \(name(of: saved.collectionId))" + (stillReading ? " — still reading the page" : "")
+            undo.register(label) { [weak self] in self?.trash([saved.id], announce: false) }
             return saved
         } catch {
             links[temp.id] = nil

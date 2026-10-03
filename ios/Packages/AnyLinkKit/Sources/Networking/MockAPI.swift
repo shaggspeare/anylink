@@ -1,7 +1,7 @@
 import Foundation
 import Models
 
-public actor MockAPI: @preconcurrency AnyLinkAPI {
+public actor MockAPI: AnyLinkAPI {
     private var links: [LinkItem]
     private var trashed: [LinkItem]
     private var collections: [LinkCollection]
@@ -26,6 +26,11 @@ public actor MockAPI: @preconcurrency AnyLinkAPI {
 
     // MARK: - AnyLinkAPI
 
+    /// Crawl bookkeeping, so tests can assert that cancelling the Add sheet stops the stream.
+    public private(set) var crawlsStarted = 0
+    public private(set) var crawlsCancelled = 0
+    private func crawlCancelled() { crawlsCancelled += 1 }
+
     public func crawl(_ url: URL) -> AsyncThrowingStream<CrawlEvent, Error> {
         let host = url.host() ?? ""
         let key: String
@@ -33,24 +38,44 @@ public actor MockAPI: @preconcurrency AnyLinkAPI {
         else if host.contains("dead") || host.contains("404") { key = "failed" }
         else { key = "success" }
 
-        let lines = crawlLines[key] ?? []
-        return AsyncThrowingStream { cont in
-            Task { [lines] in
+        let lines = (crawlLines[key] ?? []).map { key == "success" ? Self.rewrite($0, for: url) : $0 }
+        crawlsStarted += 1
+        let (stream, cont) = AsyncThrowingStream.makeStream(of: CrawlEvent.self)
+        let latency = latency
+        let task = Task { [weak self] in
+            do {
                 for line in lines {
-                    if let ms = NDJSONDecoder.delayMs(from: line), ms > 0 {
-                        try? await Task.sleep(for: .milliseconds(ms))
+                    if latency, let ms = NDJSONDecoder.delayMs(from: line), ms > 0 {
+                        try await Task.sleep(for: .milliseconds(ms))
                     }
-                    do {
-                        let event = try NDJSONDecoder.decodeLine(line, as: CrawlEvent.self)
-                        cont.yield(event)
-                    } catch {
-                        cont.finish(throwing: error)
-                        return
-                    }
+                    try Task.checkCancellation()
+                    cont.yield(try NDJSONDecoder.decodeLine(line, as: CrawlEvent.self))
                 }
                 cont.finish()
+            } catch is CancellationError {
+                await self?.crawlCancelled()
+            } catch {
+                cont.finish(throwing: error)
             }
         }
+        cont.onTermination = { reason in
+            if case .cancelled = reason { task.cancel() }
+        }
+        return stream
+    }
+
+    /// The success stream is recorded for one page; make it look like the pasted URL's site.
+    static func rewrite(_ line: String, for url: URL) -> String {
+        guard var obj = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any],
+              var result = obj["result"] as? [String: Any],
+              let host = url.host() else { return line }
+        let domain = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        result["domain"] = domain
+        result["canonicalUrl"] = url.absoluteString
+        result["initial"] = String(domain.prefix(1)).uppercased()
+        obj["result"] = result
+        guard let data = try? JSONSerialization.data(withJSONObject: obj) else { return line }
+        return String(decoding: data, as: UTF8.self)
     }
 
     public func checkImportedLinks() -> AsyncThrowingStream<LinkCheckEvent, Error> {

@@ -11,7 +11,10 @@ struct AppEnvironment {
     let clipboard: ClipboardWatcher
 
     init(api: any AnyLinkAPI, snapshot: LibrarySnapshot? = nil) {
-        store = LibraryStore(api: api, snapshot: snapshot)
+        // /api/crawl already exists (and doesn't check the token yet), so crawl live whenever a base URL is set.
+        let live = AppConfig.isUITesting ? nil : AppConfig.apiBase.map { LiveCrawler(base: $0, token: AppConfig.apiToken) }
+        let crawl: (@Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>)? = live.map { c in { @Sendable url in c.crawl(url) } }
+        store = LibraryStore(api: api, snapshot: snapshot, crawl: crawl)
         router = Router()
         clipboard = ClipboardWatcher(store: store)
     }

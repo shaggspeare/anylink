@@ -4,8 +4,8 @@ import Models
 // MARK: - AnyLinkAPI protocol
 
 public protocol AnyLinkAPI: Sendable {
-    func crawl(_ url: URL) -> AsyncThrowingStream<CrawlEvent, Error>
-    func checkImportedLinks() -> AsyncThrowingStream<LinkCheckEvent, Error>
+    func crawl(_ url: URL) async -> AsyncThrowingStream<CrawlEvent, Error>
+    func checkImportedLinks() async -> AsyncThrowingStream<LinkCheckEvent, Error>
     func library(since: Date?) async throws -> LibrarySnapshot
     func createLink(_ draft: LinkDraft) async throws -> LinkItem
     func updateLink(_ id: LinkItem.ID, _ patch: LinkPatch) async throws

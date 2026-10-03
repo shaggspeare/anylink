@@ -104,6 +104,14 @@ struct SheetHost: View {
     @State private var busy = false
 
     var body: some View {
+        if case .addLink(let prefill, let collectionID) = sheet {
+            AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID)
+        } else {
+            standard
+        }
+    }
+
+    private var standard: some View {
         NavigationStack {
             content
                 .padding(16)
@@ -120,24 +128,8 @@ struct SheetHost: View {
     @ViewBuilder
     private var content: some View {
         switch sheet {
-        case .addLink(let prefill, let collectionID):
-            VStack(alignment: .leading, spacing: 12) {
-                ALField("https://", text: $text, isURL: true)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .onAppear { text = prefill?.absoluteString ?? "" }
-                Notice("The full Add sheet with live reading arrives in phase 5.")
-                Button("Save") {
-                    busy = true
-                    Task {
-                        await store.save(LinkDraft(url: text, collectionId: collectionID))
-                        dismiss()
-                    }
-                }
-                .buttonStyle(.alSignal)
-                .disabled(URL(string: text)?.host() == nil || busy)
-            }
-            .navigationTitle("New link")
+        case .addLink:
+            EmptyView()
         case .moveLinks(let ids):
             let current = Set(ids.compactMap { store.link($0)?.collectionId })
             List(store.collections.filter { $0.isSmart != true && !(current.count == 1 && current.contains($0.id)) }) { c in

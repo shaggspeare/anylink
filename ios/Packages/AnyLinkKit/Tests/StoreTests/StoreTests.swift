@@ -356,3 +356,119 @@ import Fixtures
         #expect(r.selection.isEmpty)
     }
 }
+
+@MainActor
+@Suite struct AddLinkModelTests {
+    let api = MockAPI.fixtures(latency: false)
+    let store: LibraryStore
+    init() { store = LibraryStore(api: api, snapshot: Fixtures.library) }
+
+    func decode(_ line: String) -> CrawlEvent { try! NDJSONDecoder.decodeLine(line, as: CrawlEvent.self) }
+    var success: [CrawlEvent] { Fixtures.crawlSuccessLines.map(decode) }
+
+    func run(_ model: AddLinkModel, _ url: String) async {
+        model.start(url)
+        while model.phase == .crawling || !model.isDone { await Task.yield(); try? await Task.sleep(for: .milliseconds(5)) }
+    }
+
+    @Test func titleEditedWhileRefiningSurvivesDone() {
+        let m = AddLinkModel(store: store)
+        for e in success.prefix(3) { m.apply(e) }          // fetch, parse, preview
+        #expect(m.isRefining)
+        #expect(m.title == "Designing tab bars for iOS 26 | Smashing Magazine")
+        m.title = "My own title"
+        for e in success.dropFirst(3) { m.apply(e) }       // tags, done
+        #expect(m.title == "My own title")
+        #expect(m.excerpt.hasPrefix("How the new floating tab bar"))   // unedited field takes the refined value
+        #expect(m.tags == ["design", "ios", "navigation"])
+        #expect(!m.isRefining && m.step == 3)
+    }
+
+    @Test func editedTagsSurviveDone() {
+        let m = AddLinkModel(store: store)
+        for e in success.prefix(3) { m.apply(e) }
+        m.removeTag("ios")
+        m.addTag("#Later")
+        for e in success.dropFirst(3) { m.apply(e) }
+        #expect(m.tags == ["design", "later"])
+    }
+
+    @Test func normalize() {
+        #expect(AddLinkModel.normalize("nasa.gov/x")?.absoluteString == "https://nasa.gov/x")
+        #expect(AddLinkModel.normalize("  http://a.b  ")?.absoluteString == "http://a.b")
+        #expect(AddLinkModel.normalize("hello") == nil)
+        #expect(AddLinkModel.normalize("ftp://a.b") == nil)
+        #expect(AddLinkModel.normalize("two words.com") == nil)
+    }
+
+    @Test func guessTitle() {
+        #expect(AddLinkModel.guessTitle(from: URL(string: "https://x.com/2026/09/designing-tab-bars/")) == "Designing tab bars")
+        #expect(AddLinkModel.guessTitle(from: URL(string: "https://shop.example/macbook_air.html")) == "Macbook air")
+        #expect(AddLinkModel.guessTitle(from: URL(string: "https://nasa.gov")) == "nasa.gov")
+    }
+
+    @Test func mockSuccessStream() async {
+        let m = AddLinkModel(store: store)
+        await run(m, "https://www.theverge.com/a-story")
+        #expect(m.phase == .ready)
+        #expect(m.domain == "theverge.com")
+        #expect(!m.isExcerptOnly)
+    }
+
+    @Test func mockExcerptOnlyStream() async {
+        let m = AddLinkModel(store: store)
+        await run(m, "https://blocked-news.example/story")
+        #expect(m.phase == .ready && m.isExcerptOnly)
+    }
+
+    @Test func mockFailedStreamGuessesTitle() async {
+        let m = AddLinkModel(store: store)
+        await run(m, "https://dead-shop.example/apple-macbook-air-m4")
+        #expect(m.phase == .failed)
+        #expect(m.failure?.reason == "not-found")
+        #expect(m.title == "Apple macbook air m4")
+        #expect(m.tags.isEmpty)
+    }
+
+    @Test func cancelStopsTheNetworkTask() async throws {
+        let slow = MockAPI.fixtures(latency: true)
+        let m = AddLinkModel(store: LibraryStore(api: slow, snapshot: Fixtures.library))
+        m.start("https://example.com/a")
+        try await Task.sleep(for: .milliseconds(100))
+        m.cancel()
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(await slow.crawlsStarted == 1)
+        #expect(await slow.crawlsCancelled == 1)
+        #expect(m.phase == .crawling)   // nothing applied after cancel
+    }
+
+    @Test func saveAfterDone() async {
+        let m = AddLinkModel(store: store, collectionID: "ios")
+        await run(m, "https://www.smashingmagazine.com/x")
+        m.note = "for the tab bar work"
+        let saved = await m.save()
+        #expect(saved?.collectionId == "ios")
+        #expect(saved?.title == "Designing tab bars for iOS 26")
+        #expect(saved?.note == "for the tab bar work")
+        #expect(store.live.first?.id == saved?.id)
+        #expect(store.toasts.current?.message == "Saved to iOS design")
+    }
+
+    @Test func saveMidCrawlSaysSo() async {
+        let m = AddLinkModel(store: store)
+        for e in success.prefix(3) { m.apply(e) }
+        m.start("https://example.com/a")   // fresh session, then save immediately
+        let saved = await m.save()
+        #expect(saved != nil)
+        #expect(store.toasts.current?.message == "Saved to Unsorted — still reading the page")
+    }
+
+    @Test func suggestsCollectionByTags() {
+        #expect(store.suggestedCollection(tags: ["rust"], domain: "x.com")?.id == "rust")
+        #expect(store.suggestedCollection(tags: ["nothing-like-this"], domain: "x.com") == nil)
+        let m = AddLinkModel(store: store)
+        for e in success { m.apply(e) }
+        #expect(m.suggestedCollection?.id == "ios")
+        #expect(m.collectionID == "unsorted")   // never auto-selected
+    }
+}

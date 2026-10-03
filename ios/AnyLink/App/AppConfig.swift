@@ -2,7 +2,10 @@ import Foundation
 
 enum AppConfig {
     static var apiBase: URL? {
-        (Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIBase") as? String).flatMap(URL.init(string:))
+        // xcconfig treats `//` as a comment, so an unescaped value arrives as "https:" — reject anything without a host.
+        (Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIBase") as? String)
+            .flatMap(URL.init(string:))
+            .flatMap { $0.host() == nil ? nil : $0 }
     }
     static var apiToken: String? {
         Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIToken") as? String

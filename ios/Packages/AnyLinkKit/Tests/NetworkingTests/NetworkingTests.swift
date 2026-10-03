@@ -76,3 +76,83 @@ import Fixtures
         #expect(NDJSONDecoder.delayMs(from: line) == 300)
     }
 }
+
+// MARK: - LiveCrawler against a stubbed URLProtocol
+
+final class StubProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var status = 200
+    nonisolated(unsafe) static var body = ""
+    nonisolated(unsafe) static var lastRequest: URLRequest?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.lastRequest = request
+        let resp = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: nil, headerFields: nil)!
+        client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(Self.body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+
+@Suite(.serialized) struct LiveCrawlerTests {
+    func crawler() -> LiveCrawler {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubProtocol.self]
+        return LiveCrawler(base: URL(string: "https://anylink.test")!, token: "secret", session: URLSession(configuration: config))
+    }
+
+    func events(_ status: Int, _ body: String) async throws -> [String] {
+        StubProtocol.status = status
+        StubProtocol.body = body
+        var out: [String] = []
+        for try await e in crawler().crawl(URL(string: "https://nasa.gov/x")!) {
+            switch e {
+            case .step(let s): out.append("step:\(s)")
+            case .preview: out.append("preview")
+            case .done: out.append("done")
+            case .failed(let f): out.append("failed:\(f.reason)")
+            }
+        }
+        return out
+    }
+
+    @Test func streamsRecordedSuccess() async throws {
+        let body = Fixtures.crawlSuccessLines.joined(separator: "\n")
+        #expect(try await events(200, body) == ["step:fetch", "step:parse", "preview", "step:tags", "done"])
+        #expect(StubProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer secret")
+        #expect(StubProtocol.lastRequest?.url?.path() == "/api/crawl")
+    }
+
+    @Test func badRequestIsInvalidURL() async throws {
+        #expect(try await events(400, "{\"error\":\"bad\"}") == ["failed:invalid-url"])
+    }
+
+    @Test func streamWithoutTerminalIsNetworkFailure() async throws {
+        #expect(try await events(200, "{\"type\":\"step\",\"step\":\"fetch\"}\n") == ["step:fetch", "failed:network"])
+    }
+}
+
+@Suite struct MockCrawlTests {
+    @Test func cancellingStopsTheStream() async throws {
+        let api = MockAPI.fixtures(latency: true)
+        let task = Task {
+            for try await _ in await api.crawl(URL(string: "https://example.com/a")!) {}
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        task.cancel()
+        _ = await task.result
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(await api.crawlsStarted == 1)
+        #expect(await api.crawlsCancelled == 1)
+    }
+
+    @Test func successStreamTakesThePastedDomain() async throws {
+        var domains: [String] = []
+        for try await e in await MockAPI.fixtures(latency: false).crawl(URL(string: "https://www.theverge.com/x")!) {
+            if case .done(let r) = e { domains.append(r.domain) }
+        }
+        #expect(domains == ["theverge.com"])
+    }
+}

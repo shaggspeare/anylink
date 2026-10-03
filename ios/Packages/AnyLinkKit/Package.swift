@@ -25,7 +25,7 @@ let package = Package(
         .testTarget(name: "ModelsTests", dependencies: ["Models"]),
         .testTarget(name: "QueryLanguageTests", dependencies: ["QueryLanguage"]),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
-        .testTarget(name: "NetworkingTests", dependencies: ["Networking"]),
+        .testTarget(name: "NetworkingTests", dependencies: ["Networking", "Fixtures"]),
         .testTarget(name: "PersistenceTests", dependencies: ["Persistence"]),
         .testTarget(name: "StoreTests", dependencies: ["Store", "Fixtures"]),
         .testTarget(name: "FixturesTests", dependencies: ["Fixtures"]),

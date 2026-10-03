@@ -165,6 +165,10 @@ public struct CrawlFailure: Codable, Sendable, Hashable {
     public let stripe: String?
     public let initial: String?
     public let suggestedTitle: String?
+
+    public init(reason: String, domain: String? = nil, tint: String? = nil, stripe: String? = nil, initial: String? = nil, suggestedTitle: String? = nil) {
+        self.reason = reason; self.domain = domain; self.tint = tint; self.stripe = stripe; self.initial = initial; self.suggestedTitle = suggestedTitle
+    }
 }
 
 public enum CrawlEvent: Sendable {

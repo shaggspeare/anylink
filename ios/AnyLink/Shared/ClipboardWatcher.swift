@@ -10,7 +10,10 @@ final class ClipboardWatcher {
 
     init(store: LibraryStore) { self.store = store }
 
-    private var enabled: Bool { UserDefaults.standard.object(forKey: Self.settingKey) as? Bool ?? true }
+    /// Off under UI tests so the accessory is deterministic whatever the simulator clipboard holds.
+    private var enabled: Bool {
+        !AppConfig.isUITesting && (UserDefaults.standard.object(forKey: Self.settingKey) as? Bool ?? true)
+    }
 
     func check() async {
         guard enabled else { store.clipboardHasURL = false; return }
