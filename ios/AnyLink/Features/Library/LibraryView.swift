@@ -44,12 +44,6 @@ struct LibraryView: View {
 
     @ViewBuilder
     private var header: some View {
-        Text("Library")
-            .font(AL.Font.largeTitle).tracking(-1.65)
-            .foregroundStyle(AL.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityAddTraits(.isHeader)
-            .id("top")
         if !isEmptyLibrary && !isLoading {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -101,6 +95,7 @@ struct LibraryView: View {
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 24)
+            .id("top")
         }
     }
 
@@ -130,6 +125,7 @@ struct LibraryView: View {
         @Bindable var router = router
         return List(selection: $router.selection) {
             VStack(alignment: .leading, spacing: 12) { header }
+                .id("top")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))
@@ -154,6 +150,15 @@ struct LibraryView: View {
 
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
+        // Title sits in the bar so it lines up with the controls.
+        ToolbarItem(placement: .topBarLeading) {
+            Text("Library")
+                .font(AL.Font.largeTitle).tracking(-1.65)
+                .foregroundStyle(AL.ink)
+                .fixedSize()
+                .accessibilityAddTraits(.isHeader)
+        }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button {
                 layout = layout == .tiles ? .rows : .tiles

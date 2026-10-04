@@ -13,7 +13,7 @@ public enum Route: Hashable, Sendable {
     case trash
     case settings
 
-    /// Screens with their own bottom toolbar (or none) hide the tab bar and the accessory.
+    /// Screens with their own bottom toolbar (or none) hide the tab bar.
     public var hidesTabBar: Bool {
         switch self {
         case .link, .triage, .settings: true
@@ -92,13 +92,6 @@ public final class Router {
 
     public func toggleSelection(_ id: LinkItem.ID) {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
-    }
-
-    /// Not on Search (the field is the main action there) or in Trash (nothing to paste into).
-    public var showsAccessory: Bool {
-        guard !isSelecting, tab != .search else { return false }
-        let top = path(tab).last
-        return top != .trash && !(top?.hidesTabBar ?? false)
     }
 
     /// `anylink://add?url=…` and `anylink://link/{id}`, plus universal `https://<web>/links/{id}`.

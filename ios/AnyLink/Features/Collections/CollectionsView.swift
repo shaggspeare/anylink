@@ -19,11 +19,6 @@ struct CollectionsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Collections")
-                        .font(AL.Font.largeTitle).tracking(-1.65)
-                        .foregroundStyle(AL.ink)
-                        .accessibilityAddTraits(.isHeader)
-                        .id("top")
                     filterChips
                     if let s = store.suggestedFilter(dismissed: dismissed) { suggestion(s) }
                     unsortedCard
@@ -44,6 +39,7 @@ struct CollectionsView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
+                .id("top")
             }
             .onChange(of: router.scrollToTop[.collections]) { withAnimation { proxy.scrollTo("top", anchor: .top) } }
         }
@@ -51,6 +47,15 @@ struct CollectionsView: View {
         .refreshable { await store.refresh() }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // Title sits in the bar so it lines up with the controls.
+            ToolbarItem(placement: .topBarLeading) {
+                Text("Collections")
+                    .font(AL.Font.largeTitle).tracking(-1.65)
+                    .foregroundStyle(AL.ink)
+                    .fixedSize()
+                    .accessibilityAddTraits(.isHeader)
+            }
+            .sharedBackgroundVisibility(.hidden)
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button { router.sheet = .newCollection } label: { Image(systemName: "plus") }
                     .accessibilityLabel("New collection")

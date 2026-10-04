@@ -41,7 +41,7 @@ struct RootView: View {
             .modifier(OpenOriginalHost())
             .environment(env.store)
             .environment(env.router)
-            .toastOverlay(env.store.toasts, bottomOffset: env.router.showsAccessory ? 158 : 100)
+            .toastOverlay(env.store.toasts, bottomOffset: 100)
             .task { await env.clipboard.observe() }
             .task { await env.reachability.start() }
             .task {
@@ -81,55 +81,29 @@ struct MainTabs: View {
 
     var body: some View {
         @Bindable var router = router
-        TabView(selection: Binding(get: { router.tab }, set: { router.select($0) })) {
-            Tab("Library", systemImage: "link", value: AppTab.library) {
+        // `nil` is the New link button: it opens the sheet instead of switching tabs.
+        TabView(selection: Binding<AppTab?>(get: { router.tab }, set: { if let t = $0 { router.select(t) } else { newLink() } })) {
+            Tab("Library", systemImage: "link", value: AppTab?.some(.library)) {
                 NavigationStack(path: $router.library) { LibraryView().routes(.library) }
             }
-            Tab("Collections", systemImage: "folder", value: AppTab.collections) {
+            Tab("Collections", systemImage: "folder", value: AppTab?.some(.collections)) {
                 NavigationStack(path: $router.collections) { CollectionsView().routes(.collections) }
             }
-            Tab(value: AppTab.search, role: .search) {
+            Tab("Search", systemImage: "magnifyingglass", value: AppTab?.some(.search)) {
                 NavigationStack(path: $router.search) { SearchView(store: store).routes(.search) }
             }
+            // The .search role is what gives a tab the separate circle; it's never selected, so no search UI appears.
+            Tab("New link", systemImage: "plus", value: AppTab?.none, role: .search) { EmptyView() }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .modifier(PasteAccessoryHost(enabled: router.showsAccessory))
         .sheet(item: $router.sheet) { SheetHost(sheet: $0) }
     }
-}
 
-/// Disabled (not just emptied): an empty accessory still draws glass over the select-mode toolbar and eats its taps.
-private struct PasteAccessoryHost: ViewModifier {
-    let enabled: Bool
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.1, *) {
-            content.tabViewBottomAccessory(isEnabled: enabled) { AccessoryContent() }
-        } else {
-            content.tabViewBottomAccessory { if enabled { AccessoryContent() } }
-        }
-    }
-}
-
-private struct AccessoryContent: View {
-    @Environment(LibraryStore.self) private var store
-    @Environment(Router.self) private var router
-    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
-
-    private var collectionID: String? {
-        if case .collection(let id) = router.path(router.tab).last { return id }
-        return nil
-    }
-
-    var body: some View {
-        PasteAccessory(
-            hasURL: store.clipboardHasURL,
-            collectionName: collectionID.map(store.name(of:)),
-            compact: placement == .inline,
-            onPaste: { urls in router.sheet = .addLink(prefill: urls.first, collectionID: collectionID) },
-            onNew: { router.sheet = .addLink(prefill: nil, collectionID: collectionID) }
-        )
-        .popoverTip(PasteTip())
+    /// Inside a collection, the new link saves straight into it. The sheet offers Paste when the clipboard has a URL.
+    private func newLink() {
+        var collectionID: String?
+        if case .collection(let id) = router.path(router.tab).last { collectionID = id }
+        router.sheet = .addLink(prefill: nil, collectionID: collectionID)
     }
 }
 

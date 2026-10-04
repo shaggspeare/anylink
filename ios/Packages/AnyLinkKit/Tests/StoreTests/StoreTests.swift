@@ -273,22 +273,6 @@ import Fixtures
         #expect(r.tab == .collections)
     }
 
-    @Test func accessoryHidesOnDetailAndSelect() {
-        let r = Router()
-        #expect(r.showsAccessory)
-        r.open(.link("nasa"))
-        #expect(!r.showsAccessory)
-        r.library = []
-        r.isSelecting = true
-        #expect(!r.showsAccessory)
-        r.isSelecting = false
-        r.open(.trash)
-        #expect(!r.showsAccessory)
-        r.library = []
-        r.select(.search)
-        #expect(!r.showsAccessory)
-    }
-
     @Test func deepLinks() {
         let r = Router()
         #expect(r.handle(URL(string: "anylink://add?url=https%3A%2F%2Fnasa.gov%2Fx")!))

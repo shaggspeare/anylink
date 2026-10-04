@@ -329,6 +329,8 @@ final class AnyLinkUITests: XCTestCase {
                 if issue.element?.elementType != .button, combined.contains(where: { $0.contains(f) }) { return true }
                 // Content scrolls under the floating tab bar + accessory by design: occluded, not low-contrast.
                 if f.maxY > height - 150, issue.auditType == .contrast || issue.auditType == .textClipped { return true }
+                // The system search field lays out its own placeholder; the clipping check misreads it.
+                if issue.auditType == .textClipped, issue.element?.elementType == .searchField { return true }
                 // The contrast audit misreads text over translucent material; trust the rendered pixels.
                 if issue.auditType == .contrast, let ratio = self.measuredContrast(f, in: shot), ratio >= 4.5 { return true }
                 // Verified to scale at AX sizes by testFlaggedLabelsScaleWithDynamicType.

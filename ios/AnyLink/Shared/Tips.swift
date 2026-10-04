@@ -1,11 +1,6 @@
 import TipKit
 
 /// `07` § TipKit: each shown once, in context.
-struct PasteTip: Tip {
-    var title: Text { Text("Paste") }
-    var message: Text? { Text("Copy a link anywhere, then Paste — AnyLink reads it for you.") }
-}
-
 struct LongPressTip: Tip {
     var title: Text { Text("More on a card") }
     var message: Text? { Text("Long-press a card for Move, Favorite and Trash.") }
