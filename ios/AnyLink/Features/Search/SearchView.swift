@@ -34,6 +34,7 @@ struct SearchView: View {
                 if model.isEmpty { emptyState } else { results }
             }
             .listStyle(.plain)
+            .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
             .onChange(of: router.scrollToTop[.search]) { withAnimation { proxy.scrollTo("top", anchor: .top) } }
         }
@@ -89,7 +90,7 @@ struct SearchView: View {
     @ViewBuilder
     private var emptyState: some View {
         Section {
-            ForEach(model.recent) { LinkListRow(link: $0) }
+            ForEach(model.recent) { LinkListRow(link: $0, compact: true) }
         } header: {
             sectionHeader("Recently saved")
         }
@@ -157,7 +158,7 @@ struct SearchView: View {
     }
 
     private func sectionHeader(_ t: String) -> some View {
-        Text(t).font(AL.Font.rowTitle).foregroundStyle(AL.ink).textCase(nil)
+        Text(t).font(AL.Font.rowTitle).foregroundStyle(AL.ink).textCase(nil).listRowInsets(.vertical, 4)
     }
 }
 
@@ -169,11 +170,11 @@ private struct SearchResultRow: View {
 
     var body: some View {
         Button { router.open(.link(link.id)) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
                     HeroImage(link: link)
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(highlighted(link.title)).font(AL.Font.rowTitle).foregroundStyle(AL.ink).lineLimit(2)
                         Text([link.domain, store.name(of: link.collectionId)].joined(separator: " · "))
@@ -187,17 +188,18 @@ private struct SearchResultRow: View {
                             .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                         Text(highlighted(s.text)).font(AL.Font.body).foregroundStyle(AL.ink.opacity(AL.Ink.a75)).lineLimit(3)
                     }
-                    .padding(10)
+                    .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(AL.ink.opacity(AL.Ink.a05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .padding(.leading, 56)
+                    .padding(.leading, 42)
                 }
             }
-            .padding(.vertical, 8)
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(Color.clear.frosted(0.62, radius: 0, rim: 0))
+        .listRowInsets(.vertical, 4)
+        .listRowBackground(Color.clear)
         .linkActions(link)
         .accessibilityElement(children: .combine)
     }

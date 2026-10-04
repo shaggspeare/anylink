@@ -7,13 +7,15 @@ public struct LinkRow: View {
     public var selectMode: Bool = false
     /// Replaces "domain · reading meta", e.g. "domain · collection" in filter results.
     public var meta: String?
+    /// Dense variant for scanning long lists: smaller thumbnail, 44pt minimum (HIG tap target), grows with Dynamic Type.
+    public var compact: Bool = false
 
-    public init(link: LinkItem, isSelected: Bool = false, selectMode: Bool = false, meta: String? = nil) {
-        self.link = link; self.isSelected = isSelected; self.selectMode = selectMode; self.meta = meta
+    public init(link: LinkItem, isSelected: Bool = false, selectMode: Bool = false, meta: String? = nil, compact: Bool = false) {
+        self.link = link; self.isSelected = isSelected; self.selectMode = selectMode; self.meta = meta; self.compact = compact
     }
 
     public var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: compact ? 10 : 12) {
             if selectMode { selectCheck }
             thumbnail
             VStack(alignment: .leading, spacing: 2) {
@@ -33,7 +35,7 @@ public struct LinkRow: View {
                     .foregroundStyle(AL.signal)
             }
         }
-        .frame(height: 64)
+        .frame(minHeight: compact ? 44 : 64, maxHeight: compact ? nil : 64)
         // One element with the full text: the visible title and domain truncate by design.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")")
@@ -42,8 +44,8 @@ public struct LinkRow: View {
 
     private var thumbnail: some View {
         HeroImage(link: link)
-            .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
+            .clipShape(RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
     }
 
     @ViewBuilder

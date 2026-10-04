@@ -53,6 +53,8 @@ struct CollectionsView: View {
                     .font(AL.Font.largeTitle).tracking(-1.65)
                     .foregroundStyle(AL.ink)
                     .fixedSize()
+                    // The bar clips text to its glyph-advance bounds, shaving the last letter; render with some slack.
+                    .padding(.trailing, 4).drawingGroup()
                     .accessibilityAddTraits(.isHeader)
             }
             .sharedBackgroundVisibility(.hidden)

@@ -69,12 +69,14 @@ public struct KeepBinSegment: View {
 public struct UnsortedBanner: View {
     public let count: Int
     public let onSort: () -> Void
+    /// Frosted card around the banner; off in the dense list, where it reads as a stray frame.
+    public var framed: Bool
 
-    public init(count: Int, onSort: @escaping () -> Void) {
-        self.count = count; self.onSort = onSort
+    public init(count: Int, framed: Bool = true, onSort: @escaping () -> Void) {
+        self.count = count; self.framed = framed; self.onSort = onSort
     }
 
-    public var body: some View {
+    private var row: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -101,8 +103,14 @@ public struct UnsortedBanner: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("unsorted-sort")
         }
-        .padding(.init(top: 8, leading: 14, bottom: 8, trailing: 8))
-        .frosted(0.62, radius: 18)
+    }
+
+    public var body: some View {
+        if framed {
+            row.padding(.init(top: 8, leading: 14, bottom: 8, trailing: 8)).frosted(0.62, radius: 18)
+        } else {
+            row
+        }
     }
 }
 

@@ -65,7 +65,7 @@ struct LibraryView: View {
         }
         let unsorted = store.scopeCount(.unsorted)
         if scope == .all && unsorted > 0 && !router.isSelecting {
-            UnsortedBanner(count: unsorted) { router.open(.triage) }   // no tip: the banner already says what Sort does
+            UnsortedBanner(count: unsorted, framed: layout == .tiles) { router.open(.triage) }   // no tip: the banner already says what Sort does
         }
     }
 
@@ -134,17 +134,19 @@ struct LibraryView: View {
                 nothingHere.listRowBackground(Color.clear).selectionDisabled()
             } else if sort == .newest {
                 ForEach(DateSections.group(links)) { section in
-                    Section { ForEach(section.links) { row($0) } } header: { SectionHeader(section.title) }
+                    Section { ForEach(section.links) { row($0) } } header: { SectionHeader(section.title).listRowInsets(.vertical, 4) }
                 }
             } else {
                 Section { ForEach(links) { row($0) } }
             }
         }
         .scrollContentBackground(.hidden)
+        .listStyle(.plain)
+        .listSectionSpacing(0)
         .environment(\.editMode, .constant(router.isSelecting ? .active : .inactive))
     }
 
-    private func row(_ link: LinkItem) -> some View { LinkListRow(link: link) }
+    private func row(_ link: LinkItem) -> some View { LinkListRow(link: link, compact: true) }
 
     // MARK: - Toolbars
 
@@ -156,6 +158,8 @@ struct LibraryView: View {
                 .font(AL.Font.largeTitle).tracking(-1.65)
                 .foregroundStyle(AL.ink)
                 .fixedSize()
+                // The bar clips text to its glyph-advance bounds, shaving the last letter; render with some slack.
+                .padding(.trailing, 4).drawingGroup()
                 .accessibilityAddTraits(.isHeader)
         }
         .sharedBackgroundVisibility(.hidden)

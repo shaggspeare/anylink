@@ -7,15 +7,17 @@ import Store
 struct LinkListRow: View {
     let link: LinkItem
     var meta: String?
+    var compact = false
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
 
     var body: some View {
-        Button { router.open(.link(link.id)) } label: { LinkRow(link: link, meta: meta) }
+        Button { router.open(.link(link.id)) } label: { LinkRow(link: link, meta: meta, compact: compact) }
             .buttonStyle(.plain)
             .allowsHitTesting(!router.isSelecting)   // not .disabled: that greys every row out in select mode
             .tag(link.id)
-            .listRowBackground(Color.clear.frosted(0.62, radius: 0, rim: 0))
+            .listRowInsets(.vertical, compact ? 4 : nil)
+            .listRowBackground(Color.clear.frosted(compact ? 0 : 0.62, radius: 0, rim: 0))
             .linkActions(link)
             .swipeActions(edge: .leading) {
                 Button(link.favorite == true ? "Unfavorite" : "Favorite", systemImage: "star") {
