@@ -11,7 +11,6 @@ struct ReaderView: View {
     let link: LinkItem
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
-    @State private var selection = ""
     @State private var editingNote = false
     @State private var noteDraft = ""
     @FocusState private var noteFocused: Bool
@@ -83,7 +82,7 @@ struct ReaderView: View {
             HStack(spacing: 8) {
                 Button { router.sheet = .moveLinks([link.id]) } label: {
                     HStack(spacing: 6) {
-                        Circle().fill(Color.fromHex(store.collection(link.collectionId)?.color ?? "#9AA3AD")).frame(width: 8, height: 8)
+                        Circle().fill(store.collection(link.collectionId).map { Color.fromHex($0.color) } ?? AL.slate).frame(width: 8, height: 8)
                         Text(store.name(of: link.collectionId))
                         Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
                     }
@@ -180,8 +179,7 @@ struct ReaderView: View {
         } else if ArticleBody.hasEnoughProse(link.articleText) {
             HighlightableText(
                 blocks: link.articleText ?? [],
-                highlights: (link.highlights ?? []).map(\.quote),
-                selection: $selection
+                highlights: (link.highlights ?? []).map(\.quote)
             ) { store.addHighlight(link.id, quote: $0) }
         } else {
             if !link.excerpt.isEmpty { lead(link.excerpt) }
@@ -237,16 +235,8 @@ struct ReaderView: View {
                 .accessibilityLabel("More")
         }
         ToolbarItemGroup(placement: .bottomBar) {
+            // No Highlight button: selecting text offers Highlight in the edit menu, and summary-only links have nothing to select.
             Button("Note", systemImage: "square.and.pencil") { beginNote() }
-            if link.contentType != .video {
-                Button("Highlight", systemImage: "highlighter") {
-                    if selection.isEmpty {
-                        store.toasts.show("Select some text, then tap Highlight.")
-                    } else {
-                        store.addHighlight(link.id, quote: selection)
-                    }
-                }
-            }
             if let url { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
             Spacer()
             Button { router.openOriginal = url } label: { Text("Open ↗").fontWeight(.semibold).foregroundStyle(AL.onAccent) }

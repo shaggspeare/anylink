@@ -13,7 +13,7 @@ struct LinkListRow: View {
     var body: some View {
         Button { router.open(.link(link.id)) } label: { LinkRow(link: link, meta: meta) }
             .buttonStyle(.plain)
-            .disabled(router.isSelecting)
+            .allowsHitTesting(!router.isSelecting)   // not .disabled: that greys every row out in select mode
             .tag(link.id)
             .listRowBackground(Color.clear.frosted(0.62, radius: 0, rim: 0))
             .linkActions(link)

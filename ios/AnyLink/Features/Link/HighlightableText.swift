@@ -7,7 +7,6 @@ import DesignSystem
 struct HighlightableText: UIViewRepresentable {
     let blocks: [String]
     let highlights: [String]
-    @Binding var selection: String
     let onHighlight: (String) -> Void
 
     func makeUIView(context: Context) -> UITextView {
@@ -71,11 +70,6 @@ struct HighlightableText: UIViewRepresentable {
         private func selected(in tv: UITextView) -> String {
             guard tv.selectedRange.length > 0 else { return "" }
             return (tv.text as NSString).substring(with: tv.selectedRange).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        func textViewDidChangeSelection(_ tv: UITextView) {
-            let text = selected(in: tv)
-            Task { @MainActor in self.parent.selection = text }
         }
 
         func textView(_ tv: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {

@@ -75,7 +75,7 @@ final class AnyLinkUITests: XCTestCase {
         read("blocked-news.example/story", in: app)
         let notice = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "The site wouldn't give up the full page")).firstMatch
         XCTAssertTrue(notice.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Save to Unsorted"].exists)
+        XCTAssertTrue(app.buttons["Save to Unsorted"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -105,7 +105,7 @@ final class AnyLinkUITests: XCTestCase {
         let text = app.textViews.firstMatch
         XCTAssertTrue(text.waitForExistence(timeout: 3))
         text.doubleTap()
-        let highlight = app.buttons["Highlight"].firstMatch
+        let highlight = app.buttons["Highlight"].firstMatch   // the edit menu shows as buttons or menu items by OS version
         if !highlight.waitForExistence(timeout: 2) { text.press(forDuration: 1.0) }
         XCTAssertTrue(app.menuItems["Highlight"].firstMatch.waitForExistence(timeout: 2) || highlight.exists)
         (app.menuItems["Highlight"].firstMatch.exists ? app.menuItems["Highlight"].firstMatch : highlight).tap()
@@ -145,6 +145,11 @@ final class AnyLinkUITests: XCTestCase {
         let app = launch()
         app.tabBars.buttons["Collections"].tap()
         let delete = app.buttons["Delete empty collections"]
+        app.swipeUp(); app.swipeUp()
+        XCTAssertFalse(delete.exists, "only offered when a collection is empty")
+        app.buttons["New collection"].tap()
+        app.textFields["Name"].typeText("Empty one")
+        app.buttons["Add collection"].tap()
         app.swipeUp(); app.swipeUp()
         XCTAssertTrue(delete.waitForExistence(timeout: 3))
         delete.tap()
@@ -398,7 +403,8 @@ final class AnyLinkUITests: XCTestCase {
     }
 
     /// Labels the audit calls "partially unsupported" although they grow (system Toggle/Picker labels, hero eyebrow).
-    static let verifiedScaling: Set<String> = ["Clipboard suggestions", "New links go to", "NASA.GOV · 6 MIN READ"]
+    static let verifiedScaling: Set<String> = ["Clipboard suggestions", "New links go to", "NASA.GOV · 6 MIN READ", AnyLinkUITests.shareFooter]
+    static let shareFooter = "To save from Safari, tap Share, scroll the app row, tap More and pin AnyLink."
 
     @MainActor
     func testFlaggedLabelsScaleWithDynamicType() throws {
@@ -412,7 +418,7 @@ final class AnyLinkUITests: XCTestCase {
             app.navigationBars.buttons.firstMatch.tap()
             app.tabBars.buttons["Collections"].tap()
             app.buttons["Settings"].tap()
-            for l in ["Clipboard suggestions", "New links go to"] {
+            for l in ["Clipboard suggestions", "New links go to", Self.shareFooter] {
                 let t = app.staticTexts[l]
                 if !t.exists { app.swipeUp() }
                 out[l] = t.frame.height

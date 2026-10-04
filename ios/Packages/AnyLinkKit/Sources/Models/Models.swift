@@ -336,3 +336,8 @@ public struct Signal: Codable, Sendable {
 public enum AppError: Error, Equatable, Sendable {
     case offline, unauthorized, notFound, server(Int), invalidURL, decoding, unknown
 }
+
+public extension Int {
+    /// "1 link", "12 links", "1,284 links". English only, like the rest of the copy for now.
+    var linkCount: String { "\(formatted()) \(self == 1 ? "link" : "links")" }
+}

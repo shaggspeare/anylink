@@ -347,14 +347,14 @@ public final class LibraryStore {
         let ids = Array(ids)
         let before = change(ids) { if !$0.tags.contains(tag) { $0.tags.append(tag) } }
         sync(.tag(ids, tag)) { [weak self] in self?.put(before) }
-        toasts.show("Tagged \(ids.count) \(ids.count == 1 ? "link" : "links") #\(tag)")
+        toasts.show("Tagged \(ids.count.linkCount) #\(tag)")
     }
 
     public func archive(_ ids: Set<LinkItem.ID>) {
         let ids = Array(ids)
         let before = change(ids) { $0.archived = true }
         sync(.archive(ids)) { [weak self] in self?.put(before) }
-        undo.register("Archived \(ids.count) \(ids.count == 1 ? "link" : "links")") { [weak self] in
+        undo.register("Archived \(ids.count.linkCount)") { [weak self] in
             // BACKEND: no unarchive endpoint (10-decisions open question 4); Undo is local until one exists.
             self?.put(before)
         }
@@ -443,7 +443,7 @@ public final class LibraryStore {
         let before = change(memberIDs) { $0.collectionId = inbox }
         collections.remove(at: i)
         sync(.dissolve(id, members: memberIDs, inbox: inbox)) { [weak self] in self?.collections.insert(c, at: i); self?.put(before) }
-        undo.register("\(c.name) dissolved — \(memberIDs.count) links back in Unsorted") { [weak self] in
+        undo.register("\(c.name) dissolved — \(memberIDs.count.linkCount) back in Unsorted") { [weak self] in
             self?.undissolve(c, at: i, before: before)
         }
     }

@@ -442,3 +442,23 @@
 - Shortcuts app → "Save to AnyLink" with a URL → the link lands in Unsorted.
 - Spotlight: search a saved title → tap → the reader opens.
 - Settings → Show tips again → relaunch → tips reappear.
+
+## UX review pass (2026-10-04)
+
+**Status:** Done. Walked the whole app in the simulator (via the iOS Simulator MCP), fixed what got in the way, and removed duplicate controls (D25–D27).
+
+### Done
+- **Dead taps:** the paste bar is now one big button (only "New" used to respond); Settings "Share sheet" (a row that only showed a toast) became the Capture footer; Trash rows get a visible Restore.
+- **Duplicates removed:** add sheet's second Save; reader Highlight button (the edit menu has it, and summary-only links had nothing to select); Open/Share/"Add to collection" in detail ⋯ menus (the last one actually *moved* the link); Why card Rename; Sort Unsorted's Done; the dashed New collection card; Import's Skip; `SortTip` (said what the banner says, and covered the chips).
+- **Visual bugs:** select mode greyed every row (`.disabled` → `.allowsHitTesting`); "Kee/p" wrapped on the Why card and the card didn't span the width; the long-press tip covered the filter chips (now below the tile); "1 links" (shared `Int.linkCount`); "saved from Manual"/"Ios" on triage cards (only imports show a source).
+- **Context:** paste bar hidden on Search and Trash; the add sheet focuses the URL field and shows Paste only when there's a link to paste; "Delete empty collections" only when one is empty; the New collection name field is focused; Import says "Not now" instead of "Start with an empty library" when you already have links.
+- 146 package tests ✅; 17 of 19 UI tests ✅.
+
+### Not done
+- **Accessibility audits fail on Search and Trash** with an element-less contrast hit ("SwiftUI.AccessibilityNode"). Pre-existing: they fail on the previous commit too with today's simulator (iOS 26.4), so it isn't from this pass. Needs a look at the frosted list-row backgrounds those two screens share.
+- `docs/07-ios-native.md` still lists `SortTip` (the docs folder is untracked here, so it was left alone).
+
+### Check by hand
+- Library → tap anywhere on "Paste a link" → the add sheet opens with the keyboard up.
+- Collection → Select → rows stay full-colour; tapping toggles the checkmark.
+- Trash → Restore → "Restored to …" toast; the header count says "1 link".

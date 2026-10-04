@@ -67,9 +67,6 @@ struct OnboardingFlow: View {
                 .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 .padding(.leading, 6)
             Spacer()
-            if model.step == .importFiles {
-                Button("Skip", action: onFinish).font(.subheadline).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
-            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Step \(model.step.indicator + 1) of 4")
@@ -113,10 +110,11 @@ struct OnboardingFlow: View {
             VStack(spacing: 4) {
                 if let e = model.importError { Notice(e) }
                 let n = model.merged.count
-                Button(n == 0 ? "Choose a file to import" : "Import \(n.formatted()) links") { Task { await model.runImport() } }
+                Button(n == 0 ? "Choose a file to import" : "Import \(n.linkCount)") { Task { await model.runImport() } }
                     .buttonStyle(.alPrimary)
                     .disabled(n == 0 || model.isImporting)
-                Button("Start with an empty library", action: onFinish)
+                // The one way out (no separate Skip). Reopened from Collections, the library isn't empty.
+                Button(store.live.isEmpty ? "Start with an empty library" : "Not now", action: onFinish)
                     .font(.subheadline).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
                     .frame(minHeight: 44)
             }
@@ -140,7 +138,7 @@ struct OnboardingFlow: View {
             }
             if let chosen {
                 HStack {
-                    Text("✓ \(chosen.name) · \(chosen.items.count.formatted()) links")
+                    Text("✓ \(chosen.name) · \(chosen.items.count.linkCount)")
                         .font(AL.Font.chip).foregroundStyle(AL.onAccent).lineLimit(1)
                     Spacer()
                     Button { model.remove(source) } label: { Image(systemName: "xmark").font(.caption.weight(.bold)) }
@@ -340,7 +338,7 @@ struct OnboardingFlow: View {
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 10) {
-                Text("\(model.keptCount) kept · \(model.binnedCollections.count) binned — \(model.linksBackToUnsorted) links go back to Unsorted")
+                Text("\(model.keptCount) kept · \(model.binnedCollections.count) binned — \(model.linksBackToUnsorted.linkCount) go back to Unsorted")
                     .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
                 Button("Open my library") { model.finish(); onFinish() }
                     .buttonStyle(.alPrimary)
@@ -361,7 +359,7 @@ struct OnboardingFlow: View {
                 Spacer()
                 Text("\(r.linkIds.count)").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
             }
-            Text(binned ? "Binned — its \(r.linkIds.count) links go back to Unsorted." : r.reasoning)
+            Text(binned ? "Binned — its \(r.linkIds.count.linkCount) go back to Unsorted." : r.reasoning)
                 .font(AL.Font.chip).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
             ForEach(samples) { l in
                 HStack(spacing: 8) {

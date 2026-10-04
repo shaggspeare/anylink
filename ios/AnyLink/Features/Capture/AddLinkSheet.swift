@@ -15,6 +15,7 @@ struct AddLinkSheet: View {
     @State private var invalid = false
     @State private var newTag = ""
     @State private var savedCount = 0
+    @FocusState private var fieldFocused: Bool
     private let prefill: URL?
 
     init(store: LibraryStore, prefill: URL?, collectionID: LinkCollection.ID?) {
@@ -32,7 +33,9 @@ struct AddLinkSheet: View {
         .interactiveDismissDisabled(model.isSaving)
         .sensoryFeedback(.success, trigger: model.step == 3 && model.phase == .ready)
         .sensoryFeedback(.success, trigger: savedCount)
-        .onAppear { if let prefill { begin(prefill.absoluteString) } }
+        .onAppear {
+            if let prefill { begin(prefill.absoluteString) } else if !store.clipboardHasURL { fieldFocused = true }
+        }
         .onDisappear { model.cancel() }
     }
 
@@ -67,27 +70,23 @@ struct AddLinkSheet: View {
                     .font(AL.Font.sheetHero).tracking(-1.4)
                     .foregroundStyle(AL.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    Circle().fill(store.clipboardHasURL ? AL.lime : AL.slate).frame(width: 8, height: 8)
-                    Text(store.clipboardHasURL ? "There's a link on your clipboard" : "Nothing to paste yet — type a URL below")
-                        .font(.footnote)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
-                }
-                PasteButton(payloadType: String.self) { strings in
-                    if let url = strings.lazy.compactMap(PasteAccessory.firstWebURL).first {
-                        Task { @MainActor in begin(url.absoluteString) }
+                // Paste only when there's something to paste; otherwise the field is the one way in.
+                if store.clipboardHasURL {
+                    PasteButton(payloadType: String.self) { strings in
+                        if let url = strings.lazy.compactMap(PasteAccessory.firstWebURL).first {
+                            Task { @MainActor in begin(url.absoluteString) }
+                        }
                     }
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    .tint(AL.signal)
+                    .labelStyle(.titleAndIcon)
+                    .frame(maxWidth: .infinity)
+                    Text("or type a URL").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 }
-                .buttonBorderShape(.capsule)
-                .controlSize(.large)
-                .tint(AL.signal)
-                .labelStyle(.titleAndIcon)
-                .frame(maxWidth: .infinity)
-
-                Text("or type a URL").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 HStack(spacing: 8) {
                     ALField("https://", text: $typed, isURL: true)
+                        .focused($fieldFocused)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -138,7 +137,7 @@ struct AddLinkSheet: View {
                         Notice("The site wouldn't give up the full page — this card is built from its metadata and written up by AI. Worth a glance before you save.")
                     }
                     card
-                    if model.phase != .failed { statusLine }
+                    if model.phase == .crawling { statusLine }
                     collectionPicker
                     if model.phase != .failed { tagsSection }
                     if model.phase != .crawling {
@@ -150,26 +149,18 @@ struct AddLinkSheet: View {
             }
             .background { ZStack { AL.canvas; Orbs(.sheet) }.ignoresSafeArea() }
             .safeAreaInset(edge: .bottom) {
-                if model.phase != .crawling {
-                    Button("Save to \(store.name(of: model.collectionID))", action: save)
-                        .buttonStyle(.alSignal)
-                        .disabled(model.isSaving)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                }
+                // The one Save. Mid-crawl it says "Save now": capture never waits for the read.
+                Button(model.isDone || model.phase == .failed ? "Save to \(store.name(of: model.collectionID))" : "Save now", action: save)
+                    .buttonStyle(.alSignal)
+                    .disabled(model.isSaving)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
             }
             .navigationTitle("New link")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { model.cancel(); dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: save) { Text(model.isDone ? "Save" : "Save now").foregroundStyle(AL.onAccent) }
-                        .buttonStyle(.glassProminent)
-                .foregroundStyle(AL.onAccent)
-                        .tint(AL.signal)
-                        .disabled(model.isSaving)
                 }
             }
         }

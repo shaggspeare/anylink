@@ -16,11 +16,6 @@ struct SearchTip: Tip {
     var message: Text? { Text("Search takes filters like type:video or #design.") }
 }
 
-struct SortTip: Tip {
-    var title: Text { Text("Sort Unsorted") }
-    var message: Text? { Text("Swipe through Unsorted to file links in seconds.") }
-}
-
 struct ShareSheetTip: Tip {
     var title: Text { Text("Share sheet") }
     var message: Text? { Text("In Safari, tap Share, scroll the app row, tap More and pin AnyLink.") }

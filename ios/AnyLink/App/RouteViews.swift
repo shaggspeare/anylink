@@ -143,7 +143,7 @@ struct SheetHost: View {
             }
             .listStyle(.plain)
             .padding(-16)
-            .navigationTitle("Move \(ids.count) \(ids.count == 1 ? "link" : "links")")
+            .navigationTitle("Move \(ids.count.linkCount)")
             .navigationBarTitleDisplayMode(.inline)
         case .tagLinks(let ids):
             VStack(alignment: .leading, spacing: 12) {
@@ -163,7 +163,7 @@ struct SheetHost: View {
                     .buttonStyle(.alPrimary)
                     .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .navigationTitle("Tag \(ids.count) \(ids.count == 1 ? "link" : "links")")
+            .navigationTitle("Tag \(ids.count.linkCount)")
             .navigationBarTitleDisplayMode(.inline)
         case .newCollection, .rename:
             EmptyView()
@@ -220,7 +220,7 @@ private struct ConfirmDialogs: ViewModifier {
 
     private var title: String {
         switch router.confirm {
-        case .trash(let ids): "Delete \(ids.count) \(ids.count == 1 ? "link" : "links")?"
+        case .trash(let ids): "Delete \(ids.count.linkCount)?"
         case .dissolve: "Dissolve collection?"
         case .emptyTrash: "Empty Trash?"
         case .deleteForever: "Delete forever?"
@@ -233,7 +233,7 @@ private struct ConfirmDialogs: ViewModifier {
         switch c {
         case .trash: "They move to Trash. You can restore them from there."
         case .dissolve: "Dissolving moves its links back to Unsorted and deletes the collection."
-        case .emptyTrash(let n): "\(n) links will be deleted for good."
+        case .emptyTrash(let n): "\(n.linkCount) will be deleted for good."
         case .deleteForever: "This link and its saved image are removed for good."
         case .deleteAccount: "Your library, collections and notes are deleted from every device. This can't be undone."
         }

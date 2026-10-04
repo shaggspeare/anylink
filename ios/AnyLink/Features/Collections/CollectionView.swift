@@ -44,7 +44,7 @@ struct CollectionView: View {
         .scrollContentBackground(.hidden)
         .environment(\.editMode, .constant(router.isSelecting ? .active : .inactive))
         .background {
-            ZStack { AL.canvas; Orbs(isInbox ? .inbox : .collection(.fromHex(collection?.color ?? "#9AA3AD"))) }.ignoresSafeArea()
+            ZStack { AL.canvas; Orbs(isInbox ? .inbox : .collection(collection.map { .fromHex($0.color) } ?? AL.slate)) }.ignoresSafeArea()
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(router.isSelecting)
@@ -73,7 +73,7 @@ struct CollectionView: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 10) {
-                    Circle().fill(isInbox ? AL.slate : .fromHex(collection?.color ?? "#9AA3AD")).frame(width: 12, height: 12)
+                    Circle().fill(isInbox ? AL.slate : collection.map { .fromHex($0.color) } ?? AL.slate).frame(width: 12, height: 12)
                     Text(collection?.name ?? "Collection")
                         .font(AL.Font.largeTitle).tracking(-1.65)
                         .foregroundStyle(AL.ink)
@@ -89,12 +89,11 @@ struct CollectionView: View {
                         // BACKEND: no endpoint for "keep"; it's remembered per device and logged as a signal.
                         store.signals.log("keep", collectionId: id)
                     },
-                    onRename: { router.sheet = .rename(id) },
                     onDissolve: { router.confirm = .dissolve(id) }
                 )
             }
             if isInbox && !all.isEmpty {
-                Button("Sort \(all.count) links one by one") { router.open(.triage) }
+                Button("Sort \(all.count.linkCount) one by one") { router.open(.triage) }
                     .buttonStyle(.alSignal)
             }
             let tags = store.tags(in: id)
@@ -116,7 +115,7 @@ struct CollectionView: View {
     }
 
     private var subtitle: String {
-        let n = "\(all.count) \(all.count == 1 ? "link" : "links")"
+        let n = all.count.linkCount
         if isInbox { return "\(n) · new links land here" }
         if collection?.createdBy == "system" { return "\(n) · made during import" }
         return n
@@ -140,7 +139,7 @@ struct FilterResultsView: View {
                         .foregroundStyle(AL.onInk)
                         .padding(.horizontal, 10).frame(height: 24)
                         .background(AL.ink, in: Capsule())
-                    Text("\(links.count) links").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                    Text(links.count.linkCount).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
                 }
             }
             .listRowBackground(Color.clear)
@@ -171,7 +170,7 @@ struct TrashView: View {
         List {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Trash").font(AL.Font.largeTitle).tracking(-1.65).foregroundStyle(AL.ink).accessibilityAddTraits(.isHeader)
-                Text("\(store.trash.count) links · they stay here until you delete them")
+                Text("\(store.trash.count.linkCount) · they stay here until you delete them")
                     .font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
             }
             .listRowBackground(Color.clear)
@@ -193,6 +192,10 @@ struct TrashView: View {
                                 Text(link.title).font(AL.Font.rowTitle).foregroundStyle(AL.ink).lineLimit(1)
                                 Text(meta(link)).font(.caption).foregroundStyle(AL.ink.opacity(AL.Ink.a50)).lineLimit(1)
                             }
+                            Spacer(minLength: 0)
+                            // Visible, not swipe-only: restoring is the reason anyone opens Trash.
+                            Button("Restore") { store.restore([link.id]) }
+                                .buttonStyle(ALSmallButtonStyle(.soft))
                         }
                         .frame(minHeight: 64)
                         .accessibilityElement(children: .combine)
@@ -204,7 +207,6 @@ struct TrashView: View {
                         .swipeActions(edge: .trailing) {
                             Button("Delete", systemImage: "trash", role: .destructive) { router.confirm = .deleteForever([link.id]) }
                         }
-                        .accessibilityAction(named: "Restore") { store.restore([link.id]) }
                         .accessibilityAction(named: "Delete forever") { router.confirm = .deleteForever([link.id]) }
                     }
                 } header: {
@@ -252,4 +254,9 @@ struct TrashView: View {
 #Preview("Trash") {
     let env = AppEnvironment.mock(latency: false)
     NavigationStack { TrashView() }.environment(env.store).environment(env.router)
+}
+
+#Preview("Trash — Dark") {
+    let env = AppEnvironment.mock(latency: false)
+    NavigationStack { TrashView() }.environment(env.store).environment(env.router).preferredColorScheme(.dark)
 }

@@ -94,7 +94,12 @@ public final class Router {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
-    public var showsAccessory: Bool { !isSelecting && !(path(tab).last?.hidesTabBar ?? false) }
+    /// Not on Search (the field is the main action there) or in Trash (nothing to paste into).
+    public var showsAccessory: Bool {
+        guard !isSelecting, tab != .search else { return false }
+        let top = path(tab).last
+        return top != .trash && !(top?.hidesTabBar ?? false)
+    }
 
     /// `anylink://add?url=…` and `anylink://link/{id}`, plus universal `https://<web>/links/{id}`.
     @discardableResult

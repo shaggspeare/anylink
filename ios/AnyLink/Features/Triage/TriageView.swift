@@ -55,9 +55,6 @@ struct TriageView: View {
                     }
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") { router.setPath(router.tab, router.path(router.tab).dropLast()) }
-            }
         }
     }
 
@@ -174,7 +171,12 @@ private struct TriageCard: View {
     }
 
     private var meta: String {
-        [link.domain, link.readingMeta, link.source.map { "saved from \($0.capitalized)" }].compactMap { $0 }.joined(separator: " · ")
+        [link.domain, link.readingMeta, link.source.flatMap(Self.importedFrom)].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// Only imports say where they came from; "saved from Manual" or "from Ios" is noise.
+    private static func importedFrom(_ source: String) -> String? {
+        ["manual", "ios", "web", "share"].contains(source.lowercased()) ? nil : "saved from \(source.capitalized)"
     }
 }
 

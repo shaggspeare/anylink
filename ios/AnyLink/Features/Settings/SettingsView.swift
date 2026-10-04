@@ -37,11 +37,6 @@ struct SettingsView: View {
             Section { account }
             Section {
                 TipView(ShareSheetTip())
-                Button {
-                    store.toasts.show("In Safari, tap Share, scroll the app row, tap More and pin AnyLink.")
-                } label: {
-                    row("Share sheet", systemImage: "square.and.arrow.up")
-                }
                 ShortcutsLink()
                     .shortcutsLinkStyle(.automaticOutline)
                     .frame(maxWidth: .infinity)
@@ -53,7 +48,13 @@ struct SettingsView: View {
                 } label: {
                     Text("New links go to").fixedSize(horizontal: false, vertical: true)
                 }
-            } header: { header("Capture") }
+            } header: {
+                header("Capture")
+            } footer: {
+                // Was a row that only popped a toast; the how-to reads better as plain text.
+                Text("To save from Safari, tap Share, scroll the app row, tap More and pin AnyLink.")
+                    .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+            }
             Section {
                 HStack(spacing: 12) {
                     ForEach(Appearance.allCases) { a in
@@ -102,7 +103,7 @@ struct SettingsView: View {
                 .background(AL.periwinkle, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text("Your account").font(.headline)
-                Text("Apple ID · \(store.live.count) links · \(synced)")
+                Text("Apple ID · \(store.live.count.linkCount) · \(synced)")
                     .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
             }
         }
@@ -119,12 +120,8 @@ struct SettingsView: View {
         store.lastSynced.map { "synced \($0.formatted(.relative(presentation: .named)))" } ?? "not synced yet"
     }
 
-    private func row(_ title: String, detail: String? = nil, systemImage: String) -> some View {
-        HStack {
-            Label(title, systemImage: systemImage).foregroundStyle(.primary)
-            Spacer()
-            if let detail { Text(detail).foregroundStyle(AL.ink.opacity(AL.Ink.a60)) }
-        }
+    private func row(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage).foregroundStyle(.primary).frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var version: String {

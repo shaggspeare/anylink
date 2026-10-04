@@ -281,6 +281,12 @@ import Fixtures
         r.library = []
         r.isSelecting = true
         #expect(!r.showsAccessory)
+        r.isSelecting = false
+        r.open(.trash)
+        #expect(!r.showsAccessory)
+        r.library = []
+        r.select(.search)
+        #expect(!r.showsAccessory)
     }
 
     @Test func deepLinks() {

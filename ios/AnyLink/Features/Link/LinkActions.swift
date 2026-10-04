@@ -42,25 +42,28 @@ struct LinkMenuItems: View {
     private var isFavorite: Bool { link.favorite == true }
 
     var body: some View {
-        Button("Open Original", systemImage: "arrow.up.right") { router.openOriginal = url }
-        if let url {
-            ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") }
+        // Detail screens already show Open, Share and the collection chip, so their ⋯ menu skips those.
+        if !inDetail {
+            Button("Open Original", systemImage: "arrow.up.right") { router.openOriginal = url }
+            if let url {
+                ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") }
+            }
         }
         Button("Copy Link", systemImage: "doc.on.doc") {
             UIPasteboard.general.url = url
             store.toasts.show(url == nil ? "Couldn't copy the link" : "Link copied")
         }
-        Divider()
-        Menu {
-            ForEach(store.collections.filter { $0.isSmart != true && $0.id != link.collectionId }) { c in
-                Button { store.move([link.id], to: c.id) } label: {
-                    Label { Text(c.name) } icon: { Image(systemName: "circle.fill").foregroundStyle(Color.fromHex(c.color)) }
-                }
-            }
-        } label: {
-            Label(inDetail ? "Add to collection" : "Move to…", systemImage: "folder")
-        }
         if !inDetail {
+            Divider()
+            Menu {
+                ForEach(store.collections.filter { $0.isSmart != true && $0.id != link.collectionId }) { c in
+                    Button { store.move([link.id], to: c.id) } label: {
+                        Label { Text(c.name) } icon: { Image(systemName: "circle.fill").foregroundStyle(Color.fromHex(c.color)) }
+                    }
+                }
+            } label: {
+                Label("Move to…", systemImage: "folder")
+            }
             Button(isFavorite ? "Unfavorite" : "Favorite", systemImage: isFavorite ? "star.slash" : "star") {
                 store.setFavorite(link.id, !isFavorite)
             }

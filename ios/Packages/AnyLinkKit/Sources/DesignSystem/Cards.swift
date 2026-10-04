@@ -25,7 +25,7 @@ public struct CollectionCard: View {
                         .foregroundStyle(AL.ink)
                         .lineLimit(1)
                 }
-                Text("\(linkCount) \(linkCount == 1 ? "link" : "links")")
+                Text(linkCount.linkCount)
                     .font(AL.Font.meta)
                     .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     .padding(.leading, 14)
@@ -91,11 +91,11 @@ public struct NewCollectionCard: View {
 public struct WhyCard: View {
     public let reasoning: String
     public var onKeep: () -> Void = {}
-    public var onRename: () -> Void = {}
     public var onDissolve: () -> Void = {}
 
-    public init(reasoning: String, onKeep: @escaping () -> Void = {}, onRename: @escaping () -> Void = {}, onDissolve: @escaping () -> Void = {}) {
-        self.reasoning = reasoning; self.onKeep = onKeep; self.onRename = onRename; self.onDissolve = onDissolve
+    /// Rename lives in the screen's ⋯ menu; the card only asks "keep it or not".
+    public init(reasoning: String, onKeep: @escaping () -> Void = {}, onDissolve: @escaping () -> Void = {}) {
+        self.reasoning = reasoning; self.onKeep = onKeep; self.onDissolve = onDissolve
     }
 
     public var body: some View {
@@ -115,19 +115,15 @@ public struct WhyCard: View {
                 .foregroundStyle(AL.ink)
             HStack(spacing: 8) {
                 Button(action: onKeep) {
-                    Label("Keep", systemImage: "checkmark")
+                    // Not a Label: its icon column squeezed "Keep" onto two lines here.
+                    HStack(spacing: 5) { Image(systemName: "checkmark"); Text("Keep") }
                 }
                 .buttonStyle(ALSmallButtonStyle(.lime))
-                Button("Rename", action: onRename)
-                    .buttonStyle(ALSmallButtonStyle(.soft))
                 Button("Dissolve", action: onDissolve)
-                    .font(AL.Font.brand(13, .semibold, relativeTo: .footnote))
-                    .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
-                    .frame(height: AL.Control.sm)
-                    .padding(.horizontal, 14)
-                    .background(AL.ink.opacity(AL.Ink.a06), in: Capsule())
+                    .buttonStyle(ALSmallButtonStyle(.soft))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .frosted(0.62, radius: 20)
     }

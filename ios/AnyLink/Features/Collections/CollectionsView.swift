@@ -27,16 +27,16 @@ struct CollectionsView: View {
                     filterChips
                     if let s = store.suggestedFilter(dismissed: dismissed) { suggestion(s) }
                     unsortedCard
+                    // New collection is the toolbar +, always in reach; no dashed card at the end of the grid.
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(store.userCollections) { c in
                             Button { router.open(.collection(c.id)) } label: {
                                 CollectionCard(collection: c, linkCount: store.count(in: c.id), topLinks: Array(store.links(in: c.id).prefix(3)))
                             }
                             .buttonStyle(TilePressStyle())
-                            .accessibilityLabel("\(c.name), \(store.count(in: c.id)) links")
+                            .accessibilityLabel("\(c.name), \(store.count(in: c.id).linkCount)")
                             .accessibilityIdentifier("collection-\(c.id)")
                         }
-                        NewCollectionCard { router.sheet = .newCollection }
                     }
                     if !store.customFilters.isEmpty { customFilters }
                     if !store.topTags().isEmpty { tagCloud }
@@ -91,7 +91,7 @@ struct CollectionsView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Make “\(s.name)” a filter?").font(AL.Font.rowTitle).foregroundStyle(AL.ink)
-                Text("\(s.count) links tagged #\(s.tag)").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                Text("\(s.count.linkCount) tagged #\(s.tag)").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
             }
             Spacer(minLength: 0)
             Button("Create") { Task { await store.createFilter(name: s.name, query: s.query) } }
@@ -117,7 +117,7 @@ struct CollectionsView: View {
                 Circle().fill(AL.slate).frame(width: 10, height: 10)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Unsorted").font(AL.Font.brand(15, .semibold, relativeTo: .subheadline)).foregroundStyle(AL.ink)
-                    Text("\(n) links waiting · new links land here").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                    Text("\(n.linkCount) waiting · new links land here").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
                 }
                 Spacer(minLength: 0)
                 if n > 0 {
@@ -177,8 +177,10 @@ struct CollectionsView: View {
             quietRow("Import links") { router.showsOnboarding = true }
             Divider().padding(.leading, 14)
             quietRow("Trash", detail: "\(store.trash.count)") { router.open(.trash) }
-            Divider().padding(.leading, 14)
-            quietRow("Delete empty collections", chevron: false) { Task { await store.deleteEmptyCollections() } }
+            if store.userCollections.contains(where: { store.count(in: $0.id) == 0 }) {
+                Divider().padding(.leading, 14)
+                quietRow("Delete empty collections", chevron: false) { Task { await store.deleteEmptyCollections() } }
+            }
         }
         .background(AL.surface.opacity(0.45), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.top, 8)
@@ -212,11 +214,13 @@ struct CollectionNameSheet: View {
     @State private var name = ""
     @State private var color = String(format: "#%06X", AL.collectionSwatches[0])
     @State private var busy = false
+    @FocusState private var nameFocused: Bool
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 18) {
                 ALField("Name", text: $name)
+                    .focused($nameFocused)
                     .submitLabel(.done)
                     .onSubmit(submit)
                 if renaming == nil {
@@ -242,7 +246,7 @@ struct CollectionNameSheet: View {
             .navigationTitle(renaming == nil ? "New collection" : "Rename")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-            .onAppear { name = renaming?.name ?? "" }
+            .onAppear { name = renaming?.name ?? ""; nameFocused = true }
         }
         .presentationDetents([.medium])
         .interactiveDismissDisabled(busy)

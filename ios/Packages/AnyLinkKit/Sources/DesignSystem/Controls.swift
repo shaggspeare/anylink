@@ -79,7 +79,7 @@ public struct UnsortedBanner: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Circle().fill(AL.slate).frame(width: 10, height: 10)
-                    Text("\(count) links in Unsorted")
+                    Text("\(count.linkCount) in Unsorted")
                         .font(AL.Font.brand(14, .semibold, relativeTo: .subheadline))
                         .foregroundStyle(AL.ink)
                 }
@@ -142,6 +142,19 @@ public struct PasteAccessory: View {
     }
 
     public var body: some View {
+        if hasURL {
+            row
+        } else {
+            // With nothing to paste, the whole bar opens the sheet; "New" is just its visible label.
+            Button(action: onNew) { row.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("New link")
+                .accessibilityAddTraits(.isButton)
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 10) {
             Image(systemName: "link")
                 .font(.callout.weight(.semibold))
@@ -169,16 +182,12 @@ public struct PasteAccessory: View {
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(AL.onAccent)
             } else {
-                Button(action: onNew) {
-                    Text("New")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 16)
-                        .frame(minHeight: 38)
-                        .background(AL.ink.opacity(AL.Ink.a08), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("New link")
+                Text("New")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 38)
+                    .background(AL.ink.opacity(AL.Ink.a08), in: Capsule())
             }
         }
         .padding(.horizontal, 16)

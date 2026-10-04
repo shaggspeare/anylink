@@ -71,8 +71,7 @@ struct LibraryView: View {
         }
         let unsorted = store.scopeCount(.unsorted)
         if scope == .all && unsorted > 0 && !router.isSelecting {
-            UnsortedBanner(count: unsorted) { router.open(.triage) }
-                .popoverTip(SortTip())
+            UnsortedBanner(count: unsorted) { router.open(.triage) }   // no tip: the banner already says what Sort does
         }
     }
 
@@ -95,7 +94,7 @@ struct LibraryView: View {
                         ForEach(Array(links.enumerated()), id: \.element.id) { i, link in
                             tile(link)
                                 .modifier(Entrance(index: i, active: appeared || reduceMotion))
-                                .popoverTip(i == 0 ? LongPressTip() : nil)
+                                .popoverTip(i == 0 ? LongPressTip() : nil, arrowEdge: .top)   // below the tile, off the filter chips
                         }
                     }
                 }
