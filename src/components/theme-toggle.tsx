@@ -1,12 +1,26 @@
 "use client";
 
-/** Flips the `dark` class set by the head script in layout.tsx and remembers the choice. */
+import { useEffect } from "react";
+import { useLocalSetting } from "@/lib/use-local-setting";
+import { applyTheme, THEME_KEY, type Theme } from "@/lib/theme";
+
+/** Flips between light and dark (leaving System, if that was on) and remembers the choice.
+ * While System is on, it also follows the OS switching mid-session. */
 export function ThemeToggle({ className = "" }: { className?: string }) {
+  const [theme, setTheme] = useLocalSetting<Theme>(THEME_KEY, "light");
+
+  useEffect(() => {
+    if (theme !== "system") return;
+    const query = matchMedia("(prefers-color-scheme: dark)");
+    const follow = () => applyTheme("system");
+    query.addEventListener("change", follow);
+    return () => query.removeEventListener("change", follow);
+  }, [theme]);
+
   function toggle() {
-    const dark = document.documentElement.classList.toggle("dark");
-    localStorage.theme = dark ? "dark" : "light";
-    // Browser chrome (status bar, Android toolbar) follows the canvas, not the OS setting.
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0f1012" : "#eceef0");
+    const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    setTheme(next);
+    applyTheme(next);
   }
 
   // Both icons render; CSS picks one, so server and client markup match.

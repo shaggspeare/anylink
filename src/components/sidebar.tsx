@@ -332,6 +332,14 @@ export function Sidebar() {
       <div className="mt-3 flex flex-col border-t border-ink/8 pt-2">
         <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
         <TourButton className={`${QUIET_ROW} w-full`} />
+        <Link
+          href="/settings"
+          className={QUIET_ROW}
+          style={{ background: pathname === "/settings" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
+        >
+          <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⚙</span>
+          Settings
+        </Link>
       </div>
 
       <PasteHint />

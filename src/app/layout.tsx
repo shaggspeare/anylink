@@ -34,10 +34,10 @@ export const viewport: Viewport = {
 // none of it can be statically prerendered at build time.
 export const dynamic = "force-dynamic";
 
-// Runs before first paint: light unless the visitor picked dark.
+// Runs before first paint: light unless the visitor picked dark, or System and the OS is dark.
 // The theme-color meta is already parsed by then (it's emitted above this script), so the
 // browser chrome gets the canvas colour too.
-const THEME_SCRIPT = `try{if(localStorage.theme==="dark"){document.documentElement.classList.add("dark");document.querySelector('meta[name="theme-color"]')?.setAttribute("content","#0f1012")}}catch(e){}`;
+const THEME_SCRIPT = `try{var t=localStorage.theme;if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark");document.querySelector('meta[name="theme-color"]')?.setAttribute("content","#0f1012")}}catch(e){}`;
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { links, trashed, collections } = await getLibraryData();

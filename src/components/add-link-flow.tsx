@@ -2,6 +2,7 @@
 
 import { Icon } from "@/components/icon";
 import { useEffect, useRef, useState } from "react";
+import { useDefaultCollection } from "@/lib/use-default-collection";
 import { useLibrary } from "@/lib/store";
 import { suggestTags } from "@/lib/organize";
 import type { CrawlResult, CrawlStep } from "@/lib/crawler";
@@ -27,7 +28,6 @@ export function AddLinkFlow() {
     addLink,
     collections,
     tags: libraryTags,
-    inbox,
   } = useLibrary();
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -39,8 +39,11 @@ export function AddLinkFlow() {
   const [title, setTitle] = useState("");
   const [excerpt, setExcerpt] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  // Defaults to the inbox: filing is a separate, later decision, not a gate on saving.
-  const [collectionId, setCollectionId] = useState(inbox?.id ?? "");
+  // Defaults to the inbox (or the collection picked in Settings): filing is a separate,
+  // later decision, not a gate on saving. Only an explicit pick is stored here.
+  const defaultCollectionId = useDefaultCollection();
+  const [pickedCollectionId, setCollectionId] = useState<string | null>(null);
+  const collectionId = pickedCollectionId ?? defaultCollectionId;
   const [size, setSize] = useState<CardSize>("M");
   const [touched, setTouched] = useState<{ collection?: boolean; size?: boolean }>({});
   const [saving, setSaving] = useState(false);
@@ -60,7 +63,7 @@ export function AddLinkFlow() {
     setTitle("");
     setExcerpt("");
     setTags([]);
-    setCollectionId(inbox?.id ?? "");
+    setCollectionId(null);
     setSize("M");
     setSaving(false);
     setRefining(false);
