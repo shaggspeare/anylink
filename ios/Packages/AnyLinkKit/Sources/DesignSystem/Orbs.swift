@@ -32,6 +32,8 @@ public struct Orbs: View {
                     case .library:
                         orb(color: AL.signal, opacity: 0.30, size: 300, blur: 90, x: -90, y: -60, in: geo)
                         orb(color: AL.periwinkle, opacity: 0.26, size: 280, blur: 100, x: geo.size.width - 80, y: 340, in: geo)
+                        // Mirror of the signal orb: same size/blur, anchored bottom-right.
+                        orb(color: AL.periwinkle, opacity: 0.30, size: 300, blur: 90, x: geo.size.width - 390, y: geo.size.height - 420, in: geo)
                     case .addLink:
                         orb(color: AL.signal, opacity: 0.32, size: 300, blur: 90, x: -80, y: -70, in: geo)
                         orb(color: AL.lime, opacity: 0.34, size: 300, blur: 110, x: geo.size.width - 90, y: 200, in: geo)
