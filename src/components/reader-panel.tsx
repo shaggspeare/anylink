@@ -71,10 +71,10 @@ export function ReaderPanel({
   const paragraphs = readableParagraphs(link.articleText, link.excerpt);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-start">
+    <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 @3xl:flex-row @3xl:items-start">
       <article
         data-tour="reader"
-        className="relative flex-1 overflow-hidden rounded-[28px]"
+        className="relative overflow-hidden rounded-[28px] @3xl:flex-1"
         style={{ background: "rgb(var(--surface-rgb) / .72)", border: "1px solid rgb(var(--rim-rgb) / .85)", backdropFilter: "blur(22px)" }}
       >
         <div className="relative h-[250px] w-full overflow-hidden bg-[#dfe2e5] dark:bg-[#26272b]">
@@ -131,7 +131,7 @@ export function ReaderPanel({
         </div>
       </article>
 
-      <aside className="flex w-full flex-none flex-col gap-4 lg:w-[320px]">
+      <aside className="flex w-full flex-none flex-col gap-4 @3xl:w-[320px]">
         <RailSection title="Saved metadata">
           <RailRow label="Domain" value={link.domain} />
           <RailRow label="Saved" value={new Date(link.createdAt).toLocaleDateString()} />

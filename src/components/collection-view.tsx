@@ -15,6 +15,8 @@ import { searchLinks } from "@/lib/search";
 import { sortLinks, type Sort } from "@/lib/organize";
 import { linkCount } from "@/lib/format";
 import { useSelection } from "@/lib/use-selection";
+import { PANE_PX, useSplitView } from "@/lib/use-split-view";
+import { DetailPane } from "@/components/link-detail-view";
 
 export function CollectionView({ collectionId }: { collectionId: string }) {
   const { links, collections, tags, moveLinks, tagLinks, archiveLinks, deleteLinks, reorderLinks } =
@@ -45,6 +47,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
   );
 
   const { selectedIds, toggleSelect, clearSelection, withClear } = useSelection(visible);
+  const split = useSplitView();
 
   if (!collection) notFound();
 
@@ -52,7 +55,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
     <div className="relative min-h-screen overflow-hidden bg-canvas">
       <AmbientOrbs variant="library" />
       <Sidebar />
-      <div className="relative lg:pl-[250px]">
+      <div className="relative lg:pl-[250px]" style={{ paddingRight: split.openId ? PANE_PX : undefined }}>
         <header className="flex flex-col gap-3 px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
           <div data-tour="collection-header" className="flex items-center gap-3">
             <CollectionMarker color={collection.color} size={14} />
@@ -93,6 +96,9 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
           selectable
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
+          onOpen={split.wide ? split.open : undefined}
+          openId={split.openId}
+          reservedPx={split.openId ? PANE_PX : 0}
           onReorder={(ids) => {
             reorderLinks(ids);
             setSort("manual");
@@ -111,6 +117,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
         onDelete={() => withClear(deleteLinks)}
         onClear={clearSelection}
       />
+      <DetailPane split={split} />
       <BottomTabBar />
     </div>
   );

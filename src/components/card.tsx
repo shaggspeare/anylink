@@ -33,6 +33,8 @@ export function Card({
   onSelectClick,
   dragging = false,
   dragProps,
+  onOpen,
+  current = false,
 }: {
   /** Position in the mosaic — staggers the entrance animation. */
   index?: number;
@@ -49,6 +51,10 @@ export function Card({
   dragging?: boolean;
   /** From useDragReorder's `item(id)` — the FLIP ref plus, when reorderable, the drag handlers. */
   dragProps?: ReturnType<ReturnType<typeof useDragReorder>["item"]>;
+  /** Split view: open in the side pane rather than navigating. */
+  onOpen?: (id: string) => void;
+  /** Showing in the side pane right now. */
+  current?: boolean;
 }) {
   const router = useRouter();
   const { setLinkSize, setFavorite, deleteLinks, demo } = useLibrary();
@@ -74,6 +80,7 @@ export function Card({
     }
     // Demo links have no detail page — show the real thing instead.
     if (demo) window.open(link.url, "_blank", "noopener");
+    else if (onOpen) onOpen(link.id);
     else router.push(`/links/${link.id}`);
   };
 
@@ -174,7 +181,7 @@ export function Card({
         }`}
         style={{
           background: "rgb(var(--surface-rgb) / .62)",
-          border: selected ? "2px solid var(--ink)" : "1px solid rgb(var(--rim-rgb) / .75)",
+          border: selected ? "2px solid var(--ink)" : current ? "2px solid var(--color-signal)" : "1px solid rgb(var(--rim-rgb) / .75)",
           backdropFilter: "blur(22px) saturate(1.35)",
           WebkitBackdropFilter: "blur(22px) saturate(1.35)",
           boxShadow: "var(--shadow-card)",

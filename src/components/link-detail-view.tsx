@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/icon";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLibrary } from "@/lib/store";
@@ -9,59 +9,130 @@ import { AmbientOrbs } from "./ambient-orbs";
 import { ReaderPanel } from "./reader-panel";
 import { ProductPanel } from "./product-panel";
 import { Sidebar } from "./sidebar";
+import { PANE_PX, type SplitView } from "@/lib/use-split-view";
+import type { LinkItem } from "@/lib/types";
 
+/** The full link page: /links/[id]. */
 export function LinkDetailView({ linkId }: { linkId: string }) {
-  const { links, collections, moveLinks, setFavorite, setNote } = useLibrary();
-  const router = useRouter();
+  const { links } = useLibrary();
   const link = links.find((l) => l.id === linkId);
-  const [noteOpen, setNoteOpen] = useState(Boolean(link?.note));
 
   if (!link) notFound();
 
-  const collection = collections.find((c) => c.id === link.collectionId);
-  const isProduct = link.contentType === "product";
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
-      <AmbientOrbs variant={isProduct ? "product" : "reader"} />
+      <AmbientOrbs variant={link.contentType === "product" ? "product" : "reader"} />
       {/* Desktop keeps its place in the library while reading; below lg it's the drawer. */}
       <Sidebar />
       <div className="relative flex min-h-screen flex-col lg:pl-[250px]">
-        <header
-          className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] sm:px-6 sm:py-4"
-          style={{
-            background: "rgb(var(--surface-rgb) / .45)",
-            borderBottom: "1px solid rgb(var(--rim-rgb) / .6)",
-            backdropFilter: "blur(24px) saturate(1.3)",
-            WebkitBackdropFilter: "blur(24px) saturate(1.3)",
-          }}
+        <LinkDetail link={link} />
+      </div>
+    </div>
+  );
+}
+
+/** Wide screens: the open link beside the grid, from `?open=<id>`. Esc or ✕ closes it. */
+export function DetailPane({ split }: { split: SplitView }) {
+  const { links } = useLibrary();
+  const link = split.openId ? links.find((l) => l.id === split.openId) : undefined;
+
+  useEffect(() => {
+    if (!link) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("[aria-modal]")) split.close();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  if (!link) return null;
+  return (
+    <aside
+      aria-label={link.title}
+      className="fixed inset-y-0 right-0 z-30 flex flex-col overflow-y-auto overscroll-contain border-l bg-canvas/70"
+      style={{
+        width: PANE_PX,
+        borderColor: "rgb(var(--rim-rgb) / .8)",
+        backdropFilter: "blur(24px) saturate(1.3)",
+        WebkitBackdropFilter: "blur(24px) saturate(1.3)",
+      }}
+    >
+      {/* Keyed so the note field and panel state start fresh for each link. */}
+      <LinkDetail key={link.id} link={link} onClose={split.close} />
+    </aside>
+  );
+}
+
+/** Header actions, note and reader/product panel. `onClose` means it's in the side pane:
+ * no breadcrumb or back button, a close and an expand-to-full-page instead. */
+function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void }) {
+  const { collections, moveLinks, setFavorite, setNote } = useLibrary();
+  const router = useRouter();
+  const [noteOpen, setNoteOpen] = useState(Boolean(link.note));
+  const collection = collections.find((c) => c.id === link.collectionId);
+  const isProduct = link.contentType === "product";
+  const pane = Boolean(onClose);
+
+  return (
+    <>
+      <header
+        className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] sm:px-6 sm:py-4"
+        style={{
+          background: "rgb(var(--surface-rgb) / .45)",
+          borderBottom: "1px solid rgb(var(--rim-rgb) / .6)",
+          backdropFilter: "blur(24px) saturate(1.3)",
+          WebkitBackdropFilter: "blur(24px) saturate(1.3)",
+        }}
+      >
+        {pane && (
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              title="Close (Esc)"
+              className="-ml-2 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink/55 hover:bg-ink/6 hover:text-ink"
+            >
+              <Icon name="close" size={12} />
+            </button>
+            <Link
+              href={`/links/${link.id}`}
+              title="Open as a page"
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink/55 hover:bg-ink/6 hover:text-ink"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+            </Link>
+            {collection && <span className="truncate text-[13px] font-semibold text-ink/60">{collection.name}</span>}
+          </div>
+        )}
+        {/* Phones: one back button, to wherever you came from. */}
+        {!pane && <button
+          type="button"
+          onClick={() => (history.length > 1 ? router.back() : router.push(collection ? `/collections/${collection.id}` : "/app"))}
+          className="-ml-2 flex h-11 min-w-0 items-center gap-1 px-2 text-[15px] font-semibold text-ink sm:hidden"
         >
-          {/* Phones: one back button, to wherever you came from. */}
-          <button
-            type="button"
-            onClick={() => (history.length > 1 ? router.back() : router.push(collection ? `/collections/${collection.id}` : "/app"))}
-            className="-ml-2 flex h-11 min-w-0 items-center gap-1 px-2 text-[15px] font-semibold text-ink sm:hidden"
-          >
-            <svg className="flex-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+          <svg className="flex-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+            <path d="m14 6-6 6 6 6" />
+          </svg>
+          <span className="truncate">Back</span>
+        </button>}
+        {!pane && <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink/50 max-sm:hidden">
+          <Link href="/app" aria-label="Library" className="flex flex-none items-center gap-1.5 hover:text-ink">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
               <path d="m14 6-6 6 6 6" />
             </svg>
-            <span className="truncate">Back</span>
-          </button>
-          <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink/50 max-sm:hidden">
-            <Link href="/app" aria-label="Library" className="flex flex-none items-center gap-1.5 hover:text-ink">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
-                <path d="m14 6-6 6 6 6" />
+            <span>Library</span>
+          </Link>
+          {collection && (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .3)" }} strokeWidth="2.6" strokeLinecap="round">
+                <path d="m9 6 6 6-6 6" />
               </svg>
-              <span>Library</span>
-            </Link>
-            {collection && (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .3)" }} strokeWidth="2.6" strokeLinecap="round">
-                  <path d="m9 6 6 6-6 6" />
-                </svg>
-                <Link href={`/collections/${collection.id}`} className="truncate font-semibold text-ink hover:underline">
-                  {collection.name}
-                </Link>
+              <Link href={`/collections/${collection.id}`} className="truncate font-semibold text-ink hover:underline">
+                {collection.name}
+              </Link>
               </>
             )}
             {isProduct && (
@@ -73,7 +144,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
                 Product detected
               </span>
             )}
-          </div>
+          </div>}
 
           <div className="ml-auto flex flex-none items-center gap-2">
             <button
@@ -156,11 +227,14 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
           </div>
         )}
 
-        {isProduct && link.product ? (
-          <ProductPanel link={link} />
-        ) : (
-          <ReaderPanel link={link} onOpenCollection={() => router.push(`/collections/${link.collectionId}`)} />
-        )}
+        {/* Container queries in the panels: a narrow pane stacks the side rail under the article. */}
+        <div className="@container flex flex-1 flex-col">
+          {isProduct && link.product ? (
+            <ProductPanel link={link} />
+          ) : (
+            <ReaderPanel link={link} onOpenCollection={() => router.push(`/collections/${link.collectionId}`)} />
+          )}
+        </div>
 
         {/* Phones: the one thing you came to do, under the thumb. */}
         <div className="h-24 sm:hidden" />
@@ -172,7 +246,6 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
           Open{isProduct ? ` on ${link.product?.retailer.split(".")[0]}` : " original"}
           <Icon name="arrow-up-right" size={15} />
         </button>
-      </div>
-    </div>
+    </>
   );
 }

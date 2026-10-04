@@ -15,6 +15,9 @@ export function CardMosaic({
   onToggleSelect,
   onReorder,
   list = false,
+  onOpen,
+  openId,
+  reservedPx = 0,
 }: {
   links: LinkItem[];
   selectable?: boolean;
@@ -24,8 +27,14 @@ export function CardMosaic({
   onReorder?: (ids: string[]) => void;
   /** Phones only: one-line rows instead of the two-up tiles. */
   list?: boolean;
+  /** Split view: open a card in the side pane instead of navigating to its page. */
+  onOpen?: (id: string) => void;
+  /** The card showing in the side pane, outlined. */
+  openId?: string | null;
+  /** Width the side pane takes from the grid. */
+  reservedPx?: number;
 }) {
-  const columnCount = useColumnCount();
+  const columnCount = useColumnCount(reservedPx);
   // Phones get a two-up grid of small uniform tiles instead of one full-width card per row.
   const tile = columnCount === 1;
   const row = tile && list;
@@ -82,6 +91,8 @@ export function CardMosaic({
             onSelectClick={(e) => onToggleSelect?.(id, e)}
             dragging={dragId === id && !tile}
             dragProps={item(id)}
+            onOpen={onOpen}
+            current={openId === id}
           />
         );
       })}

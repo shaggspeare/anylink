@@ -31,15 +31,16 @@ export function columnsForWidth(width: number) {
   return 1;
 }
 
-/** Tracks how many mosaic columns are active at the current viewport width. */
-export function useColumnCount() {
+/** Tracks how many mosaic columns are active at the current viewport width, less
+ * `reservedPx` taken by a side pane. */
+export function useColumnCount(reservedPx = 0) {
   const [cols, setCols] = useState(4);
   useEffect(() => {
-    const update = () => setCols(columnsForWidth(window.innerWidth));
+    const update = () => setCols(columnsForWidth(window.innerWidth - reservedPx));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [reservedPx]);
   return cols;
 }
 

@@ -14,6 +14,8 @@ import { searchLinks } from "@/lib/search";
 import { sortLinks, type Sort } from "@/lib/organize";
 import { linkCount } from "@/lib/format";
 import { useSelection } from "@/lib/use-selection";
+import { PANE_PX, useSplitView } from "@/lib/use-split-view";
+import { DetailPane } from "@/components/link-detail-view";
 import { BulkActionBar } from "@/components/bulk-action-bar";
 import Link from "next/link";
 
@@ -28,14 +30,15 @@ export default function LibraryPage() {
   const query = useSearchParams().get("q") ?? "";
   const visible = sortLinks(searchLinks(links, query), sort);
   const { selectedIds, toggleSelect, clearSelection, withClear } = useSelection(visible);
+  const split = useSplitView();
   const unsorted = links.filter((l) => l.collectionId === inbox?.id && !l.archived).length;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
       <AmbientOrbs variant="library" />
       <Sidebar />
-      <div className="relative lg:pl-[250px]">
-        <header className="flex items-center gap-3.5 sm:items-end px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
+      <div className="relative lg:pl-[250px]" style={{ paddingRight: split.openId ? PANE_PX : undefined }}>
+        <header className="flex flex-wrap items-center gap-x-3.5 gap-y-2 sm:items-end px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
           <h1 className="text-hero whitespace-nowrap text-[30px]">All links</h1>
           <div className="flex min-w-0 items-center gap-2 sm:pb-1.5">
             <span className="whitespace-nowrap text-meta text-ink/50">{linkCount(visible.length)}</span>
@@ -50,7 +53,8 @@ export default function LibraryPage() {
                 <Icon name="close" size={10} className="text-on-ink/60" />
               </button>
             ) : (
-              <>
+              // The hint is the first thing to go when the side pane needs the room.
+              !split.openId && <>
                 <span className="hidden h-1 w-1 rounded-full bg-ink/25 sm:inline" />
                 <span className="hidden text-meta text-ink/50 sm:inline">
                   drag cards to arrange, corners to resize
@@ -58,7 +62,7 @@ export default function LibraryPage() {
               </>
             )}
           </div>
-          <div className="ml-auto flex min-w-0 items-center gap-2 sm:pb-1">
+          <div className="ml-auto flex flex-none items-center gap-2 sm:pb-1">
             <SortSelect value={sort} onChange={setSort} />
             <button
               type="button"
@@ -126,6 +130,9 @@ export default function LibraryPage() {
               selectable
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
+              onOpen={split.wide ? split.open : undefined}
+              openId={split.openId}
+              reservedPx={split.openId ? PANE_PX : 0}
               // Dragging works in any sort; the drop saves what you see and flips to
               // "My order" so the arrangement doesn't snap straight back.
               onReorder={(ids) => {
@@ -148,6 +155,7 @@ export default function LibraryPage() {
         onDelete={() => withClear(deleteLinks)}
         onClear={clearSelection}
       />
+      <DetailPane split={split} />
       <BottomTabBar />
     </div>
   );

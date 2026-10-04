@@ -19,10 +19,10 @@ export function ProductPanel({ link }: { link: LinkItem }) {
   const specsToShow = showAllSpecs ? product.specs : product.specs.slice(0, 8);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-start">
+    <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 @3xl:flex-row @3xl:items-start">
       <article
         data-tour="product"
-        className="flex-1 overflow-hidden rounded-[28px]"
+        className="overflow-hidden rounded-[28px] @3xl:flex-1"
         style={{ background: "rgb(var(--surface-rgb) / .72)", border: "1px solid rgb(var(--rim-rgb) / .85)", backdropFilter: "blur(22px)" }}
       >
         <div className="flex flex-col gap-5 border-b border-ink/6 p-5 sm:flex-row sm:p-6">
@@ -122,7 +122,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
         )}
       </article>
 
-      <aside className="flex w-full flex-none flex-col gap-4 lg:w-[320px]">
+      <aside className="flex w-full flex-none flex-col gap-4 @3xl:w-[320px]">
         <div
           data-tour="price-history"
           className="flex flex-col gap-3 rounded-[22px] p-4"
