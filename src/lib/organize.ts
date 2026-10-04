@@ -19,6 +19,8 @@ const newestFirst = (a: LinkItem, b: LinkItem) => b.createdAt.localeCompare(a.cr
  * nobody has dragged yet keep the default ordering instead of collapsing into a heap. */
 export function sortLinks(links: LinkItem[], sort: Sort): LinkItem[] {
   return [...links].sort((a, b) => {
+    const pinOrder = Number(Boolean(b.pinned)) - Number(Boolean(a.pinned));
+    if (pinOrder) return pinOrder;
     switch (sort) {
       case "title":
         return a.title.localeCompare(b.title);

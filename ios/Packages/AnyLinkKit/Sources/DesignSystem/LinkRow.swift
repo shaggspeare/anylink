@@ -29,6 +29,11 @@ public struct LinkRow: View {
                 .lineLimit(1)
             }
             Spacer(minLength: 0)
+            if link.pinned == true {
+                Image(systemName: "pin.fill")
+                    .font(.caption)
+                    .foregroundStyle(AL.signal)
+            }
             if link.favorite == true {
                 Image(systemName: "star.fill")
                     .font(.caption)
@@ -38,7 +43,7 @@ public struct LinkRow: View {
         .frame(minHeight: compact ? 44 : 64, maxHeight: compact ? nil : 64)
         // One element with the full text: the visible title and domain truncate by design.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")")
+        .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")\(link.pinned == true ? ", pinned" : "")")
         .accessibilityValue(link.readingMeta ?? "")
     }
 

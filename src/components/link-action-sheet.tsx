@@ -25,7 +25,7 @@ export function LinkActionSheet({
   at?: { x: number; y: number };
 }) {
   const ROW = at ? MENU_ROW : SHEET_ROW;
-  const { collections, moveLinks, setFavorite, deleteLinks, showToast } = useLibrary();
+  const { collections, moveLinks, setFavorite, setPinned, deleteLinks, showToast } = useLibrary();
   const [moving, setMoving] = useState(false);
   const targets = collections.filter((c) => !c.isSmart && c.id !== link.collectionId);
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
@@ -146,6 +146,9 @@ export function LinkActionSheet({
                 <Icon name="folder" size={15} /> Move to collection
               </button>
             )}
+            <button type="button" onClick={run(() => { void setPinned(link.id, !link.pinned); })} className={ROW}>
+              <Icon name="pin" size={15} /> {link.pinned ? "Unpin" : "Pin to top"}
+            </button>
             <button type="button" onClick={run(() => setFavorite(link.id, !link.favorite))} className={ROW}>
               <span className="text-signal"><Icon name="star" size={15} /></span>
               {link.favorite ? "Remove from favorites" : "Add to favorites"}

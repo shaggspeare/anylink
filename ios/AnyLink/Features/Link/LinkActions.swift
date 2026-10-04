@@ -26,6 +26,7 @@ private struct LinkActions: ViewModifier {
         }
         .accessibilityAction(named: "Open original") { router.openOriginal = URL(string: link.url) }
         .accessibilityAction(named: link.favorite == true ? "Unfavorite" : "Favorite") { store.setFavorite(link.id, link.favorite != true) }
+        .accessibilityAction(named: link.pinned == true ? "Unpin" : "Pin to top") { store.setPinned(link.id, link.pinned != true) }
         .accessibilityAction(named: "Move") { router.sheet = .moveLinks([link.id]) }
         .accessibilityAction(named: "Move to Trash") { store.trash([link.id]) }
     }
@@ -48,6 +49,9 @@ struct LinkMenuItems: View {
             if let url {
                 ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") }
             }
+        }
+        Button(link.pinned == true ? "Unpin" : "Pin to top", systemImage: link.pinned == true ? "pin.slash" : "pin") {
+            store.setPinned(link.id, link.pinned != true)
         }
         Button("Copy Link", systemImage: "doc.on.doc") {
             UIPasteboard.general.url = url

@@ -23,7 +23,7 @@ let package = Package(
         .target(name: "Fixtures", dependencies: ["Models", "Networking"], resources: [.process("Resources")]),
 
         .testTarget(name: "ModelsTests", dependencies: ["Models"]),
-        .testTarget(name: "QueryLanguageTests", dependencies: ["QueryLanguage"]),
+        .testTarget(name: "QueryLanguageTests", dependencies: ["QueryLanguage", "Fixtures"]),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),
         .testTarget(name: "NetworkingTests", dependencies: ["Networking", "Fixtures"]),
         .testTarget(name: "PersistenceTests", dependencies: ["Persistence"]),

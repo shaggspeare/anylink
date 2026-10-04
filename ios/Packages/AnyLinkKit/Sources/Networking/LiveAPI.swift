@@ -141,6 +141,11 @@ public struct LiveAPI: AnyLinkAPI {
     /// One action per set field (`05` §2). Title/excerpt edits have no endpoint yet (BACKEND).
     public func updateLink(_ id: LinkItem.ID, _ patch: LinkPatch) async throws {
         if let n = patch.note { _ = try await action("setNote", [id, n]) }
+        if let pinned = patch.pinned {
+            struct PinResult: Decodable { let ok: Bool }
+            let result = try await action("setPinned", [id, pinned], as: PinResult.self)
+            if !result.ok { throw AppError.pinLimit }
+        }
         if let f = patch.favorite { _ = try await action("setFavorite", [id, f]) }
         if let s = patch.size { _ = try await action("setLinkSize", [id, s.rawValue]) }
         if let c = patch.collectionId { _ = try await action("moveLinks", [[id], c]) }

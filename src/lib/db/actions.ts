@@ -114,6 +114,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     createdAt: row.createdAt.toISOString(),
     status: row.status,
     heroImage,
+    pinned: row.pinned,
   };
 }
 
@@ -171,8 +172,31 @@ export async function archiveLinks(ids: string[]) {
   if (ids.length === 0) return;
   await db
     .update(schema.links)
-    .set({ archivedAt: new Date(), updatedAt: new Date() })
+    .set({ archivedAt: new Date(), pinned: false, updatedAt: new Date() })
     .where(inArray(schema.links.id, ids));
+}
+
+/** Serialize pin changes per user so simultaneous web/iOS requests cannot exceed two. */
+export async function setPinned(id: string, pinned: boolean): Promise<{ ok: boolean }> {
+  if (typeof id !== "string" || typeof pinned !== "boolean") throw new Error("Invalid pin request.");
+  return db.transaction(async (tx) => {
+    await tx.select({ id: schema.users.id }).from(schema.users)
+      .where(eq(schema.users.id, CURRENT_USER_ID)).for("update");
+    const [link] = await tx.select().from(schema.links)
+      .where(and(eq(schema.links.id, id), eq(schema.links.userId, CURRENT_USER_ID))).for("update");
+    if (!link || (pinned && (link.deletedAt || link.archivedAt))) {
+      throw new Error("This link is no longer in your library.");
+    }
+    if (pinned && !link.pinned) {
+      const existing = await tx.select({ id: schema.links.id }).from(schema.links)
+        .where(and(eq(schema.links.userId, CURRENT_USER_ID), eq(schema.links.pinned, true),
+          isNull(schema.links.deletedAt), isNull(schema.links.archivedAt))).limit(2);
+      if (existing.length >= 2) return { ok: false };
+    }
+    await tx.update(schema.links).set({ pinned, updatedAt: new Date() })
+      .where(and(eq(schema.links.id, id), eq(schema.links.userId, CURRENT_USER_ID)));
+    return { ok: true };
+  });
 }
 
 export async function setFavorite(id: string, favorite: boolean) {
@@ -194,7 +218,7 @@ export async function deleteLinks(ids: string[]) {
   if (ids.length === 0) return;
   await db
     .update(schema.links)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .set({ deletedAt: new Date(), pinned: false, updatedAt: new Date() })
     .where(inArray(schema.links.id, ids));
 }
 

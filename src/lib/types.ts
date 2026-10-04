@@ -66,6 +66,8 @@ export type LinkItem = {
   importMeta?: ImportMeta;
   note?: string;
   favorite?: boolean;
+  /** At most two live links can be pinned across the library. */
+  pinned?: boolean;
   /** null/undefined = never checked, 0 = unreachable, else the last HTTP status. */
   httpStatus?: number;
   archived?: boolean;

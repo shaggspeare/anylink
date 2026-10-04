@@ -16,8 +16,22 @@ Examples:
 ```
 POST /api/v1/actions/moveLinks         [["<linkId>"], "<collectionId>"]
 POST /api/v1/actions/setFavorite       ["<linkId>", true]
+POST /api/v1/actions/setPinned         ["<linkId>", true]
 POST /api/v1/actions/createCollection  ["Reading", "#7c8cff"]
 POST /api/v1/actions/createLink        [{ ...LinkItem fields minus id/createdAt/status/archived/highlights }]
 ```
 
 Errors come back as `{ "error": "..." }` with status 400, 401, or 404.
+
+### Link pinning
+
+`LinkItem.pinned` is a boolean (optional when decoding older snapshots). `setPinned`
+returns `{ "ok": true }` on success or `{ "ok": false }` when two live links are
+already pinned. The limit is per library, across all collections. Calls are serialized
+per user in a database transaction so concurrent web/iOS requests respect the limit.
+Pinned links precede unpinned links in every sort order. Archive and Trash clear the
+pin; restoring a link does not repin it. iOS queues offline pin changes and removes a
+rejected pin if another device has filled both slots before it syncs.
+
+Apply `supabase/migrations/20261004000000_link_pinning.sql` before running the updated
+backend. Existing links default to unpinned.

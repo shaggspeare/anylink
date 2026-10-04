@@ -23,6 +23,47 @@ import Fixtures
     var state: State { State(links: store.links, order: store.order, collections: store.collections) }
     let generic = "That didn't go through. Try again."
 
+    @Test func pinsAreLimitedPersistedAndSortedFirst() async throws {
+        store.setPinned("iph", true)
+        store.setPinned("nasa", true)
+        store.setPinned("glass", true)
+        #expect(store.live.filter { $0.pinned == true }.count == 2)
+        #expect(store.link("glass")?.pinned != true)
+        #expect(store.toasts.current?.message == "You can pin up to 2 links. Unpin one first.")
+        await store.settle()
+        await store.refresh()
+        for sort in LibrarySort.allCases {
+            let sorted = store.links(in: .all, sortedBy: sort)
+            #expect(Set(sorted.prefix(2).map(\.id)) == ["iph", "nasa"])
+        }
+        #expect(store.links(in: store.link("iph")!.collectionId).first?.pinned == true)
+        #expect(DateSections.group(store.live).first?.title == "Pinned")
+        let decoded = try JSONDecoder().decode(LibrarySnapshot.self, from: JSONEncoder().encode(store.snapshot))
+        #expect(decoded.links.filter { $0.pinned == true }.count == 2)
+
+        store.setPinned("iph", false)
+        store.setPinned("glass", true)
+        await store.settle()
+        await store.refresh()
+        #expect(store.link("iph")?.pinned == false)
+        #expect(store.link("glass")?.pinned == true)
+    }
+
+    @Test func trashAndArchiveReleasePinsAndRestoreDoesNotRepin() async {
+        store.setPinned("iph", true)
+        store.setPinned("nasa", true)
+        store.trash(["iph"])
+        store.archive(["nasa"])
+        store.setPinned("glass", true)
+        store.setPinned("book", true)
+        store.restore(["iph"])
+        await store.settle()
+        await store.refresh()
+        #expect(store.link("iph")?.pinned == false)
+        #expect(store.link("nasa")?.pinned == false)
+        #expect(Set(store.live.filter { $0.pinned == true }.map(\.id)) == ["glass", "book"])
+    }
+
     // MARK: Loading
 
     @Test func loadsSnapshot() {

@@ -73,12 +73,12 @@ public final class LibraryStore {
 
     public func links(matching query: Query) -> [LinkItem] {
         let idx = index
-        return ordered.filter { query.matches($0, in: idx) }
+        return LibrarySort.newest.apply(ordered.filter { query.matches($0, in: idx) })
     }
 
     public func links(in id: LinkCollection.ID) -> [LinkItem] {
         if let c = collection(id), c.isSmart == true { return links(matching: Query(c.smartQuery ?? "")) }
-        return live.filter { $0.collectionId == id }
+        return LibrarySort.newest.apply(live.filter { $0.collectionId == id })
     }
 
     public func count(in id: LinkCollection.ID) -> Int { links(in: id).count }
@@ -113,7 +113,8 @@ public final class LibraryStore {
     // MARK: - Sync plumbing
 
     public static func message(for error: Error) -> String {
-        (error as? AppError) == .offline
+        if (error as? AppError) == .pinLimit { return "You can pin up to 2 links. Unpin one first." }
+        return (error as? AppError) == .offline
             ? "You're offline. Changes are saved and will sync when you're back."
             : "That didn't go through. Try again."
     }
@@ -194,6 +195,14 @@ public final class LibraryStore {
             } catch AppError.unauthorized {
                 onUnauthorized?()
                 return
+            } catch AppError.pinLimit {
+                if case .pin(let id, true) = item.op,
+                   !outbox.dropFirst().contains(where: { if case .pin(let other, _) = $0.op { return other == id }; return false }) {
+                    links[id]?.pinned = false
+                }
+                outbox.removeFirst()
+                persistOutbox()
+                toasts.show(Self.message(for: AppError.pinLimit))
             } catch {
                 outbox[0].attempts += 1
                 if outbox[0].attempts >= 5 {
@@ -323,6 +332,20 @@ public final class LibraryStore {
         }
     }
 
+    public func setPinned(_ id: LinkItem.ID, _ pinned: Bool) {
+        guard let link = links[id], link.deleted != true, link.archived != true else { return }
+        guard !pinned || link.pinned == true || live.filter({ $0.pinned == true }).count < 2 else {
+            toasts.show(Self.message(for: AppError.pinLimit))
+            return
+        }
+        links[id]?.pinned = pinned
+        sync(.pin(id, pinned)) { [weak self] in
+            // Restore only this field; other edits may have happened while syncing.
+            if self?.links[id]?.pinned == pinned { self?.links[id]?.pinned = link.pinned }
+        }
+        toasts.show(pinned ? "Pinned to top" : "Unpinned")
+    }
+
     public func setFavorite(_ id: LinkItem.ID, _ on: Bool) {
         let before = change([id]) { $0.favorite = on }
         sync(.patch(id, note: nil, favorite: on)) { [weak self] in self?.put(before) }
@@ -352,17 +375,17 @@ public final class LibraryStore {
 
     public func archive(_ ids: Set<LinkItem.ID>) {
         let ids = Array(ids)
-        let before = change(ids) { $0.archived = true }
+        let before = change(ids) { $0.archived = true; if $0.pinned == true { $0.pinned = false } }
         sync(.archive(ids)) { [weak self] in self?.put(before) }
         undo.register("Archived \(ids.count.linkCount)") { [weak self] in
             // BACKEND: no unarchive endpoint (10-decisions open question 4); Undo is local until one exists.
-            self?.put(before)
+            self?.put(before.map { var link = $0; if link.pinned == true { link.pinned = false }; return link })
         }
     }
 
     public func trash(_ ids: Set<LinkItem.ID>, announce: Bool = true) {
         let ids = Array(ids)
-        let before = change(ids) { $0.deleted = true }
+        let before = change(ids) { $0.deleted = true; if $0.pinned == true { $0.pinned = false } }
         let now = Date()
         for id in ids { trashedAt[id] = now }
         sync(.trash(ids)) { [weak self] in self?.put(before) }

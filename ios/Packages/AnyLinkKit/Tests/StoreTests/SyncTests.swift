@@ -52,6 +52,49 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         return s
     }
 
+    @Test func offlinePinSurvivesRelaunchAndSyncs() async throws {
+        let cache = try LocalCache(inMemory: true)
+        APIStub.reset { _, _ in nil }
+        let s = store(cache: cache)
+        s.setPinned("iph", true)
+        await s.settle()
+        cache.save(s.snapshot)
+        let relaunched = LibraryStore(api: APIStub.api(), cache: cache)
+        #expect(relaunched.link("iph")?.pinned == true)
+        #expect(relaunched.outbox.map(\.op) == [.pin("iph", true)])
+        APIStub.reset { _, _ in (200, #"{"ok":true}"#) }
+        relaunched.drainOutbox()
+        await relaunched.settle()
+        #expect(relaunched.outbox.isEmpty)
+        #expect(APIStub.log.first?.path == "/api/v1/actions/setPinned")
+        #expect(APIStub.log.first?.body == #"["iph",true]"#)
+    }
+
+    @Test func rejectedPinRollsBackWithoutLosingOtherEdits() async {
+        APIStub.reset { _, _ in (200, #"{"ok":false}"#) }
+        let s = store()
+        s.setPinned("iph", true)
+        s.setNote("iph", "keep this")
+        await s.settle()
+        #expect(s.link("iph")?.pinned != true)
+        #expect(s.link("iph")?.note == "keep this")
+        #expect(s.toasts.current?.message == "You can pin up to 2 links. Unpin one first.")
+    }
+
+    @Test func offlinePinRejectedAtCapacityLeavesNoPhantomPin() async {
+        APIStub.reset { _, _ in nil }
+        let s = store()
+        s.setPinned("iph", true)
+        await s.settle()
+        APIStub.reset { _, _ in (200, #"{"ok":false}"#) }
+        s.drainOutbox()
+        await s.settle()
+        #expect(s.outbox.isEmpty)
+        #expect(s.link("iph")?.pinned == false)
+        #expect(APIStub.log.count == 1)
+        #expect(s.toasts.current?.message == "You can pin up to 2 links. Unpin one first.")
+    }
+
     @Test func offlineIntentQueuesThenRetrySucceeds() async {
         APIStub.reset { _, _ in nil }                       // no network
         let s = store()

@@ -44,6 +44,9 @@ export function CardMosaic({
     { touch: tile, dataType: LINK_DRAG_TYPE }
   );
   const byId = new Map(links.map((l) => [l.id, l]));
+  // Keep pins ahead even during drag previews and prevent dense packing above them.
+  const displayOrder = [...order].sort((a, b) => Number(Boolean(byId.get(b)?.pinned)) - Number(Boolean(byId.get(a)?.pinned)));
+  const hasPins = links.some((l) => l.pinned);
 
   if (links.length === 0) {
     return (
@@ -70,10 +73,10 @@ export function CardMosaic({
       style={{
         gridTemplateColumns: `repeat(${row ? 1 : tile ? 2 : columnCount}, minmax(0, 1fr))`,
         gridAutoRows: "4px",
-        gridAutoFlow: "row dense",
+        gridAutoFlow: hasPins ? "row" : "row dense",
       }}
     >
-      {order.flatMap((id, index) => {
+      {displayOrder.flatMap((id, index) => {
         // A link can vanish mid-drag (deleted in another tab), so skip what's gone.
         const link = byId.get(id);
         if (!link) return [];

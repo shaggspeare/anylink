@@ -89,14 +89,15 @@ public struct LinkItem: Codable, Identifiable, Hashable, Sendable {
     public var importMeta: ImportMeta?
     public var note: String?
     public var favorite: Bool?
+    public var pinned: Bool?
     public var httpStatus: Int?
     public var archived: Bool?
     public var deleted: Bool?
     public var highlights: [Highlight]?
     public var product: ProductDetails?
 
-    public init(id: String, url: String, domain: String, title: String, excerpt: String, articleText: [String]? = nil, heroImage: String? = nil, tint: String, stripe: String, initial: String, contentType: ContentType, readingTimeMinutes: Int? = nil, collectionId: String, tags: [String], size: CardSize, position: Int? = nil, status: LinkStatus, createdAt: String, source: String? = nil, importMeta: ImportMeta? = nil, note: String? = nil, favorite: Bool? = nil, httpStatus: Int? = nil, archived: Bool? = nil, deleted: Bool? = nil, highlights: [Highlight]? = nil, product: ProductDetails? = nil) {
-        self.id = id; self.url = url; self.domain = domain; self.title = title; self.excerpt = excerpt; self.articleText = articleText; self.heroImage = heroImage; self.tint = tint; self.stripe = stripe; self.initial = initial; self.contentType = contentType; self.readingTimeMinutes = readingTimeMinutes; self.collectionId = collectionId; self.tags = tags; self.size = size; self.position = position; self.status = status; self.createdAt = createdAt; self.source = source; self.importMeta = importMeta; self.note = note; self.favorite = favorite; self.httpStatus = httpStatus; self.archived = archived; self.deleted = deleted; self.highlights = highlights; self.product = product
+    public init(id: String, url: String, domain: String, title: String, excerpt: String, articleText: [String]? = nil, heroImage: String? = nil, tint: String, stripe: String, initial: String, contentType: ContentType, readingTimeMinutes: Int? = nil, collectionId: String, tags: [String], size: CardSize, position: Int? = nil, status: LinkStatus, createdAt: String, source: String? = nil, importMeta: ImportMeta? = nil, note: String? = nil, favorite: Bool? = nil, pinned: Bool? = nil, httpStatus: Int? = nil, archived: Bool? = nil, deleted: Bool? = nil, highlights: [Highlight]? = nil, product: ProductDetails? = nil) {
+        self.id = id; self.url = url; self.domain = domain; self.title = title; self.excerpt = excerpt; self.articleText = articleText; self.heroImage = heroImage; self.tint = tint; self.stripe = stripe; self.initial = initial; self.contentType = contentType; self.readingTimeMinutes = readingTimeMinutes; self.collectionId = collectionId; self.tags = tags; self.size = size; self.position = position; self.status = status; self.createdAt = createdAt; self.source = source; self.importMeta = importMeta; self.note = note; self.favorite = favorite; self.pinned = pinned; self.httpStatus = httpStatus; self.archived = archived; self.deleted = deleted; self.highlights = highlights; self.product = product
     }
 }
 
@@ -228,10 +229,11 @@ public struct LibrarySnapshot: Sendable, Codable, Equatable {
 public struct LinkPatch: Sendable {
     public var note: String?
     public var favorite: Bool?
+    public var pinned: Bool?
     public var size: CardSize?
     public var collectionId: String?
-    public init(note: String? = nil, favorite: Bool? = nil, size: CardSize? = nil, collectionId: String? = nil) {
-        self.note = note; self.favorite = favorite; self.size = size; self.collectionId = collectionId
+    public init(note: String? = nil, favorite: Bool? = nil, pinned: Bool? = nil, size: CardSize? = nil, collectionId: String? = nil) {
+        self.note = note; self.favorite = favorite; self.pinned = pinned; self.size = size; self.collectionId = collectionId
     }
 }
 
@@ -334,7 +336,7 @@ public struct Signal: Codable, Sendable {
 // MARK: - Errors
 
 public enum AppError: Error, Equatable, Sendable {
-    case offline, unauthorized, notFound, server(Int), invalidURL, decoding, unknown
+    case offline, unauthorized, notFound, server(Int), invalidURL, decoding, unknown, pinLimit
 }
 
 public extension Int {

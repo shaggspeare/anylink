@@ -33,6 +33,7 @@ type LibraryContextValue = {
   restoreLinks: (ids: string[]) => void;
   purgeLinks: (ids: string[]) => void;
   setFavorite: (id: string, favorite: boolean) => void;
+  setPinned: (id: string, pinned: boolean) => Promise<void>;
   setNote: (id: string, note: string) => void;
   addCollection: (name: string, color: string) => Promise<Collection>;
   saveSmartCollection: (query: string, name?: string) => Promise<Collection>;
@@ -111,6 +112,7 @@ export function LibraryProvider({
 
   // Undo runs seconds later; it must act on the library as it is then, not as it was.
   const latest = useRef<LibraryContextValue>(null!);
+  const pinPending = useRef(false);
 
   const value = useMemo<LibraryContextValue>(
     () => ({
@@ -167,12 +169,12 @@ export function LibraryProvider({
       },
       archiveLinks: (ids) => {
         const idSet = new Set(ids);
-        setLinks((prev) => prev.map((l) => (idSet.has(l.id) ? { ...l, archived: true } : l)));
+        setLinks((prev) => prev.map((l) => (idSet.has(l.id) ? { ...l, archived: true, pinned: false } : l)));
         api.archiveLinks(ids).catch(console.error);
       },
       deleteLinks: (ids) => {
         const idSet = new Set(ids);
-        const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true }));
+        const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true, pinned: false }));
         setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
         setTrashed((prev) => [...moving, ...prev]);
         api.deleteLinks(ids).catch(console.error);
@@ -196,6 +198,30 @@ export function LibraryProvider({
         const idSet = new Set(ids);
         setTrashed((prev) => prev.filter((l) => !idSet.has(l.id)));
         api.purgeLinks(ids).catch(console.error);
+      },
+      setPinned: async (id, pinned) => {
+        if (pinPending.current) return;
+        const link = links.find((l) => l.id === id && !l.archived);
+        if (!link) return;
+        const limitMessage = "You can pin up to 2 links. Unpin one first.";
+        if (pinned && !link.pinned && links.filter((l) => l.pinned && !l.archived).length >= 2) {
+          setToast({ message: limitMessage, key: Date.now() });
+          return;
+        }
+        pinPending.current = true;
+        try {
+          const result = await api.setPinned(id, pinned);
+          if (result?.ok === false) {
+            setToast({ message: limitMessage, key: Date.now() });
+            return;
+          }
+          setLinks((prev) => prev.map((l) => l.id === id && !l.archived ? { ...l, pinned } : l));
+          setToast({ message: pinned ? "Pinned to top" : "Unpinned", key: Date.now() });
+        } catch {
+          setToast({ message: "Couldn't update the pin. Try again.", key: Date.now() });
+        } finally {
+          pinPending.current = false;
+        }
       },
       setFavorite: (id, favorite) => {
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, favorite } : l)));

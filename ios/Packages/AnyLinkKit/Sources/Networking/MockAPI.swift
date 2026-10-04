@@ -156,6 +156,13 @@ public actor MockAPI: AnyLinkAPI {
     public func updateLink(_ id: LinkItem.ID, _ patch: LinkPatch) async throws {
         try maybeThrow(); await delay()
         guard let i = links.firstIndex(where: { $0.id == id }) else { throw AppError.notFound }
+        if let pinned = patch.pinned {
+            if pinned && (links[i].archived == true || links[i].deleted == true) { throw AppError.notFound }
+            if pinned && links[i].pinned != true && links.filter({ $0.pinned == true && $0.archived != true && $0.deleted != true }).count >= 2 {
+                throw AppError.pinLimit
+            }
+            links[i].pinned = pinned
+        }
         if let n = patch.note { links[i].note = n }
         if let f = patch.favorite { links[i].favorite = f }
         if let s = patch.size { links[i].size = s }
@@ -172,9 +179,9 @@ public actor MockAPI: AnyLinkAPI {
                 if !links[i].tags.contains(t) { links[i].tags.append(t) }
             }
         case .archive:
-            for i in links.indices where ids.contains(links[i].id) { links[i].archived = true }
+            for i in links.indices where ids.contains(links[i].id) { links[i].archived = true; links[i].pinned = false }
         case .trash:
-            let removed = links.filter { ids.contains($0.id) }.map { var l = $0; l.deleted = true; return l }
+            let removed = links.filter { ids.contains($0.id) }.map { var l = $0; l.deleted = true; l.pinned = false; return l }
             links.removeAll { ids.contains($0.id) }
             trashed.append(contentsOf: removed)
         case .restore:

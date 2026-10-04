@@ -85,3 +85,15 @@ test("Sort Unsorted suggests the folder sharing the most tags, then the most sam
   // Nothing in common at all: no guess.
   assert.equal(suggestCollection({ ...incoming, tags: [], domain: "x.org" }, lib, folders), undefined);
 });
+
+for (const sort of ["newest", "oldest", "title", "site", "manual"] as const) {
+  test(`pins precede every other link in ${sort} order without changing the remaining order`, () => {
+    const pinned = library.map((l) => ({ ...l, pinned: l.id === "b" || l.id === "c" }));
+    const original = sortLinks(library, sort);
+    const result = sortLinks(pinned, sort);
+    assert.deepEqual(result.slice(0, 2).map((l) => l.id), original.filter((l) => l.id === "b" || l.id === "c").map((l) => l.id));
+    assert.deepEqual(result.slice(2).map((l) => l.id), original.filter((l) => l.id !== "b" && l.id !== "c").map((l) => l.id));
+    assert.deepEqual(sortLinks(pinned.map((l) => ({ ...l, pinned: false })), sort).map((l) => l.id), original.map((l) => l.id));
+    assert.equal(pinned[0].id, "a");
+  });
+}

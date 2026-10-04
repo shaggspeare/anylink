@@ -119,6 +119,7 @@ export async function getLibraryData(): Promise<{
       importMeta: (row.importMeta as ImportMeta | null) ?? undefined,
       note: row.note ?? undefined,
       favorite: row.favorite,
+      pinned: row.pinned,
       httpStatus: row.httpStatus ?? undefined,
       archived: row.archivedAt !== null,
       deleted: row.deletedAt !== null,

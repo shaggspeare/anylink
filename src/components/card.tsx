@@ -57,7 +57,7 @@ export function Card({
   current?: boolean;
 }) {
   const router = useRouter();
-  const { setLinkSize, setFavorite, deleteLinks, demo } = useLibrary();
+  const { setLinkSize, setFavorite, setPinned, deleteLinks, demo } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -257,6 +257,7 @@ export function Card({
               {link.initial}
             </span>
             <span className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-.02em] text-ink">{link.title}</span>
+            {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
             {link.favorite && <Icon name="star" size={11} className="flex-none text-signal" />}
           </div>
         ) : (
@@ -290,6 +291,7 @@ export function Card({
                 Open
               </a>
             )}
+            {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
             {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="ml-auto text-signal" />}
           </div>
           <div
@@ -356,6 +358,16 @@ export function Card({
             }`}
           >
             <Icon name="star" size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void setPinned(link.id, !link.pinned)}
+            title={link.pinned ? "Unpin" : "Pin to top"}
+            aria-label={link.pinned ? "Unpin" : "Pin to top"}
+            aria-pressed={Boolean(link.pinned)}
+            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-ink/8 ${link.pinned ? "text-signal" : "text-ink/60"}`}
+          >
+            <Icon name="pin" size={15} />
           </button>
           {/* Soft delete — the link lands in Trash, same as the bulk action. */}
           <button

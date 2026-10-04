@@ -1,6 +1,7 @@
 // SVG stand-ins for the ★ ✕ ✓ ⋯ ↗ ↓ ✎ glyphs: Windows draws those from different fonts
 // (or as colour emoji), so the same icon looked different per OS.
 const PATHS = {
+  pin: <path d="m16 3 5 5-4 1-3 5v3l-7-7h3l5-3zM9 15l-6 6" />,
   star: <path fill="currentColor" stroke="none" d="M12 2.8l2.8 5.9 6.4.8-4.7 4.5 1.2 6.4L12 17.3l-5.7 3.1 1.2-6.4-4.7-4.5 6.4-.8z" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   check: <path d="M5 12.5l4.5 4.5L19 7" />,

@@ -44,13 +44,14 @@ public enum LibrarySort: String, CaseIterable, Identifiable, Sendable {
 
     /// `links` arrive newest first (store order); sorts are stable on that.
     public func apply(_ links: [LinkItem]) -> [LinkItem] {
-        switch self {
+        let sorted: [LinkItem] = switch self {
         case .newest: links
         case .oldest: links.reversed()
         case .title: links.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         case .site: links.sorted { $0.domain.localizedStandardCompare($1.domain) == .orderedAscending }
         case .manual: links.enumerated().sorted { ($0.element.position ?? Int.max, $0.offset) < ($1.element.position ?? Int.max, $1.offset) }.map(\.element)
         }
+        return sorted.filter { $0.pinned == true } + sorted.filter { $0.pinned != true }
     }
 }
 
@@ -97,10 +98,12 @@ public enum DateSections {
         }
 
         var sections: [(String, [LinkItem])] = []
-        for l in links {
+        for l in links where l.pinned != true {
             let t = date(l.createdAt).map(title) ?? "Earlier"
             if sections.last?.0 == t { sections[sections.count - 1].1.append(l) } else { sections.append((t, [l])) }
         }
-        return sections.map { DateSection(title: $0.0, links: $0.1) }
+        let pinned = links.filter { $0.pinned == true }
+        let first = pinned.isEmpty ? [] : [DateSection(title: "Pinned", links: pinned)]
+        return first + sections.map { DateSection(title: $0.0, links: $0.1) }
     }
 }

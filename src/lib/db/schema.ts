@@ -110,6 +110,7 @@ export const links = pgTable(
     importMeta: jsonb("import_meta"),
     note: text("note"),
     favorite: boolean("favorite").notNull().default(false),
+    pinned: boolean("pinned").notNull().default(false),
     // Last link check: null = never checked, 0 = unreachable, otherwise the HTTP status.
     httpStatus: integer("http_status"),
     checkedAt: timestamp("checked_at", { withTimezone: true }),
