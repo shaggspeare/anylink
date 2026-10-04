@@ -12,6 +12,8 @@ import { TourButton } from "./tour";
 import { PasteHint } from "./paste-hint";
 import { ALL_COLLECTION_ID } from "@/lib/mock-data";
 import { searchLinks } from "@/lib/search";
+import { linkCount } from "@/lib/format";
+import { LINK_DRAG_TYPE } from "./card-mosaic";
 import { suggestThemes } from "@/lib/organize";
 import type { Collection } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -454,8 +456,12 @@ function CollectionRow({
   dragging?: boolean;
   dragProps?: ReturnType<ReturnType<typeof useDragReorder>["item"]>;
 }) {
-  const { renameCollection, deleteCollection } = useLibrary();
+  const { links, renameCollection, deleteCollection, moveLinks } = useLibrary();
   const router = useRouter();
+  // A card dragged over a folder lights it up; dropping it there moves the link.
+  const [dropTarget, setDropTarget] = useState(false);
+  const acceptsLinks = !collection.isSmart;
+  const isLinkDrag = (e: React.DragEvent) => acceptsLinks && e.dataTransfer.types.includes(LINK_DRAG_TYPE);
   const pathname = usePathname();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(collection.name);
@@ -470,7 +476,7 @@ function CollectionRow({
   const handleDelete = async () => {
     setError(null);
     try {
-      await deleteCollection(collection.id);
+      await deleteCollection(collection.id, true);
       if (pathname === `/collections/${collection.id}`) router.push("/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't delete this collection.");
@@ -502,10 +508,29 @@ function CollectionRow({
   return (
     <div
       {...dragProps}
+      onDragOver={(e) => {
+        if (!isLinkDrag(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setDropTarget(true);
+      }}
+      onDragLeave={() => setDropTarget(false)}
+      onDrop={(e) => {
+        setDropTarget(false);
+        if (!isLinkDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const id = e.dataTransfer.getData(LINK_DRAG_TYPE);
+        if (links.find((l) => l.id === id)?.collectionId !== collection.id) moveLinks([id], collection.id, true);
+      }}
       data-tour={collection.isInbox ? "inbox" : undefined}
       // No text selection or iOS link callout: a held row is being picked up.
       className={`group relative flex select-none items-center rounded-[14px] [-webkit-touch-callout:none] ${dragProps && "draggable" in dragProps ? "cursor-grab active:cursor-grabbing" : ""}`}
-      style={{ background: active ? "rgb(var(--ink-rgb) / .06)" : "transparent", opacity: dragging ? 0.35 : 1 }}
+      style={{
+        background: dropTarget ? "rgb(var(--ink-rgb) / .12)" : active ? "rgb(var(--ink-rgb) / .06)" : "transparent",
+        boxShadow: dropTarget ? "inset 0 0 0 2px var(--ink)" : undefined,
+        opacity: dragging ? 0.35 : 1,
+      }}
     >
       {/* Not draggable itself — otherwise the browser drags the URL instead of the row. */}
       <Link
@@ -537,7 +562,7 @@ function CollectionRow({
               handleDelete();
             }}
             aria-label="Delete"
-            title={count > 0 ? `Delete — ${count} link${count > 1 ? "s" : ""} move to Trash` : "Delete"}
+            title={collection.isSmart || count === 0 ? "Delete" : `Dissolve — ${linkCount(count)} go back to Unsorted`}
             className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
             <Icon name="close" size={11} />

@@ -55,7 +55,12 @@ export function Card({
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  // Set when the menu came from a right-click: it opens at the pointer, not as a sheet.
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | undefined>();
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    setMenuAt(undefined);
+  }, []);
   const geo = CARD_GEOMETRY[link.size];
   const cols = tile ? 1 : Math.min(geo.cols, columnCount);
   const rows = Math.round((row ? ROW_PX : tile ? TILE_PX : geo.rowPx) / GRID_ROW_UNIT);
@@ -155,6 +160,13 @@ export function Card({
         ref={cardRef}
         data-tour="card"
         onClick={handleOpen}
+        onContextMenu={(e) => {
+          // Phone tiles: a long press lifts the tile to drag, and ⋯ is the menu.
+          if (tile) return;
+          e.preventDefault();
+          setMenuAt({ x: e.clientX, y: e.clientY });
+          setMenuOpen(true);
+        }}
         role="button"
         tabIndex={0}
         className={`group absolute flex cursor-pointer overflow-hidden ${row ? "flex-row items-center" : "flex-col"} transition-[box-shadow,transform] ${
@@ -189,7 +201,7 @@ export function Card({
             </span>
           </button>
         )}
-        {menuOpen && <LinkActionSheet link={link} onClose={closeMenu} />}
+        {menuOpen && <LinkActionSheet link={link} onClose={closeMenu} at={menuAt} />}
         {selectable && (
           <button
             type="button"
@@ -213,31 +225,7 @@ export function Card({
               tile ? "m-1.5 mb-0 h-[54px] flex-none rounded-[11px]" : "m-2 mb-0 min-h-0 flex-1 rounded-[18px]"
             }`}
           >
-            {link.heroImage ? (
-              <>
-                <Image
-                  src={link.heroImage}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1280px) 25vw, 50vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/28 to-transparent to-55%" />
-              </>
-            ) : (
-              <div className="absolute inset-0" style={{ background: link.tint }}>
-                <div
-                  className="absolute left-1/2 top-1/2 h-[170px] w-[170px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-                  style={{ background: link.stripe, opacity: 0.28 }}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage: `repeating-linear-gradient(180deg, ${link.stripe} 0 6px, transparent 6px 19px)`,
-                  }}
-                />
-              </div>
-            )}
+            <HeroArt link={link} />
             {!tile && link.tags.length > 0 && (
               <div className="absolute left-2.5 top-2.5 flex gap-1.5">
                 {link.tags.slice(0, 1).map((t) => (
@@ -395,6 +383,30 @@ export function Card({
         />
         )}
       </div>
+    </div>
+  );
+}
+
+/** The hero image, or the striped identity fallback most imported links get. Fills its
+ * (relative, sized) parent. */
+export function HeroArt({ link, sizes = "(min-width: 1280px) 25vw, 50vw" }: { link: LinkItem; sizes?: string }) {
+  return link.heroImage ? (
+    <>
+      <Image src={link.heroImage} alt="" fill sizes={sizes} className="object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/28 to-transparent to-55%" />
+    </>
+  ) : (
+    <div className="absolute inset-0" style={{ background: link.tint }}>
+      <div
+        className="absolute left-1/2 top-1/2 h-[170px] w-[170px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ background: link.stripe, opacity: 0.28 }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `repeating-linear-gradient(180deg, ${link.stripe} 0 6px, transparent 6px 19px)`,
+        }}
+      />
     </div>
   );
 }

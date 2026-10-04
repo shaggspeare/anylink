@@ -1,7 +1,7 @@
 // Run: node --test src/lib/organize.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { moveBefore, sortLinks, suggestTags, suggestThemes } from "./organize.ts";
+import { moveBefore, sortLinks, suggestCollection, suggestTags, suggestThemes } from "./organize.ts";
 import type { Collection, LinkItem } from "./types.ts";
 
 function link(partial: Partial<LinkItem> & { id: string }): LinkItem {
@@ -65,4 +65,23 @@ test("themes come from shared tags and skip collections that already exist", () 
   // Already saved as a smart collection → no longer suggested.
   const saved: Collection[] = [...collections, { id: "c2", name: "Design", color: "#000", isSmart: true, smartQuery: "#design" }];
   assert.deepEqual(suggestThemes(library, saved), []);
+});
+
+test("Sort Unsorted suggests the folder sharing the most tags, then the most same-site links", () => {
+  const folders: Collection[] = [
+    { id: "inbox", name: "Unsorted", color: "#000", isInbox: true },
+    { id: "design", name: "Design", color: "#000" },
+    { id: "news", name: "News", color: "#000" },
+  ];
+  const lib = [
+    link({ id: "1", collectionId: "design", tags: ["css", "type"] }),
+    link({ id: "2", collectionId: "news", tags: ["css"], domain: "site.com" }),
+    link({ id: "3", collectionId: "news", domain: "site.com" }),
+  ];
+  const incoming = link({ id: "new", collectionId: "inbox", tags: ["CSS", "type"], domain: "site.com" });
+  assert.equal(suggestCollection(incoming, lib, folders)?.id, "design");
+  // No shared tags: same-site links break the tie.
+  assert.equal(suggestCollection({ ...incoming, tags: [] }, lib, folders)?.id, "news");
+  // Nothing in common at all: no guess.
+  assert.equal(suggestCollection({ ...incoming, tags: [], domain: "x.org" }, lib, folders), undefined);
 });

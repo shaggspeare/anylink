@@ -13,6 +13,8 @@ import { BulkActionBar } from "@/components/bulk-action-bar";
 import { SortSelect } from "@/components/sort-select";
 import { searchLinks } from "@/lib/search";
 import { sortLinks, type Sort } from "@/lib/organize";
+import { linkCount } from "@/lib/format";
+import { useSelection } from "@/lib/use-selection";
 
 export function CollectionView({ collectionId }: { collectionId: string }) {
   const { links, collections, tags, moveLinks, tagLinks, archiveLinks, deleteLinks, reorderLinks } =
@@ -21,8 +23,6 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
 
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("newest");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [lastIndex, setLastIndex] = useState<number | null>(null);
 
   const scoped = useMemo(() => {
     if (!collection) return [];
@@ -44,30 +44,9 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
     [scoped, tagFilter, sort]
   );
 
+  const { selectedIds, toggleSelect, clearSelection, withClear } = useSelection(visible);
+
   if (!collection) notFound();
-
-  const toggleSelect = (id: string, e: React.MouseEvent) => {
-    const index = visible.findIndex((l) => l.id === id);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (e.shiftKey && lastIndex !== null) {
-        const [from, to] = [Math.min(lastIndex, index), Math.max(lastIndex, index)];
-        for (let i = from; i <= to; i++) next.add(visible[i].id);
-      } else if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-    setLastIndex(index);
-  };
-
-  const clearSelection = () => setSelectedIds(new Set());
-  const withClear = (fn: (ids: string[]) => void) => {
-    fn(Array.from(selectedIds));
-    clearSelection();
-  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -78,7 +57,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
           <div data-tour="collection-header" className="flex items-center gap-3">
             <CollectionMarker color={collection.color} size={14} />
             <h1 className="text-title min-w-0 truncate text-[26px]">{collection.name}</h1>
-            <span className="flex-none whitespace-nowrap text-meta text-ink/50">{scoped.length} links</span>
+            <span className="flex-none whitespace-nowrap text-meta text-ink/50">{linkCount(scoped.length)}</span>
             {collection.isSmart && (
               <span className="rounded-full bg-ink/6 px-2.5 py-1 font-mono text-[11px] text-ink/55">
                 {collection.smartQuery}
@@ -126,7 +105,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
         count={selectedIds.size}
         collections={collections}
         tags={tags}
-        onMove={(id) => withClear((ids) => moveLinks(ids, id))}
+        onMove={(id) => withClear((ids) => moveLinks(ids, id, true))}
         onTag={(tag) => withClear((ids) => tagLinks(ids, tag))}
         onArchive={() => withClear(archiveLinks)}
         onDelete={() => withClear(deleteLinks)}

@@ -94,3 +94,30 @@ export function suggestThemes(
       count,
     }));
 }
+
+/** Sort Unsorted's guess: the folder whose links share the most tags with this one, ties
+ * broken by how many of its links come from the same site. None when nothing overlaps.
+ * Same rule as iOS `LibraryStore.suggestedCollection`. */
+export function suggestCollection(
+  link: LinkItem,
+  links: LinkItem[],
+  collections: Collection[]
+): Collection | undefined {
+  const wanted = new Set(link.tags.map((t) => t.toLowerCase()));
+  let best: { shared: number; sameSite: number; c: Collection } | undefined;
+  for (const c of collections) {
+    if (c.isInbox || c.isSmart) continue;
+    let shared = 0;
+    let sameSite = 0;
+    for (const l of links) {
+      if (l.collectionId !== c.id || l.id === link.id || l.archived) continue;
+      shared += l.tags.filter((t) => wanted.has(t.toLowerCase())).length;
+      if (l.domain === link.domain) sameSite += 1;
+    }
+    const beats = best
+      ? shared > best.shared || (shared === best.shared && sameSite > best.sameSite)
+      : shared > 0 || sameSite > 0;
+    if (beats) best = { shared, sameSite, c };
+  }
+  return best?.c;
+}

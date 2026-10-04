@@ -43,6 +43,18 @@ export function GlobalCaptureListener() {
       if (e.key === "Escape") {
         if (paletteOpen) closePalette();
         else if (addLinkOpen) closeAddLink();
+        return;
+      }
+      // Single-key shortcuts, only when nothing else wants the keystroke. N, not ⌘N:
+      // browsers keep ⌘N for a new window.
+      if (meta || e.altKey || isEditableTarget(e.target) || paletteOpen || addLinkOpen) return;
+      if (document.querySelector("[aria-modal]")) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        openPalette();
+      } else if (e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        openAddLink();
       }
     };
 

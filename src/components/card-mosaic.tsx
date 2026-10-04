@@ -5,6 +5,9 @@ import { useDragReorder } from "@/lib/use-drag-reorder";
 import { Card } from "./card";
 import type { LinkItem } from "@/lib/types";
 
+/** Native drag type for a card, so a sidebar collection can accept it as a move. */
+export const LINK_DRAG_TYPE = "application/x-anylink-link";
+
 export function CardMosaic({
   links,
   selectable = false,
@@ -29,7 +32,7 @@ export function CardMosaic({
   const { order, dragId, item, zone } = useDragReorder(
     links.map((l) => l.id),
     onReorder,
-    { touch: tile }
+    { touch: tile, dataType: LINK_DRAG_TYPE }
   );
   const byId = new Map(links.map((l) => [l.id, l]));
 

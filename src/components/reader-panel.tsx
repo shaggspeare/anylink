@@ -95,7 +95,7 @@ export function ReaderPanel({
           ref={articleRef}
           data-tour="article"
           onMouseUp={handleMouseUp}
-          className="relative mx-auto max-w-[600px] px-6 py-8 text-[15px] leading-[1.7] text-ink/80 sm:px-8"
+          className="relative mx-auto max-w-[600px] px-6 py-8 text-[17px] leading-[1.65] text-ink/80 sm:px-8"
         >
           {link.contentType === "video" ? (
             <div className="flex flex-col items-center gap-3 rounded-[18px] bg-ink/6 py-14 text-center">

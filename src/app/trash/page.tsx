@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
+import { linkCount } from "@/lib/format";
 import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { AmbientOrbs } from "@/components/ambient-orbs";
@@ -11,6 +12,8 @@ export default function TrashPage() {
   const { trashed, restoreLinks, purgeLinks } = useLibrary();
   const router = useRouter();
   const [confirmingEmpty, setConfirmingEmpty] = useState(false);
+  // Delete forever is the only one-click way to lose a link, so it asks first (iOS D13).
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -19,7 +22,7 @@ export default function TrashPage() {
       <div className="relative lg:pl-[250px]">
         <header className="flex items-center gap-3.5 sm:items-end px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
           <h1 className="text-hero text-[30px]">Trash</h1>
-          <span className="text-meta text-ink/50 sm:pb-1.5">{trashed.length} links</span>
+          <span className="text-meta text-ink/50 sm:pb-1.5">{linkCount(trashed.length)}</span>
           {trashed.length > 0 && (
             <button
               type="button"
@@ -71,11 +74,16 @@ export default function TrashPage() {
               </button>
               <button
                 type="button"
-                onClick={() => purgeLinks([link.id])}
+                onClick={() => {
+                  if (confirmingId !== link.id) return setConfirmingId(link.id);
+                  purgeLinks([link.id]);
+                  setConfirmingId(null);
+                }}
+                onBlur={() => setConfirmingId(null)}
                 title="Delete forever"
                 className="h-10 flex-none rounded-full px-3 text-[12.5px] font-semibold text-red-500 hover:bg-red-500/10"
               >
-                Delete
+                {confirmingId === link.id ? "Delete forever?" : "Delete"}
               </button>
             </div>
           ))}

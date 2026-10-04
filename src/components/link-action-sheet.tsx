@@ -6,11 +6,25 @@ import { Icon } from "@/components/icon";
 import { useLibrary } from "@/lib/store";
 import type { LinkItem } from "@/lib/types";
 
-const ROW = "flex h-12 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-[15px] font-medium text-ink active:bg-ink/8";
+const SHEET_ROW = "flex h-12 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-[15px] font-medium text-ink active:bg-ink/8";
+const MENU_ROW = "flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-ink hover:bg-ink/6";
+const MENU_W = 240;
+// ponytail: estimated, not measured — the longest state (Move list) scrolls inside it.
+const MENU_MAX_H = 380;
 
-/** Phone actions for one link: an iOS-style sheet from the bottom, where the thumb already is.
+/** Actions for one link. Phones: an iOS-style sheet from the bottom, where the thumb already
+ * is. Desktop right-click (`at`): the same actions as a menu at the pointer.
  * Portalled to <body> — the card's backdrop-filter would otherwise trap `position: fixed`. */
-export function LinkActionSheet({ link, onClose }: { link: LinkItem; onClose: () => void }) {
+export function LinkActionSheet({
+  link,
+  onClose,
+  at,
+}: {
+  link: LinkItem;
+  onClose: () => void;
+  at?: { x: number; y: number };
+}) {
+  const ROW = at ? MENU_ROW : SHEET_ROW;
   const { collections, moveLinks, setFavorite, deleteLinks, showToast } = useLibrary();
   const [moving, setMoving] = useState(false);
   const targets = collections.filter((c) => !c.isSmart && c.id !== link.collectionId);
@@ -31,7 +45,7 @@ export function LinkActionSheet({ link, onClose }: { link: LinkItem; onClose: ()
     // React bubbles events out of a portal to the card, so taps here would also open the
     // link or start a tile drag.
     <div
-      className="fixed inset-0 z-[55] flex items-end"
+      className={`fixed inset-0 z-[55] flex ${at ? "" : "items-end"}`}
       role="dialog"
       aria-modal
       aria-label={`Actions for ${link.title}`}
@@ -39,12 +53,36 @@ export function LinkActionSheet({ link, onClose }: { link: LinkItem; onClose: ()
       onPointerDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.stopPropagation()}
     >
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/30" />
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
+        className={`absolute inset-0 ${at ? "cursor-default" : "bg-ink/30"}`}
+      />
       <div
-        className="relative w-full rounded-t-[28px] px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2"
-        style={{ background: "var(--paper)", boxShadow: "var(--shadow-window)", animation: "sheet-in .28s cubic-bezier(.2,.9,.3,1)" }}
+        className={
+          at
+            ? "absolute flex flex-col overflow-y-auto rounded-[16px] p-1.5"
+            : "relative w-full rounded-t-[28px] px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2"
+        }
+        style={
+          at
+            ? {
+                left: Math.min(at.x, innerWidth - MENU_W - 8),
+                top: Math.max(8, Math.min(at.y, innerHeight - MENU_MAX_H - 8)),
+                width: MENU_W,
+                maxHeight: MENU_MAX_H,
+                background: "var(--paper)",
+                boxShadow: "var(--shadow-popover)",
+              }
+            : { background: "var(--paper)", boxShadow: "var(--shadow-window)", animation: "sheet-in .28s cubic-bezier(.2,.9,.3,1)" }
+        }
       >
-        <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-ink/15" />
+        {!at && <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-ink/15" />}
         <div className="mb-1 flex items-center gap-2.5 px-3.5 pb-2">
           <span
             className="flex h-6 w-6 flex-none items-center justify-center rounded-[7px] text-[10px] font-bold"
@@ -68,8 +106,7 @@ export function LinkActionSheet({ link, onClose }: { link: LinkItem; onClose: ()
                 key={c.id}
                 type="button"
                 onClick={run(() => {
-                  moveLinks([link.id], c.id);
-                  showToast(`Moved to ${c.name}`);
+                  moveLinks([link.id], c.id, true);
                 })}
                 className={ROW}
               >

@@ -247,6 +247,8 @@ export function AddLinkFlow() {
 
             <div className="flex flex-wrap gap-2 px-6 pt-2">
               <input
+                // Type straight away, from N or the Add button (iOS focuses it too, D25).
+                autoFocus
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleFetch()}

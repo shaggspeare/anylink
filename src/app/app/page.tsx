@@ -12,9 +12,14 @@ import { PasteHint } from "@/components/paste-hint";
 import { SortSelect } from "@/components/sort-select";
 import { searchLinks } from "@/lib/search";
 import { sortLinks, type Sort } from "@/lib/organize";
+import { linkCount } from "@/lib/format";
+import { useSelection } from "@/lib/use-selection";
+import { BulkActionBar } from "@/components/bulk-action-bar";
+import Link from "next/link";
 
 export default function LibraryPage() {
-  const { links, reorderLinks, openAddLink, openPalette } = useLibrary();
+  const { links, collections, tags, inbox, reorderLinks, moveLinks, tagLinks, archiveLinks, deleteLinks, openAddLink, openPalette } =
+    useLibrary();
   const router = useRouter();
   const [sort, setSort] = useState<Sort>("newest");
   const [list] = useListView();
@@ -22,6 +27,8 @@ export default function LibraryPage() {
   // no per-filter view state. searchLinks also drops archived links on its own.
   const query = useSearchParams().get("q") ?? "";
   const visible = sortLinks(searchLinks(links, query), sort);
+  const { selectedIds, toggleSelect, clearSelection, withClear } = useSelection(visible);
+  const unsorted = links.filter((l) => l.collectionId === inbox?.id && !l.archived).length;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -31,7 +38,7 @@ export default function LibraryPage() {
         <header className="flex items-center gap-3.5 sm:items-end px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
           <h1 className="text-hero whitespace-nowrap text-[30px]">All links</h1>
           <div className="flex min-w-0 items-center gap-2 sm:pb-1.5">
-            <span className="whitespace-nowrap text-meta text-ink/50">{visible.length} links</span>
+            <span className="whitespace-nowrap text-meta text-ink/50">{linkCount(visible.length)}</span>
             {query ? (
               <button
                 type="button"
@@ -70,6 +77,7 @@ export default function LibraryPage() {
               type="button"
               data-tour="add"
               onClick={() => openAddLink()}
+              title="New link (N)"
               className="hidden h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 sm:flex text-body font-semibold text-on-ink"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
@@ -98,9 +106,26 @@ export default function LibraryPage() {
           /* ponytail: one position per link, so dragging inside a filtered view reshuffles
              the global order too. Per-view ordering would need a row per (view, link). */
           <>
+            {unsorted > 0 && !query && (
+              <div className="glass-55 mx-4 mb-2 flex items-center gap-3 rounded-[22px] py-2.5 pl-5 pr-2.5 sm:mx-5 lg:mx-6.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-body font-semibold text-ink">{linkCount(unsorted)} in Unsorted</span>
+                  <span className="block text-meta text-ink/55">Sort them in about a minute</span>
+                </span>
+                <Link
+                  href="/triage"
+                  className="flex h-11 flex-none items-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink"
+                >
+                  Sort
+                </Link>
+              </div>
+            )}
             <CardMosaic
               links={visible}
               list={list}
+              selectable
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
               // Dragging works in any sort; the drop saves what you see and flips to
               // "My order" so the arrangement doesn't snap straight back.
               onReorder={(ids) => {
@@ -113,6 +138,16 @@ export default function LibraryPage() {
         )}
         <div className="h-[calc(6rem+env(safe-area-inset-bottom))] lg:hidden" />
       </div>
+      <BulkActionBar
+        count={selectedIds.size}
+        collections={collections}
+        tags={tags}
+        onMove={(id) => withClear((ids) => moveLinks(ids, id, true))}
+        onTag={(tag) => withClear((ids) => tagLinks(ids, tag))}
+        onArchive={() => withClear(archiveLinks)}
+        onDelete={() => withClear(deleteLinks)}
+        onClear={clearSelection}
+      />
       <BottomTabBar />
     </div>
   );

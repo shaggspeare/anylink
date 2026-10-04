@@ -29,7 +29,9 @@ export function swallowClick() {
 export function useDragReorder(
   ids: string[],
   onReorder?: (ids: string[]) => void,
-  options: { touch?: boolean } = {}
+  /** `dataType`: also put the id on the native drag under this type, so drop targets
+   * outside the list (the sidebar) can tell what's being dragged. */
+  options: { touch?: boolean; dataType?: string } = {}
 ) {
   const coarse = useSyncExternalStore(
     (notify) => {
@@ -216,6 +218,7 @@ export function useDragReorder(
               e.stopPropagation();
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("text/plain", id);
+              if (options.dataType) e.dataTransfer.setData(options.dataType, id);
               setDragId(id);
               setPreview(ids);
             },

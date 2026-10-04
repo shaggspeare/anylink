@@ -8,6 +8,7 @@ import { useLibrary } from "@/lib/store";
 import { AmbientOrbs } from "./ambient-orbs";
 import { ReaderPanel } from "./reader-panel";
 import { ProductPanel } from "./product-panel";
+import { Sidebar } from "./sidebar";
 
 export function LinkDetailView({ linkId }: { linkId: string }) {
   const { links, collections, moveLinks, setFavorite, setNote } = useLibrary();
@@ -23,7 +24,9 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
       <AmbientOrbs variant={isProduct ? "product" : "reader"} />
-      <div className="relative flex min-h-screen flex-col">
+      {/* Desktop keeps its place in the library while reading; below lg it's the drawer. */}
+      <Sidebar />
+      <div className="relative flex min-h-screen flex-col lg:pl-[250px]">
         <header
           className="sticky top-0 z-30 flex items-center gap-3 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] sm:px-6 sm:py-4"
           style={{
@@ -129,7 +132,7 @@ export function LinkDetailView({ linkId }: { linkId: string }) {
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => moveLinks([link.id], c.id)}
+                      onClick={() => moveLinks([link.id], c.id, true)}
                       className="flex w-full items-center rounded-[10px] px-2.5 py-2 text-left text-[13px] text-ink hover:bg-ink/6"
                     >
                       {c.name}

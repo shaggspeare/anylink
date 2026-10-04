@@ -243,8 +243,9 @@ export async function renameCollection(id: string, name: string) {
     .where(eq(schema.collections.id, id));
 }
 
-/** Deleting a collection trashes the links inside it rather than refusing — they're
- * restorable from Trash, so there's no reason to make the user empty it by hand first. */
+/** Dissolves a collection: its links — trashed ones too — go back to Unsorted first,
+ * because `links.collection_id` cascades and deleting the row would take them with it.
+ * `trashedIds` is always empty now; it stays in the shape the iOS client decodes. */
 export async function deleteCollection(id: string): Promise<{ trashedIds: string[] }> {
   const [collection] = await db
     .select({ isSmart: schema.collections.isSmart, isInbox: schema.collections.isInbox })
@@ -253,18 +254,20 @@ export async function deleteCollection(id: string): Promise<{ trashedIds: string
   if (!collection) return { trashedIds: [] };
   if (collection.isInbox) throw new Error("The inbox can't be deleted.");
 
-  let trashedIds: string[] = [];
   if (!collection.isSmart) {
-    const trashed = await db
+    const [inbox] = await db
+      .select({ id: schema.collections.id })
+      .from(schema.collections)
+      .where(and(eq(schema.collections.userId, CURRENT_USER_ID), eq(schema.collections.isInbox, true)));
+    if (!inbox) throw new Error("No Unsorted collection to move the links into.");
+    await db
       .update(schema.links)
-      .set({ deletedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(schema.links.collectionId, id), isNull(schema.links.deletedAt)))
-      .returning({ id: schema.links.id });
-    trashedIds = trashed.map((l) => l.id);
+      .set({ collectionId: inbox.id, updatedAt: new Date() })
+      .where(eq(schema.links.collectionId, id));
   }
 
   await db.delete(schema.collections).where(eq(schema.collections.id, id));
-  return { trashedIds };
+  return { trashedIds: [] };
 }
 
 /** Housekeeping for the collections that pile up after a reorganisation. */

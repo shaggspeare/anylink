@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ALL_COLLECTION_ID } from "./mock-data";
 import * as actions from "./db/actions";
 import { searchLinks } from "./search";
 import type { ImportedLink } from "./import/parse";
 import type { Priorities } from "./rank/group-links";
 import type { CardSize, Collection, LinkItem } from "./types";
+import { linkCount } from "./format";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
   status?: LinkItem["status"];
@@ -24,7 +25,8 @@ type LibraryContextValue = {
   /** `ids` in their new manual order — the drag-and-drop mosaic's only write. */
   reorderLinks: (ids: string[]) => void;
   reorderCollections: (ids: string[]) => void;
-  moveLinks: (ids: string[], collectionId: string) => void;
+  /** `announce` shows a "Moved to …" toast whose Undo puts each link back where it was. */
+  moveLinks: (ids: string[], collectionId: string, announce?: boolean) => void;
   tagLinks: (ids: string[], tag: string) => void;
   archiveLinks: (ids: string[]) => void;
   deleteLinks: (ids: string[]) => void;
@@ -35,7 +37,8 @@ type LibraryContextValue = {
   addCollection: (name: string, color: string) => Promise<Collection>;
   saveSmartCollection: (query: string, name?: string) => Promise<Collection>;
   renameCollection: (id: string, name: string) => void;
-  deleteCollection: (id: string) => Promise<void>;
+  /** Dissolves it: its links go back to Unsorted. `announce` adds a toast whose Undo recreates it. */
+  deleteCollection: (id: string, announce?: boolean) => Promise<void>;
   deleteEmptyCollections: () => Promise<number>;
   countForCollection: (collectionId: string) => number;
   addHighlight: (linkId: string, quote: string) => void;
@@ -58,12 +61,12 @@ type LibraryContextValue = {
   /** The sidebar as a slide-in drawer below lg; on desktop it's always shown. */
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
-  /** One-line confirmation at the bottom of the screen; `undoIds` adds an Undo that restores them from Trash. */
-  showToast: (message: string, undoIds?: string[]) => void;
+  /** One-line confirmation at the bottom of the screen; `undo` adds an Undo button for 5 s. */
+  showToast: (message: string, undo?: () => void) => void;
   demo: boolean;
 };
 
-type Toast = { message: string; undoIds?: string[]; key: number };
+type Toast = { message: string; undo?: () => void; key: number };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
@@ -106,6 +109,9 @@ export function LibraryProvider({
     return () => clearTimeout(hide);
   }, [toast]);
 
+  // Undo runs seconds later; it must act on the library as it is then, not as it was.
+  const latest = useRef<LibraryContextValue>(null!);
+
   const value = useMemo<LibraryContextValue>(
     () => ({
       links,
@@ -129,8 +135,21 @@ export function LibraryProvider({
         );
         api.reorderLinks(ids).catch(console.error);
       },
-      moveLinks: (ids, collectionId) => {
+      moveLinks: (ids, collectionId, announce = false) => {
         const idSet = new Set(ids);
+        if (announce) {
+          const from = new Map<string, string[]>();
+          for (const l of links) {
+            if (!idSet.has(l.id) || l.collectionId === collectionId) continue;
+            from.set(l.collectionId, [...(from.get(l.collectionId) ?? []), l.id]);
+          }
+          const name = collections.find((c) => c.id === collectionId)?.name ?? "collection";
+          setToast({
+            message: ids.length > 1 ? `${linkCount(ids.length)} moved to ${name}` : `Moved to ${name}`,
+            undo: () => from.forEach((back, prevId) => latest.current.moveLinks(back, prevId)),
+            key: Date.now(),
+          });
+        }
         setLinks((prev) => prev.map((l) => (idSet.has(l.id) ? { ...l, collectionId } : l)));
         api.moveLinks(ids, collectionId).catch(console.error);
         // Every move is calibration data, wherever in the app it came from — which is
@@ -159,8 +178,8 @@ export function LibraryProvider({
         api.deleteLinks(ids).catch(console.error);
         // Every delete path (tile menu, hover trash, bulk bar) gets the same way back.
         setToast({
-          message: ids.length > 1 ? `${ids.length} links moved to Trash` : "Moved to Trash",
-          undoIds: ids,
+          message: ids.length > 1 ? `${linkCount(ids.length)} moved to Trash` : "Moved to Trash",
+          undo: () => latest.current.restoreLinks(ids),
           key: Date.now(),
         });
       },
@@ -209,13 +228,34 @@ export function LibraryProvider({
         setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
         api.renameCollection(id, name).catch(console.error);
       },
-      deleteCollection: async (id) => {
-        const { trashedIds } = await api.deleteCollection(id);
-        const idSet = new Set(trashedIds);
-        const moving = links.filter((l) => idSet.has(l.id)).map((l) => ({ ...l, deleted: true }));
-        setLinks((prev) => prev.filter((l) => !idSet.has(l.id)));
-        setTrashed((prev) => [...moving, ...prev]);
+      deleteCollection: async (id, announce = false) => {
+        const collection = collections.find((c) => c.id === id);
+        const inboxId = collections.find((c) => c.isInbox && !c.isSmart)?.id;
+        if (!collection || !inboxId) return;
+        await api.deleteCollection(id);
+        const memberIds = links.filter((l) => l.collectionId === id).map((l) => l.id);
+        const toInbox = (l: LinkItem) => (l.collectionId === id ? { ...l, collectionId: inboxId } : l);
+        setLinks((prev) => prev.map(toInbox));
+        setTrashed((prev) => prev.map(toInbox));
         setCollections((prev) => prev.filter((c) => c.id !== id));
+        if (!announce) return;
+        // ponytail: Undo recreates it with a new id at the end of the sidebar (same as iOS);
+        // a soft-deleted collection row would keep its id and slot.
+        setToast({
+          message: collection.isSmart
+            ? `“${collection.name}” deleted`
+            : `${collection.name} dissolved — ${linkCount(memberIds.length)} back in Unsorted`,
+          undo: async () => {
+            const lib = latest.current;
+            if (collection.isSmart) {
+              await lib.saveSmartCollection(collection.smartQuery ?? "", collection.name);
+              return;
+            }
+            const recreated = await lib.addCollection(collection.name, collection.color);
+            if (memberIds.length) lib.moveLinks(memberIds, recreated.id);
+          },
+          key: Date.now(),
+        });
       },
       deleteEmptyCollections: async () => {
         const deletedIds = await api.deleteEmptyCollections();
@@ -285,11 +325,14 @@ export function LibraryProvider({
       closePalette: () => setPaletteOpen(false),
       menuOpen,
       setMenuOpen,
-      showToast: (message, undoIds) => setToast({ message, undoIds, key: Date.now() }),
+      showToast: (message, undo) => setToast({ message, undo, key: Date.now() }),
       demo,
     }),
     [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen, menuOpen, api, demo]
   );
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
 
   return (
     <LibraryContext.Provider value={value}>
@@ -301,11 +344,11 @@ export function LibraryProvider({
           className="fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom))] z-[60] mx-auto flex max-w-sm items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-body text-on-ink shadow-[var(--shadow-popover)] lg:bottom-6"
         >
           <span className="min-w-0 flex-1 truncate">{toast.message}</span>
-          {toast.undoIds && (
+          {toast.undo && (
             <button
               type="button"
               onClick={() => {
-                value.restoreLinks(toast.undoIds!);
+                toast.undo!();
                 setToast(null);
               }}
               className="h-9 flex-none rounded-full px-4 font-semibold text-signal"
