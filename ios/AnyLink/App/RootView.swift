@@ -82,7 +82,12 @@ struct MainTabs: View {
     var body: some View {
         @Bindable var router = router
         // `nil` is the New link button: it opens the sheet instead of switching tabs.
-        TabView(selection: Binding<AppTab?>(get: { router.tab }, set: { if let t = $0 { router.select(t) } else { newLink() } })) {
+        TabView(selection: Binding<AppTab?>(get: { router.tab }, set: { if let t = $0 { router.select(t) } else {
+            // Next run-loop turn, not inside the tab bar's selection callback: presenting from there left
+            // toolbar items on the next pushed screen without the environment — fatal "No Observable object
+            // of type LibraryStore" on opening any link after using New link.
+            Task { @MainActor in newLink() }
+        } })) {
             Tab("Library", systemImage: "link", value: AppTab?.some(.library)) {
                 NavigationStack(path: $router.library) { LibraryView().routes(.library) }
             }

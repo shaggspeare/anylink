@@ -435,4 +435,49 @@ final class AnyLinkUITests: XCTestCase {
             XCTAssertGreaterThan(b, a * 1.5, "\(label) doesn't scale: \(a) → \(b)")
         }
     }
+
+    // MARK: - Notes
+
+    @MainActor
+    func testNoteLinkTapInDetail() throws {
+        let app = launch()
+        app.buttons["New link"].tap()
+        let note = app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", "Note")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 3))
+        note.tap()
+        let editor = app.textViews["Note text"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.tap()
+        editor.typeText("Plumber\nquote at https://example.com/quote")
+        app.buttons["Save"].tap()
+        sleep(2)
+        XCTAssertEqual(app.state, .runningForeground, "crashed on save")
+        let tile = app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", "Plumber")).firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        tile.tap()
+        sleep(3)
+        XCTAssertEqual(app.state, .runningForeground, "crashed opening the note")
+        let link = app.links.firstMatch
+        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        log("note link: \(link.label)")
+        link.tap()
+        sleep(3)
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    @MainActor
+    /// Regression: opening a link after using the New link tab crashed (missing LibraryStore in toolbar hosts).
+    func testOpenLinkAfterNewLinkTab() throws {
+        let app = launch()
+        read("www.theverge.com/2026/10/story", in: app)
+        let save = app.buttons["Save to Unsorted"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        save.tap()
+        sleep(2)
+        let tile = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] %@", "NASA")).firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        tile.tap()
+        sleep(3)
+        XCTAssertEqual(app.state, .runningForeground)
+    }
 }

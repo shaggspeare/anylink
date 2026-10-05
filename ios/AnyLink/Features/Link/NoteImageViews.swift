@@ -40,10 +40,6 @@ struct NoteView: View {
         .scrollDismissesKeyboard(.interactively)
         .background { ZStack { AL.canvas; Orbs(.reader) }.ignoresSafeArea() }
         .navigationBarTitleDisplayMode(.inline)
-        .environment(\.openURL, OpenURLAction { url in
-            router.openOriginal = url
-            return .handled
-        })
         .toolbar { toolbar }
         .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }
     }
@@ -59,6 +55,11 @@ struct NoteView: View {
             } else {
                 Text(linkified(link.excerpt))
                     .textSelection(.enabled)
+                    // Links in the note open like Open on a link: in-app Safari, per Settings.
+                    .environment(\.openURL, OpenURLAction { url in
+                        router.openOriginal = url
+                        return .handled
+                    })
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture(perform: beginEdit)
