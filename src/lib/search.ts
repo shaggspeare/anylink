@@ -96,6 +96,8 @@ function urlKey(link: LinkItem) {
 export function duplicateIdsIn(links: LinkItem[]): Set<string> {
   const byKey = new Map<string, string[]>();
   for (const link of links) {
+    // Notes have no URL; an empty key would make every note a duplicate of every other.
+    if (!link.url) continue;
     const key = urlKey(link);
     const ids = byKey.get(key);
     if (ids) ids.push(link.id);

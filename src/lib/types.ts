@@ -1,6 +1,8 @@
 export const CARD_SIZES = ["S", "M", "L"] as const;
 export type CardSize = (typeof CARD_SIZES)[number];
-export type ContentType = "article" | "video" | "product";
+/** `note` and `image` aren't pages: their `url` is empty (note) or the stored file (image),
+ * `domain` is empty, and a note's text lives in `excerpt`. */
+export type ContentType = "article" | "video" | "product" | "note" | "image";
 export type LinkStatus = "crawling" | "ready" | "failed";
 
 export type Highlight = {

@@ -15,19 +15,55 @@ public struct LinkTile: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            hero
-            body_
+            if link.isNote {
+                NoteTileBody(link: link)
+            } else if link.isImage {
+                imageFace
+            } else {
+                hero
+                body_
+            }
         }
-        .frame(minHeight: 184, alignment: .top)   // grows with Dynamic Type instead of clipping
+        .frame(minHeight: 184, maxHeight: link.isNote || link.isImage ? 184 : nil, alignment: .top)   // grows with Dynamic Type instead of clipping
         .frosted(0.62, radius: 18)
         .alShadow(AL.Shadow.card)
         .overlay(alignment: .topLeading) { selectBadge }
         .overlay { selectOutline }
         // One element with the full text: the visible title and domain truncate by design.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")\(link.pinned == true ? ", pinned" : "")")
+        .accessibilityLabel("\(link.title), \(link.sourceLabel)\(link.favorite == true ? ", favourite" : "")\(link.pinned == true ? ", pinned" : "")")
         .accessibilityValue(link.readingMeta ?? "")
         .accessibilityAddTraits(.isButton)
+    }
+
+    // MARK: - Image
+
+    /// The image is the content: taller than a link's hero, on a dark mat, no scrim, top-anchored so a
+    /// screenshot shows its header. The caption sits underneath.
+    private var imageFace: some View {
+        VStack(spacing: 0) {
+            HeroImage(link: link)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AL.docShell)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .overlay(alignment: .topTrailing) {
+                    if link.status == .crawling {
+                        ProgressView().controlSize(.small).tint(.white)
+                            .padding(6).background(.black.opacity(0.45), in: Circle()).padding(6)
+                    }
+                }
+                .padding(.top, 6)
+                .padding(.horizontal, 6)
+            HStack(spacing: 4) {
+                Image(systemName: "photo").font(.caption2.weight(.bold)).foregroundStyle(AL.periwinkle)
+                Text(link.title).font(AL.Font.brand(12, .semibold, relativeTo: .caption)).foregroundStyle(AL.ink).lineLimit(1)
+                Spacer(minLength: 0)
+                if link.pinned == true { Image(systemName: "pin.fill").font(.caption).foregroundStyle(AL.signal) }
+                if link.favorite == true { Image(systemName: "star.fill").font(.caption).foregroundStyle(AL.signal) }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+        }
     }
 
     // MARK: - Hero
@@ -144,6 +180,38 @@ private let previewVideo = LinkItem(
     collectionId: "unsorted", tags: ["rust"], size: .M,
     status: .ready, createdAt: "2026-10-01T00:00:00Z"
 )
+
+private let previewNote = LinkItem(
+    id: "note", url: "", domain: "", title: "Gift ideas for Mum",
+    excerpt: "Gift ideas for Mum\nThat linen apron from toast.co.uk/aprons, or the Kyoto print — https://example.com/print. Ask Sam first.",
+    tint: "#D6F24B", stripe: "#17181B", initial: "✎", contentType: .note,
+    collectionId: "unsorted", tags: [], size: .M, status: .ready, createdAt: "2026-10-01T00:00:00Z"
+)
+
+private let previewImage = LinkItem(
+    id: "image", url: "", domain: "", title: "Boarding pass", excerpt: "",
+    tint: "#17181B", stripe: "#FFFFFF", initial: "▣", contentType: .image,
+    collectionId: "unsorted", tags: [], size: .M, status: .ready, createdAt: "2026-10-01T00:00:00Z"
+)
+
+#Preview("LinkTile — Note & Image") {
+    HStack(spacing: 8) {
+        LinkTile(link: previewNote)
+        LinkTile(link: previewImage)
+    }
+    .padding(14)
+    .background(AL.canvas)
+}
+
+#Preview("LinkTile — Note & Image, Dark") {
+    HStack(spacing: 8) {
+        LinkTile(link: previewNote)
+        LinkTile(link: previewImage)
+    }
+    .padding(14)
+    .background(AL.canvas)
+    .preferredColorScheme(.dark)
+}
 
 #Preview("LinkTile — Light") {
     HStack(spacing: 8) {

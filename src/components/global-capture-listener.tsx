@@ -3,8 +3,6 @@
 import { useEffect } from "react";
 import { useLibrary } from "@/lib/store";
 
-const URL_PATTERN = /^https?:\/\/\S+$/i;
-
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return (
@@ -20,14 +18,17 @@ export function GlobalCaptureListener() {
   // in `text` rather than `url`, so both are checked.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const shared = [params.get("shared_url"), params.get("shared_text")]
+    const sharedText = params.get("shared_text")?.trim();
+    const shared = [params.get("shared_url"), sharedText]
       .map((v) => v?.match(/https?:\/\/\S+/)?.[0])
       .find(Boolean);
     if (!params.has("shared_url") && !params.has("shared_text")) return;
     ["shared_url", "shared_text", "shared_title"].forEach((k) => params.delete(k));
     const rest = params.toString();
     history.replaceState(history.state, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    // Text with a link in it is a link; text without one is a note.
     if (shared) openAddLink(shared);
+    else if (sharedText) openAddLink(sharedText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -60,9 +61,18 @@ export function GlobalCaptureListener() {
 
     const onPaste = (e: ClipboardEvent) => {
       if (isEditableTarget(e.target) || addLinkOpen || paletteOpen) return;
+      if (document.querySelector("[aria-modal]")) return;
+      // A screenshot copied to the clipboard arrives as a file; it wins over any text
+      // the copying app put alongside it.
+      const image = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
       const text = e.clipboardData?.getData("text")?.trim();
-      if (text && URL_PATTERN.test(text)) {
+      if (image) {
         e.preventDefault();
+        openAddLink(image);
+      } else if (text) {
+        e.preventDefault();
+        // The sheet decides: a URL opens the link form, anything else a note — the way
+        // you'd paste into a chat.
         openAddLink(text);
       }
     };

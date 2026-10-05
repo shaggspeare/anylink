@@ -12,7 +12,11 @@ struct LinkDetailView: View {
 
     var body: some View {
         if let link = store.link(id) {
-            if link.contentType == .product, link.product != nil {
+            if link.isNote {
+                NoteView(link: link)
+            } else if link.isImage {
+                ImageDetailView(link: link)
+            } else if link.contentType == .product, link.product != nil {
                 ProductView(link: link)
             } else {
                 ReaderView(link: link)

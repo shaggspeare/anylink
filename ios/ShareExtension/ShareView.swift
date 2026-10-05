@@ -17,7 +17,7 @@ struct ShareView: View {
             case .signedOut:
                 message("Open AnyLink once to sign in, then share again.", system: "person.crop.circle.badge.exclamationmark")
             case .noLink:
-                message("There's no link in what you shared.", system: "link.badge.plus")
+                message("There's nothing to save in what you shared.", system: "link.badge.plus")
             default:
                 saved
             }
@@ -54,10 +54,20 @@ struct ShareView: View {
 
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                let id = AL.identity(for: session.domain ?? "?")
-                HeroFallback(tint: Color(hex: id.tint), stripe: Color(hex: id.stripe), band: 4, gap: 8)
-                    .frame(width: 52, height: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                Group {
+                    if session.kind == .note || session.kind == .image {
+                        Image(systemName: session.kind == .note ? "text.alignleft" : "photo")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(session.kind == .note ? AL.onAccent : AL.light)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(session.kind == .note ? AL.lime : AL.periwinkle)
+                    } else {
+                        let id = AL.identity(for: session.domain ?? "?")
+                        HeroFallback(tint: Color(hex: id.tint), stripe: Color(hex: id.stripe), band: 4, gap: 8)
+                    }
+                }
+                .frame(width: 52, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.domain ?? "").font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     Text(session.saved?.title ?? session.title ?? session.url?.absoluteString ?? "")
@@ -69,6 +79,9 @@ struct ShareView: View {
                 case .pending:
                     Image(systemName: "icloud.and.arrow.up").foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     Text("Saved — it will sync when you're online.")
+                case .saved where session.kind == .note || session.kind == .image:
+                    Image(systemName: "checkmark").foregroundStyle(AL.inStock)
+                    Text(session.kind == .note ? "Links in it stay tappable" : "Kept on this device and synced")
                 case .saved where session.crawlDone:
                     Image(systemName: "checkmark").foregroundStyle(AL.inStock)
                     Text("Summary and tags added")
@@ -101,7 +114,10 @@ struct ShareView: View {
             }
         }
 
-        ALField("Add a note (optional)", text: $note)
+        // A note on a note is just more note.
+        if session.kind != .note {
+            ALField("Add a note (optional)", text: $note)
+        }
     }
 
     private func message(_ text: String, system: String) -> some View {

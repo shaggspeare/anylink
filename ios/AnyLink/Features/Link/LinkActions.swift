@@ -24,7 +24,9 @@ private struct LinkActions: ViewModifier {
                 }
             }
         }
-        .accessibilityAction(named: "Open original") { router.openOriginal = URL(string: link.url) }
+        .accessibilityAction(named: link.isNote ? "Open" : "Open original") {
+            if link.isNote { router.open(.link(link.id)) } else { router.openOriginal = URL(string: link.url) }
+        }
         .accessibilityAction(named: link.favorite == true ? "Unfavorite" : "Favorite") { store.setFavorite(link.id, link.favorite != true) }
         .accessibilityAction(named: link.pinned == true ? "Unpin" : "Pin to top") { store.setPinned(link.id, link.pinned != true) }
         .accessibilityAction(named: "Move") { router.sheet = .moveLinks([link.id]) }
@@ -45,17 +47,28 @@ struct LinkMenuItems: View {
     var body: some View {
         // Detail screens already show Open, Share and the collection chip, so their ⋯ menu skips those.
         if !inDetail {
-            Button("Open Original", systemImage: "arrow.up.right") { router.openOriginal = url }
-            if let url {
-                ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") }
+            if link.isNote {
+                ShareLink(item: link.excerpt) { Label("Share…", systemImage: "square.and.arrow.up") }
+            } else {
+                Button(link.isImage ? "Open Full Size" : "Open Original", systemImage: "arrow.up.right") { router.openOriginal = url }
+                if let url = link.isImage ? LocalImages.existing(for: link.id) ?? url : url {
+                    ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") }
+                }
             }
         }
         Button(link.pinned == true ? "Unpin" : "Pin to top", systemImage: link.pinned == true ? "pin.slash" : "pin") {
             store.setPinned(link.id, link.pinned != true)
         }
-        Button("Copy Link", systemImage: "doc.on.doc") {
-            UIPasteboard.general.url = url
-            store.toasts.show(url == nil ? "Couldn't copy the link" : "Link copied")
+        if link.isNote {
+            Button("Copy Text", systemImage: "doc.on.doc") {
+                UIPasteboard.general.string = link.excerpt
+                store.toasts.show("Text copied")
+            }
+        } else if !link.isImage {
+            Button("Copy Link", systemImage: "doc.on.doc") {
+                UIPasteboard.general.url = url
+                store.toasts.show(url == nil ? "Couldn't copy the link" : "Link copied")
+            }
         }
         if !inDetail {
             Divider()
@@ -88,9 +101,9 @@ struct LinkPreviewCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HeroImage(link: link).frame(height: 140).clipped()
+            if !link.isNote { HeroImage(link: link).frame(height: link.isImage ? 220 : 140).clipped() }
             VStack(alignment: .leading, spacing: 6) {
-                Text([link.domain, link.readingMeta, collection].compactMap { $0 }.joined(separator: " · "))
+                Text([link.sourceLabel, link.readingMeta, collection].compactMap { $0 }.joined(separator: " · "))
                     .font(AL.Font.meta)
                     .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 Text(link.title)
@@ -101,7 +114,7 @@ struct LinkPreviewCard: View {
                     Text(link.excerpt)
                         .font(AL.Font.body)
                         .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
-                        .lineLimit(2)
+                        .lineLimit(link.isNote ? 8 : 2)
                 }
             }
             .padding(.horizontal, 14)

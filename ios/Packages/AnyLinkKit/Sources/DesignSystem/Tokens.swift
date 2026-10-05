@@ -61,6 +61,8 @@ public enum AL {
     public static let lime = Color(hex: 0xD6F24B)
     public static let limeHover = Color(hex: 0xE0F96A)
     public static let periwinkle = Color(hex: 0x7C8CFF)
+    /// The note glyph on light surfaces, where lime itself is too pale to read.
+    public static let noteMark = Color.themed(0x7D8F12, 0xD6F24B)
     public static let slate = Color(hex: 0x9AA3AD)
     public static let terracotta = Color(hex: 0xE0855A)
     public static let onAccent = Color(hex: 0x17181B)

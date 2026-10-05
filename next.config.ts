@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/crawl": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
+  // createImage takes the file as base64 in the action body (1 MB by default).
+  experimental: {
+    serverActions: { bodySizeLimit: "36mb" },
+  },
   images: {
     // Hero images come from whatever domain the user pastes — wildcarded on purpose.
     // Next 16 still blocks local/private IPs by default, which covers the main SSRF risk.

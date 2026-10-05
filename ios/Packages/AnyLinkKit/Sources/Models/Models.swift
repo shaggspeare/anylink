@@ -3,7 +3,9 @@ import Foundation
 // MARK: - Enums
 
 public enum CardSize: String, Codable, CaseIterable, Sendable { case S, M, L }
-public enum ContentType: String, Codable, Sendable { case article, video, product }
+/// `note` and `image` aren't pages: `url` is empty (note) or the stored file (image), `domain` is empty,
+/// and a note's text lives in `excerpt`.
+public enum ContentType: String, Codable, Sendable { case article, video, product, note, image }
 public enum LinkStatus: String, Codable, Sendable { case crawling, ready, failed }
 
 // MARK: - Supporting types
@@ -118,6 +120,19 @@ public extension LinkItem {
         case .article:
             guard let m = readingTimeMinutes else { return nil }
             return "\(m) min read"
+        case .note, .image: return nil
+        }
+    }
+
+    var isNote: Bool { contentType == .note }
+    var isImage: Bool { contentType == .image }
+
+    /// What a row shows where a link shows its domain.
+    var sourceLabel: String {
+        switch contentType {
+        case .note: "Note"
+        case .image: "Image"
+        default: domain
         }
     }
 

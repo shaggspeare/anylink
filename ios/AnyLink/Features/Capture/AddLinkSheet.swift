@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import DesignSystem
 import Models
 import Networking
@@ -16,6 +17,9 @@ struct AddLinkSheet: View {
     @State private var newTag = ""
     @State private var savedCount = 0
     @FocusState private var fieldFocused: Bool
+    @State private var composingNote = false
+    @State private var photo: PhotosPickerItem?
+    @State private var savingImage = false
     private let prefill: URL?
 
     init(store: LibraryStore, prefill: URL?, collectionID: LinkCollection.ID?) {
@@ -26,9 +30,14 @@ struct AddLinkSheet: View {
 
     var body: some View {
         Group {
-            if model.phase == .idle { idle } else { session }
+            if composingNote {
+                NoteComposer(collectionID: $model.collectionID, onBack: { withAnimation(AL.Motion.sheet) { composingNote = false } }) {
+                    savedCount += 1
+                    dismiss()
+                }
+            } else if model.phase == .idle { idle } else { session }
         }
-        .presentationDetents(model.phase == .idle ? [.medium, .large] : [.large], selection: $detent)
+        .presentationDetents(model.phase == .idle && !composingNote ? [.medium, .large] : [.large], selection: $detent)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(model.isSaving)
         .sensoryFeedback(.success, trigger: model.step == 3 && model.phase == .ready)
@@ -107,6 +116,7 @@ struct AddLinkSheet: View {
                         .font(.footnote)
                         .foregroundStyle(AL.destructive)
                 }
+                otherKinds
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Faster from Safari").font(AL.Font.rowTitle).foregroundStyle(AL.ink)
                     Text("Share → AnyLink saves the page you're on in one tap.")
@@ -123,6 +133,44 @@ struct AddLinkSheet: View {
             .padding(.top, 8)
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    // MARK: - Note / image
+
+    /// Not every keeper is a link: a thought, or a screenshot.
+    private var otherKinds: some View {
+        let imageTitle = savingImage ? "Saving…" : "Image"
+        return HStack(spacing: 10) {
+            Button {
+                withAnimation(AL.Motion.sheet) {
+                    composingNote = true
+                    detent = .large
+                }
+            } label: {
+                KindTile(title: "Note", subtitle: "Plain text", systemImage: "text.alignleft", accent: AL.lime, mark: AL.noteMark)
+            }
+            .buttonStyle(TilePressStyle())
+            PhotosPicker(selection: $photo, matching: .images, photoLibrary: .shared()) {
+                KindTile(title: imageTitle, subtitle: "Screenshot or photo", systemImage: "photo", accent: AL.periwinkle, mark: AL.periwinkle)
+            }
+            .buttonStyle(TilePressStyle())
+            .disabled(savingImage)
+        }
+        .onChange(of: photo) { _, item in
+            guard let item else { return }
+            savingImage = true
+            Task {
+                // The store keeps a local copy before uploading, so the tile shows the moment the sheet closes.
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   await store.saveImage(data, collectionId: model.collectionID) != nil {
+                    savedCount += 1
+                    dismiss()
+                } else {
+                    savingImage = false
+                    photo = nil
+                }
+            }
+        }
     }
 
     // MARK: - Session (crawling / ready / failed)
@@ -350,6 +398,35 @@ struct AddLinkSheet: View {
 }
 
 // MARK: - Small pieces
+
+/// Half-width entry on the idle sheet: tinted glyph square, title, one-line hint.
+private struct KindTile: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let accent: Color
+    let mark: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.callout.weight(.bold))
+                .foregroundStyle(mark)
+                .frame(width: 36, height: 36)
+                .background(accent.opacity(0.22), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(AL.Font.rowTitle).foregroundStyle(AL.ink)
+                Text(subtitle).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: AL.Control.lg)
+        .frosted(0.62, radius: AL.Radius.tile)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+    }
+}
 
 private struct Line: Shape {
     func path(in r: CGRect) -> Path { Path { $0.move(to: CGPoint(x: r.minX, y: r.midY)); $0.addLine(to: CGPoint(x: r.maxX, y: r.midY)) } }

@@ -13,7 +13,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-export const contentTypeEnum = pgEnum("content_type", ["article", "video", "product"]);
+export const contentTypeEnum = pgEnum("content_type", ["article", "video", "product", "note", "image"]);
 export const linkStatusEnum = pgEnum("link_status", ["crawling", "ready", "failed"]);
 export const cardSizeEnum = pgEnum("card_size", ["S", "M", "L"]);
 export const crawlJobStatusEnum = pgEnum("crawl_job_status", [

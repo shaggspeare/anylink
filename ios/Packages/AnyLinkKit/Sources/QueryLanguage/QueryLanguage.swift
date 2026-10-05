@@ -268,8 +268,8 @@ public struct LibraryIndex: Sendable {
             ]
             hay[link.id] = parts.joined(separator: "\n").lowercased()
 
-            let normalized = Self.normalizeURL(link.url)
-            urlMap[normalized, default: []].append(link.id)
+            // Notes have no URL; an empty key would make every note a duplicate of every other.
+            if !link.url.isEmpty { urlMap[Self.normalizeURL(link.url), default: []].append(link.id) }
         }
 
         self.haystacks = hay
@@ -309,7 +309,7 @@ extension SearchToken {
         let label: String
         switch term {
         case .type(let t, let neg):
-            let base = switch t { case .video: "Videos"; case .article: "Articles"; case .product: "Products" }
+            let base = switch t { case .video: "Videos"; case .article: "Articles"; case .product: "Products"; case .note: "Notes"; case .image: "Images" }
             label = neg ? "Not \(base)" : base
         case .flag(let f, let neg):
             let base = switch f {
@@ -336,6 +336,8 @@ extension SearchToken {
         SearchToken(id: "type:video", label: "Videos", term: .type(.video, negated: false)),
         SearchToken(id: "type:article", label: "Articles", term: .type(.article, negated: false)),
         SearchToken(id: "type:product", label: "Products", term: .type(.product, negated: false)),
+        SearchToken(id: "type:note", label: "Notes", term: .type(.note, negated: false)),
+        SearchToken(id: "type:image", label: "Images", term: .type(.image, negated: false)),
         SearchToken(id: "is:favorite", label: "Favorites", term: .flag(.favorite, negated: false)),
         SearchToken(id: "is:noted", label: "With a note", term: .flag(.noted, negated: false)),
         SearchToken(id: "is:untagged", label: "Untagged", term: .flag(.untagged, negated: false)),

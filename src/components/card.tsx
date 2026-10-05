@@ -9,6 +9,7 @@ import { LinkActionSheet } from "./link-action-sheet";
 import { swallowClick, type useDragReorder } from "@/lib/use-drag-reorder";
 import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, TILE_PX, sizeFromDrag } from "@/lib/geometry";
 import { CARD_SIZES, type LinkItem } from "@/lib/types";
+import { NoteText } from "./note-text";
 
 const ROW_PX = 46;
 const ENTRANCE_SCALES = [0.72, 1.14, 0.86, 1.22, 0.64, 1.06];
@@ -70,7 +71,9 @@ export function Card({
   const geo = CARD_GEOMETRY[link.size];
   const cols = tile ? 1 : Math.min(geo.cols, columnCount);
   const rows = Math.round((row ? ROW_PX : tile ? TILE_PX : geo.rowPx) / GRID_ROW_UNIT);
-  const hero = !row && (tile || link.size !== "S");
+  const isNote = link.contentType === "note";
+  const isImage = link.contentType === "image";
+  const hero = !row && !isNote && (tile || isImage || link.size !== "S");
   const compact = !tile && link.size === "S";
 
   const handleOpen = (e: React.MouseEvent) => {
@@ -229,7 +232,9 @@ export function Card({
         {hero && (
           <div
             className={`relative overflow-hidden bg-[#dfe2e5] dark:bg-[#26272b] ${
-              tile ? "m-1.5 mb-0 h-[54px] flex-none rounded-[11px]" : "m-2 mb-0 min-h-0 flex-1 rounded-[18px]"
+              isImage
+                ? `image-frame min-h-0 flex-1 ${tile ? "m-1.5 mb-0 rounded-[11px]" : "m-2 mb-0 rounded-[18px]"}`
+                : tile ? "m-1.5 mb-0 h-[54px] flex-none rounded-[11px]" : "m-2 mb-0 min-h-0 flex-1 rounded-[18px]"
             }`}
           >
             <HeroArt link={link} />
@@ -259,6 +264,17 @@ export function Card({
             <span className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-.02em] text-ink">{link.title}</span>
             {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
             {link.favorite && <Icon name="star" size={11} className="flex-none text-signal" />}
+          </div>
+        ) : isNote ? (
+          <NoteCardBody link={link} tile={tile} />
+        ) : isImage ? (
+          <div className={`flex min-w-0 flex-none items-center gap-1.5 ${tile ? "px-2.5 py-1.5" : "px-4 py-2.5"}`}>
+            <Icon name="image" size={tile ? 11 : 13} className="flex-none text-periwinkle" />
+            <span className={`min-w-0 flex-1 truncate font-semibold tracking-[-.02em] text-ink ${tile ? "text-[11.5px]" : "text-[13px]"}`}>
+              {link.title}
+            </span>
+            {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
+            {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="flex-none text-signal" />}
           </div>
         ) : (
         <div className={`flex min-w-0 flex-none flex-col ${tile ? "gap-1 px-2.5 py-2" : "gap-2 px-4 py-3.5"}`}>
@@ -406,9 +422,56 @@ export function Card({
   );
 }
 
+/** A note's card is its text: the first line set as the title, the rest running on and
+ * fading out at the card's edge rather than clamping to a fixed line count — so S, M and
+ * L each show as much as fits. Links inside stay clickable. */
+function NoteCardBody({ link, tile }: { link: LinkItem; tile: boolean }) {
+  const text = link.excerpt.trim();
+  const br = text.indexOf("\n");
+  const first = br === -1 ? text : text.slice(0, br);
+  const rest = br === -1 ? "" : text.slice(br + 1).trim();
+  const big = !tile && link.size === "L";
+  return (
+    <div className={`relative flex min-h-0 min-w-0 flex-1 flex-col ${tile ? "px-2.5 pb-2 pt-2.5" : "px-4.5 pb-4 pt-4"}`}>
+      <span aria-hidden className={`note-fold absolute right-0 top-0 ${tile ? "h-5 w-5" : "h-7 w-7"}`} />
+      <div className={`flex items-center gap-1.5 pr-6 text-ink/45 ${tile ? "text-[10.5px]" : "text-[11.5px]"}`}>
+        <Icon name="note" size={tile ? 11 : 13} className="flex-none text-[#7d8f12] dark:text-lime" />
+        <span>Note</span>
+        {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
+        {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="text-signal" />}
+      </div>
+      <div
+        className={`min-h-0 flex-1 overflow-hidden text-ink ${tile ? "mt-1" : "mt-2.5"}`}
+        style={{ maskImage: "linear-gradient(to bottom, #000 72%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, #000 72%, transparent)" }}
+      >
+        <div
+          className="font-semibold"
+          style={{
+            fontSize: tile ? 13.5 : big ? 24 : link.size === "M" ? 18 : 16,
+            lineHeight: 1.22,
+            letterSpacing: tile ? "-.02em" : "-.032em",
+          }}
+        >
+          <NoteText text={first} />
+        </div>
+        {rest && (
+          <p className={`text-ink/70 ${tile ? "mt-1 text-[12px] leading-[1.4]" : big ? "mt-3 text-[15.5px] leading-[1.55]" : "mt-2 text-[13.5px] leading-[1.5]"}`}>
+            <NoteText text={rest} />
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** The hero image, or the striped identity fallback most imported links get. Fills its
  * (relative, sized) parent. */
 export function HeroArt({ link, sizes = "(min-width: 1280px) 25vw, 50vw" }: { link: LinkItem; sizes?: string }) {
+  if (link.contentType === "image" && link.heroImage) {
+    // A saved image is the content, not decoration: no scrim, and pinned to the top so a
+    // tall screenshot shows its header rather than its middle.
+    return <Image src={link.heroImage} alt={link.title} fill sizes={sizes} className="object-cover object-top" />;
+  }
   return link.heroImage ? (
     <>
       <Image src={link.heroImage} alt="" fill sizes={sizes} className="object-cover" />

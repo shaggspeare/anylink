@@ -52,6 +52,36 @@ export async function reuploadHeroImage(
   }
 }
 
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+// Screenshots are text more often than not: keep them wide enough to read and the
+// quality high enough that the text doesn't smear.
+const MAX_IMAGE_SIDE = 2400;
+
+/** A saved image (screenshot, photo). Same bucket and `<id>.webp` name as hero images,
+ * so purging the row already cleans the file up via deleteHeroImage.
+ * ponytail: the bucket is public — unguessable uuid URLs, nothing more. Private bucket +
+ * signed URLs when screenshots of sensitive things become a real concern. */
+export async function uploadImage(bytes: Buffer, linkId: string): Promise<string> {
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error("That image is too large (25 MB max).");
+  let webp: Buffer;
+  try {
+    webp = await sharp(bytes)
+      .rotate() // honour EXIF orientation before it's stripped
+      .resize({ width: MAX_IMAGE_SIDE, height: MAX_IMAGE_SIDE, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 86 })
+      .toBuffer();
+  } catch {
+    throw new Error("That file isn't an image we can read.");
+  }
+  const path = `${linkId}.webp`;
+  const { error } = await supabaseAdmin.storage.from(HERO_IMAGES_BUCKET).upload(path, webp, {
+    contentType: "image/webp",
+    upsert: true,
+  });
+  if (error) throw new Error("Couldn't store the image. Try again.");
+  return supabaseAdmin.storage.from(HERO_IMAGES_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
 export async function deleteHeroImage(linkId: string) {
   await supabaseAdmin.storage.from(HERO_IMAGES_BUCKET).remove([`${linkId}.webp`]);
 }

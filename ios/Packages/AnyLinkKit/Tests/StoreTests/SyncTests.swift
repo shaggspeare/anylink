@@ -4,6 +4,7 @@ import Models
 import Networking
 import Persistence
 import Fixtures
+import QueryLanguage
 @testable import Store
 
 /// Programmable HTTP for LiveAPI: `nil` from the handler means "no network".
@@ -281,6 +282,47 @@ final class APIStub: URLProtocol, @unchecked Sendable {
 }
 
 import CoreSpotlight
+
+@MainActor
+@Suite struct NotesAndImagesTests {
+    let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+
+    @Test func noteSavesWithFirstLineTitleAndEditsRetitle() async throws {
+        let saved = try #require(await store.saveNote("  Groceries\nmilk, see shop.example.com  "))
+        #expect(saved.isNote && saved.title == "Groceries" && saved.url.isEmpty)
+        #expect(store.live.first?.id == saved.id)
+        store.setNoteText(saved.id, "Errands\npost office")
+        #expect(store.link(saved.id)?.title == "Errands")
+        await store.settle()
+        #expect(store.outbox.isEmpty)
+    }
+
+    @Test func notesAreNotDuplicatesOfEachOther() async throws {
+        await store.saveNote("one")
+        await store.saveNote("two")
+        #expect(store.links(matching: Query("is:duplicate")).allSatisfy { !$0.isNote })
+        #expect(store.links(matching: Query("type:note")).count == 2)
+    }
+
+    @Test func unreadableImageIsRefusedWithoutACard() async {
+        let before = store.live.count
+        #expect(await store.saveImage(Data("not an image".utf8)) == nil)
+        #expect(store.live.count == before)
+        #expect(store.toasts.current?.message == "That image couldn't be read.")
+    }
+
+    @Test func pendingNoteDrainsIntoTheLibrary() async throws {
+        let api = MockAPI.fixtures(latency: false)
+        await api.failNext(.offline)
+        let cache = try LocalCache(inMemory: true)
+        let s = ShareSession(api: api, cache: cache, signedIn: true)
+        await s.start(.note("Call the plumber\nhttps://example.com/quote"))
+        #expect(s.mode == .pending && s.kind == .note)
+        await store.drainPendingSaves(from: cache)
+        #expect(cache.pendingSaves().isEmpty)
+        #expect(store.live.first?.title == "Call the plumber")
+    }
+}
 
 @Suite struct SpotlightTests {
     @Test func itemCarriesTitleSummaryDomain() {

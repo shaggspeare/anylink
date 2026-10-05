@@ -8,6 +8,7 @@ import { useLibrary } from "@/lib/store";
 import { AmbientOrbs } from "./ambient-orbs";
 import { ReaderPanel } from "./reader-panel";
 import { ProductPanel } from "./product-panel";
+import { ImagePanel, NotePanel } from "./note-image-panels";
 import { Sidebar } from "./sidebar";
 import { PANE_PX, type SplitView } from "@/lib/use-split-view";
 import type { LinkItem } from "@/lib/types";
@@ -71,6 +72,9 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
   const [noteOpen, setNoteOpen] = useState(Boolean(link.note));
   const collection = collections.find((c) => c.id === link.collectionId);
   const isProduct = link.contentType === "product";
+  const isNote = link.contentType === "note";
+  const isImage = link.contentType === "image";
+  const openLabel = isProduct ? `Open on ${link.product?.retailer.split(".")[0]}` : isImage ? "Full size" : "Open original";
   const pane = Boolean(onClose);
 
   return (
@@ -159,7 +163,7 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
             >
               <Icon name="star" size={15} />
             </button>
-            <button
+            {!isNote && <button
               type="button"
               data-tour="note"
               onClick={() => setNoteOpen((open) => !open)}
@@ -169,8 +173,8 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
               }`}
             >
               Note
-            </button>
-            <button
+            </button>}
+            {!isNote && <button
               type="button"
               data-tour="open-original"
               onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
@@ -179,8 +183,8 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                 <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
               </svg>
-              Open{isProduct ? ` on ${link.product?.retailer.split(".")[0]}` : " original"}
-            </button>
+              {openLabel}
+            </button>}
             <details data-tour="move" className="relative">
               <summary
                 className="flex h-10 w-10 list-none items-center justify-center rounded-full border border-rim/90 bg-surface/70 sm:h-9 sm:w-9"
@@ -229,7 +233,11 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
 
         {/* Container queries in the panels: a narrow pane stacks the side rail under the article. */}
         <div className="@container flex flex-1 flex-col">
-          {isProduct && link.product ? (
+          {isNote ? (
+            <NotePanel link={link} />
+          ) : isImage ? (
+            <ImagePanel link={link} />
+          ) : isProduct && link.product ? (
             <ProductPanel link={link} />
           ) : (
             <ReaderPanel link={link} onOpenCollection={() => router.push(`/collections/${link.collectionId}`)} />
@@ -237,15 +245,15 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
         </div>
 
         {/* Phones: the one thing you came to do, under the thumb. */}
-        <div className="h-24 sm:hidden" />
-        <button
+        {!isNote && <div className="h-24 sm:hidden" />}
+        {!isNote && <button
           type="button"
           onClick={() => window.open(link.url, "_blank", "noopener,noreferrer")}
           className="fixed inset-x-4 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 flex h-[52px] items-center justify-center gap-2 rounded-full bg-ink text-[15px] font-semibold text-on-ink shadow-[var(--shadow-window)] sm:hidden"
         >
-          Open{isProduct ? ` on ${link.product?.retailer.split(".")[0]}` : " original"}
+          {openLabel}
           <Icon name="arrow-up-right" size={15} />
-        </button>
+        </button>}
     </>
   );
 }

@@ -25,6 +25,7 @@ export function LinkActionSheet({
   at?: { x: number; y: number };
 }) {
   const ROW = at ? MENU_ROW : SHEET_ROW;
+  const isNote = link.contentType === "note";
   const { collections, moveLinks, setFavorite, setPinned, deleteLinks, showToast } = useLibrary();
   const [moving, setMoving] = useState(false);
   const targets = collections.filter((c) => !c.isSmart && c.id !== link.collectionId);
@@ -92,7 +93,7 @@ export function LinkActionSheet({
           </span>
           <div className="min-w-0">
             <div className="truncate text-[14px] font-semibold text-ink">{link.title}</div>
-            <div className="truncate text-meta text-ink/50">{link.domain}</div>
+            <div className="truncate text-meta text-ink/50">{link.domain || (isNote ? "Note" : "Image")}</div>
           </div>
         </div>
 
@@ -117,13 +118,17 @@ export function LinkActionSheet({
           </div>
         ) : (
           <div className="flex flex-col">
-            <a href={link.url} target="_blank" rel="noreferrer noopener" onClick={onClose} className={ROW}>
-              <Icon name="arrow-up-right" size={15} /> Open original
-            </a>
+            {!isNote && (
+              <a href={link.url} target="_blank" rel="noreferrer noopener" onClick={onClose} className={ROW}>
+                <Icon name="arrow-up-right" size={15} /> {link.contentType === "image" ? "Open full size" : "Open original"}
+              </a>
+            )}
             {canShare && (
               <button
                 type="button"
-                onClick={run(() => navigator.share({ title: link.title, url: link.url }).catch(() => {}))}
+                onClick={run(() =>
+                  navigator.share(isNote ? { text: link.excerpt } : { title: link.title, url: link.url }).catch(() => {})
+                )}
                 className={ROW}
               >
                 <Icon name="share" size={15} /> Share…
@@ -132,14 +137,14 @@ export function LinkActionSheet({
             <button
               type="button"
               onClick={run(() =>
-                navigator.clipboard?.writeText(link.url).then(
-                  () => showToast("Link copied"),
-                  () => showToast("Couldn't copy the link")
+                navigator.clipboard?.writeText(isNote ? link.excerpt : link.url).then(
+                  () => showToast(isNote ? "Text copied" : "Link copied"),
+                  () => showToast("Couldn't copy that")
                 )
               )}
               className={ROW}
             >
-              <Icon name="link" size={15} /> Copy link
+              <Icon name={isNote ? "note" : "link"} size={15} /> {isNote ? "Copy text" : "Copy link"}
             </button>
             {targets.length > 0 && (
               <button type="button" onClick={() => setMoving(true)} className={ROW}>

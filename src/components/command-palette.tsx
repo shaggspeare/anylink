@@ -46,7 +46,7 @@ export function CommandPalette() {
   // works here without the palette knowing what any of those operators mean.
   const matches = useMemo(() => searchLinks(links, q), [links, q]);
   const linkResults: Result[] = useMemo(
-    () => matches.slice(0, 6).map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain })),
+    () => matches.slice(0, 6).map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain || (l.contentType === "note" ? "Note" : "Image") })),
     [matches]
   );
 
@@ -77,8 +77,11 @@ export function CommandPalette() {
     } else if (r.kind === "link") {
       if (openOriginal) {
         const link = links.find((l) => l.id === r.id);
-        if (link) window.open(link.url, "_blank", "noopener,noreferrer");
-        return;
+        // Notes have no original to open; they fall through to their page.
+        if (link?.url) {
+          window.open(link.url, "_blank", "noopener,noreferrer");
+          return;
+        }
       }
       router.push(`/links/${r.id}`);
     } else if (r.kind === "collection") {

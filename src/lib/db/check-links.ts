@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
@@ -25,7 +25,8 @@ export async function linksNeedingCheck(limit: number) {
       and(
         eq(schema.links.userId, CURRENT_USER_ID),
         isNull(schema.links.deletedAt),
-        eq(schema.links.status, "ready")
+        eq(schema.links.status, "ready"),
+        notInArray(schema.links.contentType, ["note", "image"])
       )
     )
     .orderBy(sql`${schema.links.checkedAt} nulls first`, asc(schema.links.checkedAt))
@@ -41,6 +42,7 @@ export async function countNeedingCheck(): Promise<number> {
         eq(schema.links.userId, CURRENT_USER_ID),
         isNull(schema.links.deletedAt),
         eq(schema.links.status, "ready"),
+        notInArray(schema.links.contentType, ["note", "image"]),
         isNull(schema.links.checkedAt)
       )
     );

@@ -40,3 +40,12 @@ import ImageIO
         #expect(ImageLoader.downsample(Data("nope".utf8), maxPixels: 100) == nil)
     }
 }
+
+@Suite struct LinkifiedTests {
+    @Test func findsWebLinksNotEmails() {
+        let text = linkified("mail me@site.com or see example.com/a and https://b.co.")
+        let links = text.runs.compactMap { $0.link?.absoluteString }
+        #expect(links == ["http://example.com/a", "https://b.co"])
+        #expect(String(text.characters) == "mail me@site.com or see example.com/a and https://b.co.")
+    }
+}

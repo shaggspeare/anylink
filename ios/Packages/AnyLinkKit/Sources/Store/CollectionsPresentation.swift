@@ -4,7 +4,7 @@ import QueryLanguage
 
 /// S10 filter chips. Each opens `Route.filter`.
 public enum BuiltInFilter: String, CaseIterable, Identifiable, Sendable {
-    case favorites, videos, products, noted, untagged, broken, duplicates
+    case favorites, videos, products, notes, images, noted, untagged, broken, duplicates
     public var id: Self { self }
 
     public var title: String {
@@ -12,6 +12,8 @@ public enum BuiltInFilter: String, CaseIterable, Identifiable, Sendable {
         case .favorites: "Favorites"
         case .videos: "Videos"
         case .products: "Products"
+        case .notes: "Notes"
+        case .images: "Images"
         case .noted: "With a note"
         case .untagged: "Untagged"
         case .broken: "Broken"
@@ -24,6 +26,8 @@ public enum BuiltInFilter: String, CaseIterable, Identifiable, Sendable {
         case .favorites: Query("is:favorite")
         case .videos: Query("type:video")
         case .products: Query("type:product")
+        case .notes: Query("type:note")
+        case .images: Query("type:image")
         case .noted: Query("is:noted")
         case .untagged: Query("is:untagged")
         case .broken: Query("is:broken")
@@ -36,6 +40,8 @@ public enum BuiltInFilter: String, CaseIterable, Identifiable, Sendable {
         case .favorites: "star.fill"
         case .videos: "play.rectangle"
         case .products: "cart"
+        case .notes: "note.text"
+        case .images: "photo"
         case .noted: "note.text"
         case .untagged: "tag.slash"
         case .broken: "link.badge.plus"

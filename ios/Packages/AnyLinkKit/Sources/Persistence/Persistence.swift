@@ -20,8 +20,13 @@ public struct PendingSave: Codable, Identifiable, Equatable, Sendable {
     public var note: String?
     public var collectionId: String?
     public let createdAt: Date
-    public init(id: UUID = UUID(), url: String, title: String? = nil, note: String? = nil, collectionId: String? = nil, createdAt: Date = .now) {
+    /// Set for a shared note; `url` is empty then.
+    public var text: String?
+    /// Set for a shared image: its `LocalImages` id. `title` is the caption.
+    public var imageFile: String?
+    public init(id: UUID = UUID(), url: String, title: String? = nil, note: String? = nil, collectionId: String? = nil, createdAt: Date = .now, text: String? = nil, imageFile: String? = nil) {
         self.id = id; self.url = url; self.title = title; self.note = note; self.collectionId = collectionId; self.createdAt = createdAt
+        self.text = text; self.imageFile = imageFile
     }
 }
 

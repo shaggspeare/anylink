@@ -8,6 +8,7 @@ import type { ImportedLink } from "./import/parse";
 import type { Priorities } from "./rank/group-links";
 import type { CardSize, Collection, LinkItem } from "./types";
 import { linkCount } from "./format";
+import { noteTitle } from "./linkify";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
   status?: LinkItem["status"];
@@ -21,6 +22,10 @@ type LibraryContextValue = {
   tags: string[];
   inbox: Collection | undefined;
   addLink: (input: NewLinkInput) => Promise<LinkItem>;
+  addNote: (text: string, collectionId: string) => Promise<LinkItem>;
+  addImage: (file: File, collectionId: string, caption?: string) => Promise<LinkItem>;
+  /** A note's text is its content; the title follows its first line. */
+  setNoteText: (id: string, text: string) => void;
   setLinkSize: (id: string, size: CardSize) => void;
   /** `ids` in their new manual order — the drag-and-drop mosaic's only write. */
   reorderLinks: (ids: string[]) => void;
@@ -51,8 +56,9 @@ type LibraryContextValue = {
   logSignal: (action: string, options?: { linkId?: string; collectionId?: string; payload?: unknown }) => void;
 
   addLinkOpen: boolean;
-  addLinkPrefillUrl: string | undefined;
-  openAddLink: (prefillUrl?: string) => void;
+  /** A URL opens the link form, other text the note composer, a File the image form. */
+  addLinkPrefill: string | File | undefined;
+  openAddLink: (prefill?: string | File) => void;
   closeAddLink: () => void;
 
   paletteOpen: boolean;
@@ -73,6 +79,15 @@ const LibraryContext = createContext<LibraryContextValue | null>(null);
 
 // Every server action becomes a resolved no-op; the optimistic local updates still run.
 const DEMO_ACTIONS = new Proxy({}, { get: () => async () => undefined }) as typeof actions;
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 let idCounter = 0;
 function nextId(prefix: string) {
@@ -99,7 +114,7 @@ export function LibraryProvider({
   const [trashed, setTrashed] = useState<LinkItem[]>(initialTrashed);
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
-  const [addLinkPrefillUrl, setAddLinkPrefillUrl] = useState<string | undefined>(undefined);
+  const [addLinkPrefill, setAddLinkPrefill] = useState<string | File | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -125,6 +140,22 @@ export function LibraryProvider({
         const link = await api.createLink(input);
         setLinks((prev) => [link, ...prev]);
         return link;
+      },
+      addNote: async (text, collectionId) => {
+        const note = await api.createNote(text, collectionId);
+        setLinks((prev) => [note, ...prev]);
+        return note;
+      },
+      addImage: async (file, collectionId, caption) => {
+        const image = await api.createImage(await readAsDataUrl(file), collectionId, caption);
+        setLinks((prev) => [image, ...prev]);
+        return image;
+      },
+      setNoteText: (id, text) => {
+        if (!text.trim()) return;
+        const title = noteTitle(text.trim());
+        setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, title, excerpt: text.trim() } : l)));
+        api.setNoteText(id, text).catch(() => setToast({ message: "Couldn't save the note. Try again.", key: Date.now() }));
       },
       setLinkSize: (id, size) => {
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, size } : l)));
@@ -337,14 +368,14 @@ export function LibraryProvider({
         api.logSignal(action, options).catch(console.error);
       },
       addLinkOpen,
-      addLinkPrefillUrl,
-      openAddLink: (prefillUrl) => {
-        setAddLinkPrefillUrl(prefillUrl);
+      addLinkPrefill,
+      openAddLink: (prefill) => {
+        setAddLinkPrefill(prefill);
         setAddLinkOpen(true);
       },
       closeAddLink: () => {
         setAddLinkOpen(false);
-        setAddLinkPrefillUrl(undefined);
+        setAddLinkPrefill(undefined);
       },
       paletteOpen,
       openPalette: () => setPaletteOpen(true),
@@ -354,7 +385,7 @@ export function LibraryProvider({
       showToast: (message, undo) => setToast({ message, undo, key: Date.now() }),
       demo,
     }),
-    [links, trashed, collections, addLinkOpen, addLinkPrefillUrl, paletteOpen, menuOpen, api, demo]
+    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo]
   );
   useEffect(() => {
     latest.current = value;

@@ -96,6 +96,7 @@ targets:
             NSExtensionActivationRule:
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
               NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsImageWithMaxCount: 1
     entitlements:
       path: ShareExtension/AnyLinkShare.entitlements
       properties:

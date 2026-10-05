@@ -5,7 +5,8 @@ import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
 import { CURRENT_USER_ID } from "./current-user";
-import { reuploadHeroImage, deleteHeroImage } from "../storage/upload-hero-image";
+import { reuploadHeroImage, deleteHeroImage, uploadImage } from "../storage/upload-hero-image";
+import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
 import { identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
@@ -116,6 +117,106 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     heroImage,
     pinned: row.pinned,
   };
+}
+
+/** Notes and images share the links table so collections, tags, pins, Trash and search
+ * work on them unchanged. These are the fields they don't have a page to fill in from. */
+const NOTE_IDENTITY = { domain: "", tint: "#d6f24b", stripe: "#17181b", initial: "✎" };
+const IMAGE_IDENTITY = { domain: "", tint: "#17181b", stripe: "#ffffff", initial: "▣" };
+const MAX_NOTE_CHARS = 20_000;
+
+function toItem(row: typeof schema.links.$inferSelect): LinkItem {
+  return {
+    id: row.id,
+    url: row.url,
+    domain: row.domain,
+    title: row.title,
+    excerpt: row.excerpt,
+    heroImage: row.heroImage ?? undefined,
+    tint: row.tint,
+    stripe: row.stripe,
+    initial: row.initial,
+    contentType: row.contentType,
+    collectionId: row.collectionId,
+    tags: [],
+    size: row.size,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+    source: row.source,
+    note: row.note ?? undefined,
+    pinned: row.pinned,
+  };
+}
+
+function cleanNoteText(text: unknown): string {
+  if (typeof text !== "string" || !text.trim()) throw new Error("A note needs some text.");
+  if (text.length > MAX_NOTE_CHARS) throw new Error("That note is too long.");
+  return text.trim();
+}
+
+export async function createNote(text: string, collectionId?: string, source = "manual"): Promise<LinkItem> {
+  const body = cleanNoteText(text);
+  const [row] = await db
+    .insert(schema.links)
+    .values({
+      ...NOTE_IDENTITY,
+      userId: CURRENT_USER_ID,
+      collectionId: collectionId || (await ensureInbox()),
+      url: "",
+      title: noteTitle(body),
+      excerpt: body,
+      contentType: "note",
+      source,
+    })
+    .returning();
+  return toItem(row);
+}
+
+/** A note's text is the note, so editing it re-derives the title too. */
+export async function setNoteText(id: string, text: string) {
+  const body = cleanNoteText(text);
+  await db
+    .update(schema.links)
+    .set({ title: noteTitle(body), excerpt: body, updatedAt: new Date() })
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, CURRENT_USER_ID), eq(schema.links.contentType, "note")));
+}
+
+/** Base64, not FormData: the iOS app reaches every action as a JSON array of arguments
+ * (api/v1/actions), so one shape serves both clients. */
+export async function createImage(
+  base64: string,
+  collectionId?: string,
+  caption?: string,
+  source = "manual"
+): Promise<LinkItem> {
+  if (typeof base64 !== "string" || !base64) throw new Error("No image to save.");
+  const bytes = Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64");
+  const title = caption?.trim() || "Image";
+  const [row] = await db
+    .insert(schema.links)
+    .values({
+      ...IMAGE_IDENTITY,
+      userId: CURRENT_USER_ID,
+      collectionId: collectionId || (await ensureInbox()),
+      url: "",
+      title: title.slice(0, 200),
+      contentType: "image",
+      source,
+    })
+    .returning();
+  try {
+    const url = await uploadImage(bytes, row.id);
+    const [saved] = await db
+      .update(schema.links)
+      .set({ url, heroImage: url })
+      .where(eq(schema.links.id, row.id))
+      .returning();
+    return toItem(saved);
+  } catch (err) {
+    // No half-saved card: a row without its file would be a blank tile forever.
+    await db.delete(schema.links).where(eq(schema.links.id, row.id));
+    throw err;
+  }
 }
 
 export async function setLinkSize(id: string, size: CardSize) {

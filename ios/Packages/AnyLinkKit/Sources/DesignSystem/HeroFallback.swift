@@ -41,7 +41,8 @@ public struct HeroImage: View {
     }
 
     public init(link: LinkItem) {
-        self.url = link.heroImage.flatMap(URL.init(string:))
+        // A saved image this device has a copy of shows from disk: instant, and there offline.
+        self.url = (link.isImage ? LocalImages.existing(for: link.id) : nil) ?? link.heroImage.flatMap(URL.init(string:))
         self.tint = Color(hex: UInt32(link.tint.dropFirst(), radix: 16) ?? 0x9AA3AD)
         self.stripe = Color(hex: UInt32(link.stripe.dropFirst(), radix: 16) ?? 0xFFFFFF)
     }

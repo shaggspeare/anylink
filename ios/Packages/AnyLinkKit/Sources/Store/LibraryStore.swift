@@ -297,15 +297,19 @@ public final class LibraryStore {
             status: cr == nil ? .crawling : .ready, createdAt: Date().formatted(.iso8601),
             source: "ios", note: draft.note, product: cr?.product
         )
+        return await insert(temp, suffix: stillReading ? " — still reading the page" : "") { try await self.api.createLink(draft) }
+    }
+
+    /// Shows `temp` at once, swaps in the server's copy, or takes it back out and says why.
+    private func insert(_ temp: LinkItem, suffix: String = "", create: () async throws -> LinkItem) async -> LinkItem? {
         links[temp.id] = temp
         order.insert(temp.id, at: 0)
         do {
-            let saved = try await api.createLink(draft)
+            let saved = try await create()
             links[temp.id] = nil
             links[saved.id] = saved
             if let i = order.firstIndex(of: temp.id) { order[i] = saved.id }
-            let label = "Saved to \(name(of: saved.collectionId))" + (stillReading ? " — still reading the page" : "")
-            undo.register(label) { [weak self] in self?.trash([saved.id], announce: false) }
+            undo.register("Saved to \(name(of: saved.collectionId))" + suffix) { [weak self] in self?.trash([saved.id], announce: false) }
             return saved
         } catch {
             links[temp.id] = nil
@@ -313,6 +317,51 @@ public final class LibraryStore {
             toasts.show(Self.message(for: error))
             return nil
         }
+    }
+
+    // MARK: - Notes and images
+
+    @discardableResult
+    public func saveNote(_ text: String, collectionId: LinkCollection.ID? = nil) async -> LinkItem? {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        let temp = LinkItem(
+            id: "local-\(UUID().uuidString)", url: "", domain: "", title: noteTitle(text), excerpt: text,
+            tint: "#D6F24B", stripe: "#17181B", initial: "✎", contentType: .note,
+            collectionId: collectionId ?? inboxID, tags: [], size: .M, status: .ready,
+            createdAt: Date().formatted(.iso8601), source: "ios"
+        )
+        return await insert(temp) { try await self.api.createNote(text, collectionId: collectionId) }
+    }
+
+    /// Keeps a JPEG on the device first, so the card shows instantly and stays viewable offline,
+    /// then uploads it. The local file follows the link to its server id.
+    @discardableResult
+    public func saveImage(_ raw: Data, caption: String? = nil, collectionId: LinkCollection.ID? = nil) async -> LinkItem? {
+        guard let jpeg = LocalImages.prepare(raw) else {
+            toasts.show("That image couldn't be read.")
+            return nil
+        }
+        let tempID = "local-\(UUID().uuidString)"
+        LocalImages.write(jpeg, id: tempID)
+        let caption = caption?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let temp = LinkItem(
+            id: tempID, url: "", domain: "", title: caption ?? "Image", excerpt: "",
+            tint: "#17181B", stripe: "#FFFFFF", initial: "▣", contentType: .image,
+            collectionId: collectionId ?? inboxID, tags: [], size: .M, status: .crawling,
+            createdAt: Date().formatted(.iso8601), source: "ios"
+        )
+        let saved = await insert(temp) { try await self.api.createImage(jpeg, collectionId: collectionId, caption: caption) }
+        if let saved { LocalImages.rename(tempID, to: saved.id) } else { LocalImages.remove(tempID) }
+        return saved
+    }
+
+    /// A note's text is the note: the title follows its first line.
+    public func setNoteText(_ id: LinkItem.ID, _ text: String) {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, links[id]?.excerpt != text else { return }
+        let before = change([id]) { $0.excerpt = text; $0.title = noteTitle(text) }
+        sync(.noteText(id, text)) { [weak self] in self?.put(before) }
     }
 
     public func move(_ ids: Set<LinkItem.ID>, to target: LinkCollection.ID) {
@@ -407,7 +456,7 @@ public final class LibraryStore {
         let ids = Array(ids)
         let before = ids.compactMap { links[$0] }
         let oldOrder = order
-        for id in ids { links[id] = nil }
+        for id in ids { links[id] = nil; LocalImages.remove(id) }
         order.removeAll { ids.contains($0) }
         sync(.purge(ids)) { [weak self] in self?.put(before); self?.order = oldOrder }
     }

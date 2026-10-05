@@ -153,6 +153,38 @@ public actor MockAPI: AnyLinkAPI {
         return link
     }
 
+    public func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem {
+        try maybeThrow(); await delay()
+        let link = LinkItem(
+            id: UUID().uuidString, url: "", domain: "", title: noteTitle(text), excerpt: text,
+            tint: "#D6F24B", stripe: "#17181B", initial: "✎", contentType: .note,
+            collectionId: collectionId ?? "unsorted", tags: [], size: .M, status: .ready,
+            createdAt: Date().formatted(.iso8601), source: "ios"
+        )
+        links.insert(link, at: 0)
+        return link
+    }
+
+    /// No upload in the mock: the card keeps showing the local file the store wrote.
+    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem {
+        try maybeThrow(); await delay()
+        let link = LinkItem(
+            id: UUID().uuidString, url: "", domain: "", title: caption.flatMap { $0.isEmpty ? nil : $0 } ?? "Image", excerpt: "",
+            tint: "#17181B", stripe: "#FFFFFF", initial: "▣", contentType: .image,
+            collectionId: collectionId ?? "unsorted", tags: [], size: .M, status: .ready,
+            createdAt: Date().formatted(.iso8601), source: "ios"
+        )
+        links.insert(link, at: 0)
+        return link
+    }
+
+    public func setNoteText(_ id: LinkItem.ID, _ text: String) async throws {
+        try maybeThrow(); await delay()
+        guard let i = links.firstIndex(where: { $0.id == id }) else { throw AppError.notFound }
+        links[i].excerpt = text
+        links[i].title = noteTitle(text)
+    }
+
     public func updateLink(_ id: LinkItem.ID, _ patch: LinkPatch) async throws {
         try maybeThrow(); await delay()
         guard let i = links.firstIndex(where: { $0.id == id }) else { throw AppError.notFound }

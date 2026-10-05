@@ -23,7 +23,7 @@ public struct LinkRow: View {
                     .font(AL.Font.rowTitle)
                     .foregroundStyle(AL.ink)
                     .lineLimit(1)
-                Text(meta ?? [link.domain, link.readingMeta].compactMap { $0 }.joined(separator: " · "))
+                Text(meta ?? [link.sourceLabel, link.readingMeta].compactMap { $0 }.joined(separator: " · "))
                 .font(.caption)
                 .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                 .lineLimit(1)
@@ -43,11 +43,22 @@ public struct LinkRow: View {
         .frame(minHeight: compact ? 44 : 64, maxHeight: compact ? nil : 64)
         // One element with the full text: the visible title and domain truncate by design.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(link.title), \(link.domain)\(link.favorite == true ? ", favourite" : "")\(link.pinned == true ? ", pinned" : "")")
+        .accessibilityLabel("\(link.title), \(link.sourceLabel)\(link.favorite == true ? ", favourite" : "")\(link.pinned == true ? ", pinned" : "")")
         .accessibilityValue(link.readingMeta ?? "")
     }
 
+    @ViewBuilder
     private var thumbnail: some View {
+        if link.isNote {
+            NoteThumb()
+                .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
+                .clipShape(RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
+        } else {
+            linkThumbnail
+        }
+    }
+
+    private var linkThumbnail: some View {
         HeroImage(link: link)
             .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
             .clipShape(RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))

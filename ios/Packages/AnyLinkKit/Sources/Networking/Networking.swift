@@ -8,6 +8,10 @@ public protocol AnyLinkAPI: Sendable {
     func checkImportedLinks() async -> AsyncThrowingStream<LinkCheckEvent, Error>
     func library(since: Date?) async throws -> LibrarySnapshot
     func createLink(_ draft: LinkDraft) async throws -> LinkItem
+    func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem
+    /// `data` is a prepared JPEG (`LocalImages.prepare`); the server re-encodes and stores it.
+    func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem
+    func setNoteText(_ id: LinkItem.ID, _ text: String) async throws
     func updateLink(_ id: LinkItem.ID, _ patch: LinkPatch) async throws
     func bulk(_ action: BulkAction, ids: [LinkItem.ID]) async throws
     func reorder(_ ids: [LinkItem.ID]) async throws
@@ -23,6 +27,13 @@ public protocol AnyLinkAPI: Sendable {
     func groupInbox(_ priorities: GroupingPriorities) async throws -> [GroupedResult]
     func logSignal(_ signal: Signal) async
     func deleteAccount() async throws
+}
+
+public extension AnyLinkAPI {
+    // Defaults so test doubles that only care about links don't have to stub these.
+    func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem { throw AppError.server(501) }
+    func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem { throw AppError.server(501) }
+    func setNoteText(_ id: LinkItem.ID, _ text: String) async throws { throw AppError.server(501) }
 }
 
 // MARK: - NDJSON decoder

@@ -33,27 +33,41 @@ final class ShareViewController: UIViewController {
         host.didMove(toParent: self)
 
         Task { @MainActor in
-            let (url, title) = await self.sharedLink()
-            await session.start(url: url, title: title)
+            await session.start(await self.sharedPayload())
         }
     }
 
-    /// A URL item, or the first http(s) link in shared text. Title from the item's attributed text.
-    private func sharedLink() async -> (URL?, String?) {
+    /// A URL item, or the first http(s) link in shared text; otherwise an image, otherwise the text as a note.
+    /// Title from the item's attributed text. Links win: Safari shares a page as URL + text + preview image.
+    private func sharedPayload() async -> ShareSession.Payload? {
         let items = extensionContext?.inputItems.compactMap { $0 as? NSExtensionItem } ?? []
         let title = items.first?.attributedContentText?.string
-        for provider in items.flatMap({ $0.attachments ?? [] }) {
+        let providers = items.flatMap { $0.attachments ?? [] }
+        var note: String?
+        for provider in providers {
             if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier),
                let url = try? await provider.loadItem(forTypeIdentifier: UTType.url.identifier) as? URL,
                url.scheme?.hasPrefix("http") == true {
-                return (url, title)
+                return .url(url, title: title)
             }
             if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier),
-               let text = try? await provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) as? String,
-               let url = PasteAccessory.firstWebURL(in: text) {
-                return (url, title)
+               let text = try? await provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) as? String {
+                if let url = PasteAccessory.firstWebURL(in: text) { return .url(url, title: title) }
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { note = text }
             }
         }
-        return (nil, title)
+        if let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }),
+           let data = await imageData(provider) {
+            return .image(data)
+        }
+        return note.map { .note($0) }
+    }
+
+    /// Raw bytes, not a UIImage: the session hands them to ImageIO's thumbnailer, so the extension
+    /// never decodes a full-size bitmap (it has ~120 MB to work with).
+    private func imageData(_ provider: NSItemProvider) async -> Data? {
+        await withCheckedContinuation { cont in
+            _ = provider.loadDataRepresentation(for: .image) { data, _ in cont.resume(returning: data) }
+        }
     }
 }

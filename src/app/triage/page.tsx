@@ -149,7 +149,7 @@ export default function TriagePage() {
                       .join(" · ")}
                   </span>
                   <a
-                    href={link.url}
+                    href={link.url || `/links/${link.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="line-clamp-3 text-[19px] font-semibold leading-tight tracking-[-0.72px] text-ink hover:underline"

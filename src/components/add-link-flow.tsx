@@ -9,6 +9,15 @@ import type { CrawlResult, CrawlStep } from "@/lib/crawler";
 import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
 import { CARD_SIZES, type CardSize, type Collection } from "@/lib/types";
 import { AmbientOrbs } from "./ambient-orbs";
+import { ImageComposer, NoteComposer } from "./capture-composers";
+
+type Mode = "link" | "note" | "image";
+const MODES: { id: Mode; label: string; icon: "link" | "note" | "image" }[] = [
+  { id: "link", label: "Link", icon: "link" },
+  { id: "note", label: "Note", icon: "note" },
+  { id: "image", label: "Image", icon: "image" },
+];
+const IS_URL = /^https?:\/\/\S+$/i;
 
 type Phase = "idle" | "crawling" | "ready";
 type ReadyResult = CrawlResult | CrawlFailure;
@@ -23,13 +32,19 @@ const STEP_LABELS: Partial<Record<CrawlStep, string>> = {
 export function AddLinkFlow() {
   const {
     addLinkOpen,
-    addLinkPrefillUrl,
+    addLinkPrefill,
     closeAddLink,
     addLink,
     collections,
     tags: libraryTags,
   } = useLibrary();
 
+  // What was pasted or shared picks the mode; the switcher overrides it.
+  const prefillUrl = typeof addLinkPrefill === "string" && IS_URL.test(addLinkPrefill.trim()) ? addLinkPrefill.trim() : undefined;
+  const prefillMode: Mode =
+    addLinkPrefill instanceof File ? "image" : typeof addLinkPrefill === "string" && !prefillUrl ? "note" : "link";
+  const [pickedMode, setMode] = useState<Mode | null>(null);
+  const mode = pickedMode ?? prefillMode;
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState("");
   const [step, setStep] = useState(-1);
@@ -56,6 +71,7 @@ export function AddLinkFlow() {
 
   const reset = () => {
     abortRef.current?.abort();
+    setMode(null);
     setPhase("idle");
     setUrl("");
     setStep(-1);
@@ -147,13 +163,13 @@ export function AddLinkFlow() {
   };
 
   useEffect(() => {
-    if (!addLinkOpen || !addLinkPrefillUrl) return;
-    const kickoff = setTimeout(() => runCrawl(addLinkPrefillUrl), 0);
+    if (!addLinkOpen || !prefillUrl) return;
+    const kickoff = setTimeout(() => runCrawl(prefillUrl), 0);
     return () => clearTimeout(kickoff);
-  }, [addLinkOpen, addLinkPrefillUrl]);
+  }, [addLinkOpen, prefillUrl]);
 
   useEffect(() => {
-    if (addLinkOpen && phase === "idle" && !addLinkPrefillUrl) {
+    if (addLinkOpen && phase === "idle" && !addLinkPrefill) {
       navigator.clipboard
         ?.readText()
         .then((text) => {
@@ -214,7 +230,7 @@ export function AddLinkFlow() {
     handleClose();
   };
 
-  const wide = phase === "ready";
+  const wide = mode === "link" && phase === "ready";
 
   return (
     <div
@@ -236,8 +252,36 @@ export function AddLinkFlow() {
           <AmbientOrbs variant="sheet" />
           <div className="relative flex h-full flex-col">
             <div className="sticky top-0 z-20 flex items-center gap-3 bg-canvas/45 px-6 pb-2 pt-6 backdrop-blur-xl">
-              <h3 className="text-title flex-1 text-ink">Add a link</h3>
-              <span className="hidden text-eyebrow text-ink/40 pointer-fine:inline">⌘V anywhere</span>
+              <h3 className="sr-only">Add to library</h3>
+              <div
+                role="tablist"
+                aria-label="What to add"
+                className="flex flex-1 items-center sm:flex-none"
+              >
+                <div className="relative flex rounded-full p-1 max-sm:flex-1" style={{ background: "rgb(var(--ink-rgb) / .07)" }}>
+                  {MODES.map((m) => {
+                    const active = m.id === mode;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        // Leaving mid-crawl would throw the crawl away; finish or close first.
+                        disabled={!active && phase !== "idle"}
+                        onClick={() => setMode(m.id)}
+                        className={`flex h-9 items-center justify-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-[background,color,box-shadow] duration-200 max-sm:flex-1 disabled:opacity-35 ${
+                          active ? "bg-surface text-ink shadow-[0_2px_8px_rgba(0,0,0,.12)]" : "text-ink/55 hover:text-ink"
+                        }`}
+                      >
+                        <Icon name={m.icon} size={14} className={active ? (m.id === "link" ? "text-signal" : m.id === "note" ? "text-[#8fa318] dark:text-lime" : "text-periwinkle") : ""} />
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <span className="ml-auto hidden text-eyebrow text-ink/40 pointer-fine:inline">⌘V anywhere</span>
               <button
                 type="button"
                 onClick={handleClose}
@@ -248,6 +292,27 @@ export function AddLinkFlow() {
               </button>
             </div>
 
+            {mode === "note" && (
+              <div className="px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-3">
+                <NoteComposer
+                  initialText={typeof addLinkPrefill === "string" && !prefillUrl ? addLinkPrefill : ""}
+                  collectionId={collectionId}
+                  setCollectionId={setCollectionId}
+                  onSaved={handleClose}
+                />
+              </div>
+            )}
+            {mode === "image" && (
+              <div className="px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-3">
+                <ImageComposer
+                  initialFile={addLinkPrefill instanceof File ? addLinkPrefill : undefined}
+                  collectionId={collectionId}
+                  setCollectionId={setCollectionId}
+                  onSaved={handleClose}
+                />
+              </div>
+            )}
+            {mode === "link" && (<>
             <div className="flex flex-wrap gap-2 px-6 pt-2">
               <input
                 // Type straight away, from N or the Add button (iOS focuses it too, D25).
@@ -400,6 +465,7 @@ export function AddLinkFlow() {
                 />
               )}
             </div>
+            </>)}
           </div>
         </div>
       </div>
