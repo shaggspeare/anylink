@@ -160,7 +160,7 @@ export function Sidebar() {
           className="flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body transition-colors"
           style={{ background: isAllActive ? "rgb(var(--ink-rgb) / .06)" : "transparent" }}
         >
-          <CollectionMarker color="var(--ink)" />
+          <RowMarker color="var(--ink)" />
           <span className="flex-1 truncate">All links</span>
           <span className="text-meta text-ink/45">{countForCollection(ALL_COLLECTION_ID)}</span>
         </Link>
@@ -200,7 +200,7 @@ export function Sidebar() {
             onClick={() => setCreating(true)}
             className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
           >
-            <span className="flex h-4 w-4 items-center justify-center text-[14px] leading-none">+</span>
+            <RowIcon name="plus" />
             New collection
           </button>
         )}
@@ -211,7 +211,7 @@ export function Sidebar() {
           data-tour="import"
           className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
         >
-          <span className="flex h-4 w-4 items-center justify-center"><Icon name="arrow-down" size={13} /></span>
+          <RowIcon name="arrow-down" />
           Import links
         </a>
 
@@ -321,7 +321,7 @@ export function Sidebar() {
             className="mt-4 flex items-center gap-2.5 rounded-[14px] px-3 py-3 text-body text-ink/55 lg:py-2 hover:bg-ink/6 hover:text-ink"
             style={{ background: pathname === "/trash" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
           >
-            <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⌫</span>
+            <RowIcon name="trash" />
             <span className="flex-1 truncate">Trash</span>
             <span className="text-meta text-ink/45">{trashed.length}</span>
           </Link>
@@ -331,13 +331,16 @@ export function Sidebar() {
       {/* Housekeeping: rarely needed, so quiet rows below everything you navigate by. */}
       <div className="mt-3 flex flex-col border-t border-ink/8 pt-2">
         <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
-        <TourButton className={`${QUIET_ROW} w-full`} />
+        <TourButton className={`${QUIET_ROW} w-full`}>
+          <RowIcon name="play" />
+          Guided tour
+        </TourButton>
         <Link
           href="/settings"
           className={QUIET_ROW}
           style={{ background: pathname === "/settings" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
         >
-          <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⚙</span>
+          <RowIcon name="sliders" />
           Settings
         </Link>
       </div>
@@ -345,6 +348,24 @@ export function Sidebar() {
       <PasteHint />
     </aside>
     </>
+  );
+}
+
+/** Every row's leading glyph sits in the same 18px slot so labels line up, and is
+ * sized ~1.2× the 13.5px label — smaller reads as an afterthought next to the text. */
+function RowIcon({ name }: { name: Parameters<typeof Icon>[0]["name"] }) {
+  return (
+    <span className="flex h-[18px] w-[18px] flex-none items-center justify-center">
+      <Icon name={name} size={16} strokeWidth={2} />
+    </span>
+  );
+}
+
+function RowMarker({ color }: { color: string }) {
+  return (
+    <span className="flex h-[18px] w-[18px] flex-none items-center justify-center">
+      <CollectionMarker color={color} size={10} />
+    </span>
   );
 }
 
@@ -381,7 +402,7 @@ function CleanUpCollectionsButton({ onRun }: { onRun: () => Promise<number> }) {
       onClick={async () => setRemoved(await onRun())}
       className={QUIET_ROW}
     >
-      <span className="flex h-4 w-4 items-center justify-center text-[13px] leading-none">⌦</span>
+      <RowIcon name="folder-minus" />
       {removed === null ? "Delete empty collections" : `Removed ${removed}`}
     </button>
   );
@@ -494,7 +515,7 @@ function CollectionRow({
   if (renaming) {
     return (
       <div className="flex items-center gap-2.5 rounded-[14px] px-3 py-2">
-        <CollectionMarker color={collection.color} />
+        <RowMarker color={collection.color} />
         <input
           autoFocus
           value={name}
@@ -546,7 +567,7 @@ function CollectionRow({
         draggable={false}
         className="flex flex-1 items-center gap-2.5 px-3 py-3 text-body lg:py-2.5"
       >
-        <CollectionMarker color={collection.color} />
+        <RowMarker color={collection.color} />
         <span className="flex-1 truncate">{collection.name}</span>
         <span className="text-meta text-ink/45 group-hover:hidden">{count}</span>
       </Link>
