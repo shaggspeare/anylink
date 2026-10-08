@@ -70,6 +70,22 @@ final class AnyLinkUITests: XCTestCase {
     }
 
     @MainActor
+    func testGuestGetsTwoSavesThenSignUp() throws {
+        let app = launch(["-welcome"])
+        app.buttons["Skip for now"].tap()
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
+        for path in ["www.theverge.com/2026/10/one", "www.theverge.com/2026/10/two"] {
+            read(path, in: app)
+            let save = app.buttons["Save to Unsorted"]
+            XCTAssertTrue(save.waitForExistence(timeout: 5))
+            save.tap()
+            XCTAssertTrue(app.staticTexts["Saved to Unsorted"].waitForExistence(timeout: 3))
+        }
+        app.buttons["New link"].tap()
+        XCTAssertTrue(app.staticTexts["Keep everything you save"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testAddExcerptOnlyStreamShowsNotice() throws {
         let app = launch()
         read("blocked-news.example/story", in: app)

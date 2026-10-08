@@ -83,6 +83,9 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-1.5">
             <ThemeToggle />
+            <Link href="/login" className="flex h-9 items-center rounded-full px-3 text-body font-semibold text-ink/75 hover:text-ink">
+              Sign in
+            </Link>
             <Link
               href="/app"
               className="flex h-9 items-center rounded-full bg-ink px-4 text-body font-semibold text-on-ink"

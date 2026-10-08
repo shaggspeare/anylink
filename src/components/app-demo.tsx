@@ -4,72 +4,21 @@ import { useState } from "react";
 import { LibraryProvider, useLibrary } from "@/lib/store";
 import { searchLinks } from "@/lib/search";
 import { sortLinks } from "@/lib/organize";
-import { identityForDomain } from "@/lib/card-identity";
 import { CardMosaic } from "@/components/card-mosaic";
 import { CollectionMarker } from "@/components/collection-marker";
 import { FILTERS } from "@/components/sidebar";
 import { Logo } from "@/components/logo";
-import type { Collection, ContentType, LinkItem } from "@/lib/types";
+import { DEMO_COLLECTIONS, DEMO_LINKS } from "@/lib/demo-library";
 
 /** Landing-page copy of the library: the real mosaic on a demo store, so drag, resize
- *  and favorite all work but nothing leaves the browser. Photos: Unsplash. */
-
-const COLLECTIONS: Collection[] = [
-  { id: "reading", name: "Reading", color: "var(--signal-orange)" },
-  { id: "inspiration", name: "Inspiration", color: "#e0855a" },
-  { id: "shopping", name: "Shopping", color: "var(--periwinkle)" },
-  { id: "travel", name: "Travel", color: "var(--lime)" },
-  { id: "watch", name: "Watch later", color: "var(--slate)" },
-];
-
-export type DemoRow = [
-  title: string,
-  url: string,
-  image: string,
-  type: ContentType,
-  collectionId: string,
-  extra?: Partial<LinkItem>,
-];
-
-const DEMO: DemoRow[] = [
-  ["The dreamiest hotels in Portugal", "https://www.cntraveler.com/gallery/best-hotels-in-portugal", "villa", "article", "travel"],
-  ["New Balance 1906R", "https://www.newbalance.com/pd/1906r/M1906R.html", "sneakers", "product", "shopping"],
-  ["A visual guide to Barcelona", "https://www.notboring.co/barcelona", "barcelona", "article", "travel"],
-  ["Dieter Rams: a legendary minimalist", "https://www.youtube.com/watch?v=dieter-rams", "book", "video", "watch"],
-  ["Good coffee at home", "https://sprudge.com/good-coffee-at-home", "coffee", "article", "reading"],
-  ["Tokyo street photography", "https://petapixel.com/tokyo-street-photography", "tokyo", "article", "inspiration"],
-  ["Home office inspirations", "https://www.pinterest.com/ideas/home-office", "office", "article", "inspiration"],
-  ["Ultimate Japan travel guide", "https://www.notion.so/japan-travel-guide", "kyoto", "article", "travel"],
-];
-
-/** Demo rows → full LinkItems; `image` is a file name in /public/images/demo. */
-export function toDemoLinks(rows: DemoRow[]): LinkItem[] {
-  return rows.map(([title, url, image, contentType, collectionId, extra], i) => {
-    const domain = new URL(url).hostname.replace(/^www\./, "");
-    return {
-      id: `demo-${i}`,
-      url,
-      domain,
-      title,
-      excerpt: "",
-      heroImage: `/images/demo/${image}.webp`,
-      ...identityForDomain(domain),
-      contentType,
-      collectionId,
-      tags: [],
-      size: "M",
-      status: "ready",
-      createdAt: new Date(2026, 8, 20 - i).toISOString(),
-      ...extra,
-    };
-  });
-}
-
-const LINKS = toDemoLinks(DEMO);
+ *  and favorite all work but nothing leaves the browser. A guest sees their own guest
+ *  library here (the same one /app shows); a signed-in visitor gets a throwaway copy. */
 
 export function AppDemo() {
+  const { guest } = useLibrary();
+  if (guest) return <DemoWindow />;
   return (
-    <LibraryProvider demo initialLinks={LINKS} initialTrashed={[]} initialCollections={COLLECTIONS}>
+    <LibraryProvider demo initialLinks={DEMO_LINKS} initialTrashed={[]} initialCollections={DEMO_COLLECTIONS}>
       <DemoWindow />
     </LibraryProvider>
   );
@@ -116,7 +65,11 @@ function DemoWindow() {
         </div>
         <nav className="mt-4 flex flex-col gap-0.5">
           {row("all", "All links", links.length, "var(--ink)")}
-          {collections.map((c) => row(c.id, c.name, links.filter((l) => l.collectionId === c.id).length, c.color))}
+          {collections.map((c) => {
+            const count = links.filter((l) => l.collectionId === c.id).length;
+            // A guest's Unsorted shows up once they've saved something into it.
+            return c.isInbox && count === 0 ? null : row(c.id, c.name, count, c.color);
+          })}
         </nav>
         <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Filters</div>
         {filters.map((f) => row(f.query, f.label, f.count))}

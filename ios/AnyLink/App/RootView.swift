@@ -2,6 +2,7 @@ import SwiftUI
 import TipKit
 import DesignSystem
 import Store
+import Auth
 import CoreSpotlight
 
 struct RootView: View {
@@ -10,32 +11,52 @@ struct RootView: View {
     @Environment(\.undoManager) private var undoManager
     @AppStorage("appearance") private var appearance: Appearance = .system
     @AppStorage("signedIn") private var signedIn = false
+    /// Skipped sign-in on Welcome: the sample library on its own store, until they sign up.
+    @AppStorage("guest") private var guest = false
     @AppStorage("onboarded") private var onboarded = false
+    @State private var guestEnv: AppEnvironment?
 
     var body: some View {
         Group {
-            if signedIn { main } else { WelcomeView { signIn() } }
+            if signedIn { main(env) }
+            else if guest, let guestEnv { main(guestEnv) }
+            else { WelcomeView(onSignedIn: { signedIn = true }, onSkip: { guest = true }) }
         }
         .preferredColorScheme(appearance.scheme)
-        .onChange(of: signedIn, initial: true) { _, on in
+        .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } }
+        .onChange(of: signedIn, initial: true) { was, on in
             UserDefaults(suiteName: "group.app.anylink.ios")?.set(on, forKey: "signedIn")
+            if on && !was { didSignIn() }
+        }
+        .onChange(of: guest, initial: true) { _, on in
+            guestEnv = on && !signedIn ? (guestEnv ?? .guest()) : nil
         }
     }
 
     /// Saves what the share extension left behind and tells it which collections to offer.
-    private func syncWithExtension() async {
+    private func syncWithExtension(_ env: AppEnvironment) async {
         guard let shared = env.shared else { return }
         await env.store.drainPendingSaves(from: shared)
         shared.saveRecentCollections(env.store.recentCollections)
     }
 
-    private func signIn() {
-        signedIn = true
-        // First launch with an empty library goes through onboarding.
-        if !onboarded && env.store.live.isEmpty { env.router.showsOnboarding = true }
+    /// The email's link, opened on this iPhone. Called from Welcome and from inside the app (a guest signing up).
+    private func finishMagicLink(_ url: URL) {
+        Task {
+            if (try? await AuthService.client?.session(from: url)) != nil { signedIn = true }
+        }
     }
 
-    private var main: some View {
+    private func didSignIn() {
+        // A guest's own saves queue up for the account; syncWithExtension saves them on the first run.
+        if let guestEnv { AppEnvironment.adoptGuest(guestEnv, into: env.shared) }
+        guest = false
+        // First launch with an empty library goes through onboarding.
+        let carried = !(env.shared?.pendingSaves().isEmpty ?? true)
+        if !onboarded && env.store.live.isEmpty && !carried { env.router.showsOnboarding = true }
+    }
+
+    private func main(_ env: AppEnvironment) -> some View {
         @Bindable var router = env.router
         return MainTabs()
             .modifier(OpenOriginalHost())
@@ -47,7 +68,7 @@ struct RootView: View {
             .task {
                 IntentBridge.store = env.store
                 if env.isLive { await env.store.refresh() }
-                await syncWithExtension()
+                await syncWithExtension(env)
                 await Spotlight.reindex(env.store.live)
             }
             .onContinueUserActivity(CSSearchableItemActionType) { activity in
@@ -58,11 +79,11 @@ struct RootView: View {
                 if phase == .active {
                     Task { await env.clipboard.check() }
                     env.store.drainOutbox()
-                    Task { await syncWithExtension() }
+                    Task { await syncWithExtension(env) }
                 }
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }
-            .onOpenURL { env.router.handle($0) }
+            .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } else { env.router.handle($0) } }
             .fullScreenCover(isPresented: $router.showsOnboarding) {
                 OnboardingFlow(store: env.store) {
                     onboarded = true

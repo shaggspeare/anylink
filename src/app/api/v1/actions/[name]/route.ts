@@ -5,7 +5,7 @@ import { unauthorized } from "../../auth";
  * `POST /api/v1/actions/moveLinks` with the arguments as a JSON array, e.g. `[["id1"], "collectionId"]`.
  * One dispatcher instead of a route per action so the two clients can't drift apart. */
 export async function POST(request: Request, ctx: RouteContext<"/api/v1/actions/[name]">) {
-  const denied = unauthorized(request);
+  const denied = await unauthorized();
   if (denied) return denied;
 
   const { name } = await ctx.params;

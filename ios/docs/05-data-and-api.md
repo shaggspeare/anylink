@@ -30,7 +30,7 @@ The backend lives in this same repo (`../src`). It already serves the web app's 
 - `POST /api/v1/actions/<name>` runs the export `<name>` of `../src/lib/db/actions.ts`. The body is the arguments
   as a JSON array, and the response is the return value as JSON (`null` for void). Errors are `{ "error": "…" }`
   with 400, 401 or 404.
-- Every `/api/v1` call sends `Authorization: Bearer <API_TOKEN>` (see §3).
+- Every `/api/v1` call sends `Authorization: Bearer <Supabase access token>` (see §3).
 
 ```swift
 public protocol AnyLinkAPI: Sendable {
@@ -105,31 +105,18 @@ for grids.
 
 ## 3. Auth
 
-**Today:** the backend is single-user (`CURRENT_USER_ID`). The `/api/v1` routes accept one shared secret,
-`Authorization: Bearer <API_TOKEN>`. iOS reads it from `Config.xcconfig` (`ANYLINK_API_TOKEN`) and keeps it in the
-shared keychain so the share extension can use it. `AuthService` is a stub that returns this token until the plan
-below ships. Note: `/api/crawl` and `/api/import/check` don't check the token yet.
+Supabase Auth: Sign in with Apple (native id token + nonce), Google (`ASWebAuthenticationSession`), and email
+(one message with a 6-digit code and a magic link to `anylink://auth-callback`). `AuthService` (`AnyLink/App/Auth.swift`,
+compiled into the app and the share extension) keeps the session in the shared keychain; `LiveAPI` asks it for a
+fresh access token per request. The backend verifies that JWT (`src/lib/db/current-user.ts`) and scopes every query
+and write to its user in app code: the server talks to Postgres directly, so RLS doesn't apply to it.
 
-**Plan** for multi-user, needed before the App Store:
+`public.users` gets its row from a trigger on `auth.users` (same id). `deleteAccount` deletes the user, their
+library and their stored images (App Store 5.1.1(v)).
 
-- **Supabase Auth** with the **Sign in with Apple** provider, plus email magic links.
-- Every API route reads the user from the bearer JWT, and RLS policies on all tables use `auth.uid() = user_id`.
-
-iOS:
-
-```swift
-actor AuthService {
-    func signInWithApple(idToken: String, nonce: String) async throws -> Session   // supabase.auth.signInWithIdToken(.apple…)
-    func sendMagicLink(to email: String) async throws
-    func handle(url: URL) async throws                                             // magic-link callback (universal link)
-    var accessToken: String { get async throws }                                  // refreshes when needed
-    func signOut() async
-}
-```
-
-- Store the Supabase session in the **shared keychain** (custom `AuthLocalStorage`) so the share extension can read it.
-- `SignInWithAppleButton` → nonce (SHA-256) → `idToken` → `signInWithIdToken`.
-- Account deletion calls `DELETE /api/account`, which the backend must implement (App Store guideline 5.1.1(v)).
+**Guests.** Skip on Welcome opens the sample library on its own on-device store (`AppEnvironment.guest()`), with
+`guestLimit` (2) saves of their own; the next save shows the sign-up sheet. Signing in queues the guest's saves as
+`PendingSave`s, which the signed-in app saves on its first run. The web app does the same with `localStorage`.
 
 ## 4. Sync and offline
 
@@ -164,7 +151,6 @@ actor AuthService {
 
 ```
 ANYLINK_API_BASE = https:/$()/anylink.example.com
-ANYLINK_API_TOKEN = …
 SUPABASE_URL = https:/$()/xxxx.supabase.co
 SUPABASE_ANON_KEY = …
 ```
@@ -176,7 +162,6 @@ Release it is a fatal configuration error.
 
 | Gap (spec §7 / §6.2) | iOS behaviour now | Needed from backend |
 |---|---|---|
-| Accounts and auth | Shared `API_TOKEN` against the live API; Mock otherwise | Supabase Auth + RLS + per-user JWT |
 | Edit title/excerpt, `library(since:)` | Not editable; full snapshot on each sync | An update action; a `since` filter |
 | Save mid-crawl / share-extension save before enrichment | App keeps the stream alive and PATCHes on `done` | Server-side enrichment job keyed by link id |
 | Enrichment of imported links | "Plain" cards with HeroFallback, no excerpt | Backfill job |

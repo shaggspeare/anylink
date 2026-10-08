@@ -25,7 +25,9 @@ export const crawlJobStatusEnum = pgEnum("crawl_job_status", [
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
+  email: text("email").notNull(),
+  /** "free" | "pro". Recorded only, until billing decides who syncs. */
+  plan: text("plan").notNull().default("free"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
 

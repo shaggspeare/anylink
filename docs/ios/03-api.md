@@ -2,7 +2,7 @@
 
 The Next.js app is the only backend. The web UI calls it through server actions, and the iOS app calls the same functions over HTTP, so the two can't drift apart.
 
-Every `/api/v1` request needs `Authorization: Bearer $API_TOKEN`. Set `API_TOKEN` in the Vercel env. If it's unset, the API returns 401 for every request.
+Every `/api/v1` request needs `Authorization: Bearer <Supabase access token>` for the signed-in user; without one the API returns 401. Every action runs as that user.
 
 | Endpoint | What it does |
 |---|---|

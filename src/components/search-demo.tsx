@@ -5,7 +5,7 @@ import { LibraryProvider, useLibrary } from "@/lib/store";
 import { searchLinks } from "@/lib/search";
 import { CardMosaic } from "@/components/card-mosaic";
 import { Icon } from "@/components/icon";
-import { toDemoLinks } from "@/components/app-demo";
+import { toDemoLinks } from "@/lib/demo-library";
 import type { ContentType } from "@/lib/types";
 
 /** Landing "find that thing": the app's own search over a demo library. */

@@ -25,3 +25,8 @@ export function identityForDomain(domain: string) {
     initial: domain[0]?.toUpperCase() ?? "?",
   };
 }
+
+/** Notes and images share the links table so collections, tags, pins, Trash and search
+ * work on them unchanged. These are the fields they don't have a page to fill in from. */
+export const NOTE_IDENTITY = { domain: "", tint: "#d6f24b", stripe: "#17181b", initial: "✎" };
+export const IMAGE_IDENTITY = { domain: "", tint: "#17181b", stripe: "#ffffff", initial: "▣" };

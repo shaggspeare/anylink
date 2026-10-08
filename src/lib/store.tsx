@@ -9,6 +9,8 @@ import type { Priorities } from "./rank/group-links";
 import type { CardSize, Collection, LinkItem } from "./types";
 import { linkCount } from "./format";
 import { noteTitle } from "./linkify";
+import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
+import { AuthDialog } from "@/components/auth-panel";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
   status?: LinkItem["status"];
@@ -71,14 +73,80 @@ type LibraryContextValue = {
   /** One-line confirmation at the bottom of the screen; `undo` adds an Undo button for 5 s. */
   showToast: (message: string, undo?: () => void) => void;
   demo: boolean;
+  /** Not signed in: the demo library plus up to GUEST_LIMIT saves of their own, kept in this browser. */
+  guest: boolean;
+  email: string | null;
+  openSignUp: () => void;
 };
 
 type Toast = { message: string; undo?: () => void; key: number };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
-// Every server action becomes a resolved no-op; the optimistic local updates still run.
-const DEMO_ACTIONS = new Proxy({}, { get: () => async () => undefined }) as typeof actions;
+/** Saves a guest can make before being asked to create an account. */
+export const GUEST_LIMIT = 2;
+const GUEST_KEY = "anylink:guest";
+type GuestLibrary = { links: LinkItem[]; trashed: LinkItem[]; collections: Collection[] };
+const isGuestItem = (item: { id: string }) => item.id.startsWith("guest-");
+
+function readGuest(): GuestLibrary | null {
+  try {
+    return JSON.parse(localStorage.getItem(GUEST_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+const now = () => new Date().toISOString();
+
+// Demo and guest: nothing reaches the server. Creates build the item locally; every other
+// action is a resolved no-op and the optimistic local updates do the work.
+const LOCAL_ACTIONS = new Proxy(
+  {
+    createLink: async (input) => ({ ...input, id: nextId("guest"), createdAt: now(), status: input.status ?? "ready" }),
+    createNote: async (text, collectionId = "") => ({
+      ...NOTE_IDENTITY,
+      id: nextId("guest"),
+      url: "",
+      title: noteTitle(text.trim()),
+      excerpt: text.trim(),
+      contentType: "note",
+      collectionId,
+      tags: [],
+      size: "M",
+      status: "ready",
+      createdAt: now(),
+    }),
+    createImage: async (dataUrl, collectionId = "", caption) => ({
+      ...IMAGE_IDENTITY,
+      id: nextId("guest"),
+      url: dataUrl,
+      heroImage: dataUrl,
+      title: caption?.trim() || "Image",
+      excerpt: "",
+      contentType: "image",
+      collectionId,
+      tags: [],
+      size: "M",
+      status: "ready",
+      createdAt: now(),
+    }),
+    createCollection: async (name, color) => ({ id: nextId("guest"), name, color }),
+    createSmartCollection: async (query, name) => ({
+      id: nextId("guest"),
+      name: name?.trim() || query,
+      color: "#7c8cff",
+      isSmart: true,
+      smartQuery: query,
+    }),
+    setPinned: async () => ({ ok: true }),
+    deleteCollection: async () => ({ trashedIds: [] }),
+    deleteEmptyCollections: async () => [],
+    importLinks: async () => ({ links: [], skipped: 0 }),
+    groupInbox: async () => [],
+  } satisfies Partial<typeof actions>,
+  { get: (target, key) => target[key as keyof typeof target] ?? (async () => undefined) }
+) as unknown as typeof actions;
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -101,6 +169,8 @@ export function LibraryProvider({
   initialTrashed,
   initialCollections,
   demo = false,
+  guest = false,
+  email = null,
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
@@ -108,8 +178,10 @@ export function LibraryProvider({
   initialCollections: Collection[];
   /** Landing-page demo: state changes stay local, nothing reaches the server. */
   demo?: boolean;
+  guest?: boolean;
+  email?: string | null;
 }) {
-  const api = demo ? DEMO_ACTIONS : actions;
+  const api = demo || guest ? LOCAL_ACTIONS : actions;
   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
   const [trashed, setTrashed] = useState<LinkItem[]>(initialTrashed);
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
@@ -118,6 +190,80 @@ export function LibraryProvider({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [signUpOpen, setSignUpOpen] = useState(false);
+  const [guestLoaded, setGuestLoaded] = useState(false);
+  const guestFull = guest && [...links, ...trashed].filter(isGuestItem).length >= GUEST_LIMIT;
+
+  // A guest's own saves live in localStorage, on top of the demo library from the server.
+  useEffect(() => {
+    if (!guest) return;
+    const saved = readGuest();
+    if (saved) {
+      // localStorage only exists after hydration, so this can't be initial state. Replaces
+      // rather than appends: Strict Mode runs it twice.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLinks((prev) => [...saved.links, ...prev.filter((l) => !isGuestItem(l))]);
+      setTrashed((prev) => [...saved.trashed, ...prev.filter((l) => !isGuestItem(l))]);
+      setCollections((prev) => [...prev.filter((c) => !isGuestItem(c)), ...saved.collections]);
+    }
+    setGuestLoaded(true);
+  }, [guest]);
+
+  useEffect(() => {
+    if (!guest || !guestLoaded) return;
+    const saved: GuestLibrary = {
+      links: links.filter(isGuestItem),
+      trashed: trashed.filter(isGuestItem),
+      collections: collections.filter(isGuestItem),
+    };
+    try {
+      localStorage.setItem(GUEST_KEY, JSON.stringify(saved));
+    } catch {
+      // ponytail: a big photo can overflow localStorage's ~5 MB; it stays for this visit only.
+    }
+  }, [guest, guestLoaded, links, trashed, collections]);
+
+  // First load after signing in: what they saved as a guest moves into the account.
+  // Demo collections don't exist there, so their items land in Unsorted.
+  useEffect(() => {
+    if (guest || demo) return;
+    const raw = localStorage.getItem(GUEST_KEY);
+    const saved = readGuest();
+    // Removed up front so a second mount (Strict Mode) can't import it twice.
+    localStorage.removeItem(GUEST_KEY);
+    if (!saved || saved.links.length === 0) return;
+    const inboxId = initialCollections.find((c) => c.isInbox)?.id ?? "";
+    (async () => {
+      const ids = new Map<string, string>();
+      const created: Collection[] = [];
+      for (const c of saved.collections) {
+        const made = c.isSmart
+          ? await actions.createSmartCollection(c.smartQuery ?? "", c.name)
+          : await actions.createCollection(c.name, c.color);
+        ids.set(c.id, made.id);
+        created.push(made);
+      }
+      const added: LinkItem[] = [];
+      for (const l of saved.links) {
+        const collectionId = ids.get(l.collectionId) ?? inboxId;
+        added.push(
+          l.contentType === "note"
+            ? await actions.createNote(l.excerpt, collectionId)
+            : l.contentType === "image"
+              ? await actions.createImage(l.url, collectionId, l.title)
+              : await actions.createLink({ ...l, collectionId })
+        );
+      }
+      setCollections((prev) => [...prev, ...created]);
+      setLinks((prev) => [...added, ...prev]);
+      setToast({ message: `Moved ${linkCount(added.length)} into your library`, key: Date.now() });
+    })().catch(() => {
+      if (raw) localStorage.setItem(GUEST_KEY, raw);
+      setToast({ message: "Couldn't move your saved items in. Reload to retry.", key: Date.now() });
+    });
+    // Once, on mount: initialCollections is the server's answer for this session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -137,16 +283,19 @@ export function LibraryProvider({
       tags: Array.from(new Set(links.flatMap((l) => l.tags))).sort((a, b) => a.localeCompare(b)),
       inbox: collections.find((c) => c.isInbox),
       addLink: async (input) => {
+        if (guestFull) throw guestLimitHit();
         const link = await api.createLink(input);
         setLinks((prev) => [link, ...prev]);
         return link;
       },
       addNote: async (text, collectionId) => {
+        if (guestFull) throw guestLimitHit();
         const note = await api.createNote(text, collectionId);
         setLinks((prev) => [note, ...prev]);
         return note;
       },
       addImage: async (file, collectionId, caption) => {
+        if (guestFull) throw guestLimitHit();
         const image = await api.createImage(await readAsDataUrl(file), collectionId, caption);
         setLinks((prev) => [image, ...prev]);
         return image;
@@ -370,6 +519,10 @@ export function LibraryProvider({
       addLinkOpen,
       addLinkPrefill,
       openAddLink: (prefill) => {
+        if (guestFull) {
+          setSignUpOpen(true);
+          return;
+        }
         setAddLinkPrefill(prefill);
         setAddLinkOpen(true);
       },
@@ -384,9 +537,19 @@ export function LibraryProvider({
       setMenuOpen,
       showToast: (message, undo) => setToast({ message, undo, key: Date.now() }),
       demo,
+      guest,
+      email,
+      openSignUp: () => setSignUpOpen(true),
     }),
-    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo]
+    // guestFull is derived from links/trashed; guestLimitHit only sets state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email]
   );
+  function guestLimitHit() {
+    setSignUpOpen(true);
+    return new Error("Create a free account to save more.");
+  }
+
   useEffect(() => {
     latest.current = value;
   }, [value]);
@@ -394,6 +557,7 @@ export function LibraryProvider({
   return (
     <LibraryContext.Provider value={value}>
       {children}
+      {signUpOpen && <AuthDialog onClose={() => setSignUpOpen(false)} />}
       {toast && (
         <div
           key={toast.key}

@@ -1,15 +1,16 @@
 import SwiftUI
+import AuthenticationServices
+import CryptoKit
+import Auth
 import DesignSystem
 import Store
 
-/// S1. Mock auth until phase 11 wires Supabase + Sign in with Apple.
+/// S1. Sign in, or skip and try the sample library first (a guest gets GUEST_LIMIT saves of their own).
 struct WelcomeView: View {
     let onSignedIn: () -> Void
-    @Environment(\.colorScheme) private var scheme
+    var onSkip: (() -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var signingIn = false
     @State private var floating = false
-    @State private var emailSheet = false
 
     var body: some View {
         ScrollView {
@@ -30,26 +31,16 @@ struct WelcomeView: View {
                     pillar("Find", "even inside the article text")
                 }
                 VStack(spacing: 12) {
-                    Button(action: signIn) {
-                        HStack(spacing: 6) {
-                            if signingIn { ProgressView().tint(scheme == .dark ? .black : .white) }
-                            else { Image(systemName: "apple.logo") }
-                            Text("Sign in with Apple")
+                    SignInButtons(onSignedIn: onSignedIn)
+                    if let onSkip {
+                        Button(action: onSkip) {
+                            Text("Skip for now")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(scheme == .dark ? .black : .white)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: AL.Control.lg)
-                        .background(scheme == .dark ? Color.white : Color.black, in: Capsule())
                     }
-                    .disabled(signingIn)
-                    Button { emailSheet = true } label: {
-                        Text("Continue with email")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: AL.Control.lg - 14)
-                    }
-                    .buttonStyle(.glass)
                 }
                 .padding(.top, 6)
             }
@@ -57,20 +48,9 @@ struct WelcomeView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .background { ZStack { AL.canvas; Orbs(.addLink) }.ignoresSafeArea() }
-        .sheet(isPresented: $emailSheet) { EmailSignIn() }
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 2.4).repeatForever()) { floating = true }
-        }
-    }
-
-    private func signIn() {
-        signingIn = true
-        // BACKEND: Supabase Apple provider (phase 11). Mock auth succeeds at once.
-        Task {
-            try? await Task.sleep(for: .milliseconds(AppConfig.isUITesting ? 0 : 500))
-            signingIn = false
-            onSignedIn()
         }
     }
 
@@ -117,38 +97,184 @@ struct WelcomeView: View {
     }
 }
 
+/// Apple, Google and email — on Welcome and in the guest's sign-up sheet. Without a Supabase config (previews,
+/// UI tests, mock builds) every button signs in at once.
+struct SignInButtons: View {
+    let onSignedIn: () -> Void
+    @Environment(\.colorScheme) private var scheme
+    @State private var busy = false
+    @State private var emailSheet = false
+    @State private var nonce = ""
+    @State private var error: String?
+
+    private var mock: Bool { AuthService.client == nil || AppConfig.isUITesting }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if mock {
+                Button(action: onSignedIn) {
+                    Label("Sign in with Apple", systemImage: "apple.logo")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(scheme == .dark ? .black : .white)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: AL.Control.lg)
+                        .background(scheme == .dark ? Color.white : Color.black, in: Capsule())
+                }
+            } else {
+                SignInWithAppleButton(.signIn) { request in
+                    nonce = UUID().uuidString
+                    request.requestedScopes = [.email]
+                    request.nonce = SHA256.hash(data: Data(nonce.utf8)).map { String(format: "%02x", $0) }.joined()
+                } onCompletion: { result in
+                    Task { await apple(result) }
+                }
+                .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+                .frame(height: AL.Control.lg)
+                .clipShape(Capsule())
+            }
+            wide("Continue with Google") { Task { await google() } }
+            wide("Continue with email") { emailSheet = true }
+            if let error {
+                Text(error).font(.footnote).foregroundStyle(AL.signal).accessibilityAddTraits(.updatesFrequently)
+            }
+        }
+        .disabled(busy)
+        .sheet(isPresented: $emailSheet) { EmailSignIn(onSignedIn: onSignedIn) }
+    }
+
+    private func wide(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .frame(height: AL.Control.lg - 14)
+        }
+        .buttonStyle(.glass)
+    }
+
+    private func apple(_ result: Result<ASAuthorization, Error>) async {
+        switch result {
+        case .failure(let e):
+            if (e as? ASAuthorizationError)?.code != .canceled { error = "Sign in with Apple didn't work. Try again." }
+        case .success(let auth):
+            guard let token = (auth.credential as? ASAuthorizationAppleIDCredential)?.identityToken.flatMap({ String(data: $0, encoding: .utf8) })
+            else { error = "Sign in with Apple didn't work. Try again."; return }
+            await run { try await AuthService.client?.signInWithIdToken(credentials: .init(provider: .apple, idToken: token, nonce: nonce)) }
+        }
+    }
+
+    private func google() async {
+        guard !mock else { return onSignedIn() }
+        await run { try await AuthService.client?.signInWithOAuth(provider: .google) }
+    }
+
+    private func run(_ signIn: () async throws -> Session?) async {
+        busy = true
+        error = nil
+        defer { busy = false }
+        do {
+            _ = try await signIn()
+            onSignedIn()
+        } catch let e as ASWebAuthenticationSessionError where e.code == .canceledLogin {
+            // Closed the browser sheet: nothing to say.
+        } catch {
+            self.error = "Couldn't sign in. Check your connection and try again."
+        }
+    }
+}
+
+/// One email, two ways in: type the 6-digit code here, or tap the link in it on this iPhone.
 private struct EmailSignIn: View {
+    let onSignedIn: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var email = ""
+    @State private var code = ""
     @State private var sent = false
+    @State private var busy = false
+    @State private var error: String?
+
+    private var address: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 14) {
                 if sent {
-                    Text("Check your inbox — the link signs you in on this iPhone.")
+                    Text("Enter the code we sent to \(address), or tap the link in the email.")
                         .font(AL.Font.lead).foregroundStyle(AL.ink)
+                    ALField("123456", text: $code)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                    Button("Sign in") { Task { await verify() } }
+                        .buttonStyle(.alPrimary)
+                        .disabled(busy || code.count < 6)
                 } else {
                     ALField("you@example.com", text: $email)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    // BACKEND: Supabase magic link (phase 11).
-                    Button("Send link") { sent = true }
+                    Button("Send code") { Task { await send() } }
                         .buttonStyle(.alPrimary)
-                        .disabled(!email.contains("@") || !email.contains("."))
+                        .disabled(busy || !address.contains("@") || !address.contains("."))
                 }
+                if let error { Text(error).font(.footnote).foregroundStyle(AL.signal) }
                 Spacer()
             }
             .padding(20)
             .navigationTitle("Continue with email")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(sent ? "Done" : "Cancel") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
         .presentationDetents([.medium])
     }
+
+    private func send() async {
+        busy = true
+        defer { busy = false }
+        do {
+            try await AuthService.client?.signInWithOTP(email: address)
+            sent = true
+            error = nil
+        } catch {
+            self.error = "Couldn't send the code. Check the address and try again."
+        }
+    }
+
+    private func verify() async {
+        busy = true
+        defer { busy = false }
+        do {
+            _ = try await AuthService.client?.verifyOTP(email: address, token: code.trimmingCharacters(in: .whitespaces), type: .email)
+            dismiss()
+            onSignedIn()
+        } catch {
+            self.error = "That code didn't work. Check it, or send a new one."
+        }
+    }
 }
 
-#Preview("Welcome") { WelcomeView {} }
+/// A guest who has used their free saves (SheetRoute.signUp).
+struct SignUpSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Keep everything you save").font(AL.Font.cardTitleL).foregroundStyle(AL.ink)
+                Text("Create a free account to save more. What you've added so far comes with you.")
+                    .font(AL.Font.lead).foregroundStyle(AL.ink.opacity(AL.Ink.a75))
+                SignInButtons {
+                    // RootView sees the flag, moves the guest's saves over and swaps to the signed-in library.
+                    UserDefaults.standard.set(true, forKey: "signedIn")
+                }
+                Spacer()
+            }
+            .padding(20)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() } } }
+        }
+        .presentationDetents([.large])
+    }
+}
+
+#Preview("Welcome") { WelcomeView(onSignedIn: {}, onSkip: {}) }
 #Preview("Welcome — Dark") { WelcomeView {}.preferredColorScheme(.dark) }

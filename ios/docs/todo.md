@@ -12,10 +12,7 @@ Everything still open after phases 0–13 and the UX review pass (2026-10-04). P
 
 ## Blocked on the backend or an owner decision
 
-- [ ] **Real sign-in**: Sign in with Apple or a magic link via Supabase. Blocked until the backend verifies Supabase JWTs (D22).
-  - [ ] Store the token in a keychain shared with the share extension, replacing the build-time `ANYLINK_API_TOKEN`.
 - [ ] **Updating a link after "Save now"**: no endpoint exists to PATCH a link's title and excerpt. A link saved before reading finishes keeps only what was known at that moment. `// BACKEND:` in `AddLinkModel.save`.
-- [ ] **Delete account**: `DELETE /api/account` doesn't exist yet; App Store guideline 5.1.1(v) requires it. `LiveAPI.deleteAccount` throws 501 for now.
 - [ ] **Universal links**: needs the web domain for Associated Domains (open question 1). `Router.handle` already routes `https://…/links/{id}`.
 - [ ] **Offline create**: queue `createCollection`, `createFilter` and `save` while offline. They need a temporary id that's swapped for the server's id after sync. Today they fail with the offline toast.
 - [ ] Decide whether "Keep" on an AI-made collection should be saved on the server. Today it's remembered on the device only and logged as a signal.

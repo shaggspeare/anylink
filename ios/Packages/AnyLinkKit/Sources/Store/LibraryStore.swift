@@ -18,6 +18,10 @@ public final class LibraryStore {
     public private(set) var outbox: [OutboxItem] = []
     /// Set by the app: a 401 signs the user out.
     @ObservationIgnored public var onUnauthorized: (@MainActor () -> Void)?
+    /// Set by the app for a guest: true once they've used their free saves. Every save checks it.
+    @ObservationIgnored public var saveLimitReached: (@MainActor () -> Bool)?
+    /// What a save does instead when the limit is reached (the app asks them to sign up).
+    @ObservationIgnored public var onSaveLimit: (@MainActor () -> Void)?
     /// First retry delay for a failing outbox call; doubles each attempt, 5 attempts.
     @ObservationIgnored public var retryBase: Duration = .milliseconds(500)
     @ObservationIgnored let cache: LocalCache?
@@ -241,6 +245,14 @@ public final class LibraryStore {
 
     // MARK: - Loading
 
+    /// Signing out: nothing of this account stays on the device for the next one, queued calls included.
+    public func reset() {
+        apply(LibrarySnapshot(links: [], trashed: [], collections: []))
+        outbox = []
+        persistOutbox()
+        lastSynced = nil
+    }
+
     public func apply(_ snapshot: LibrarySnapshot) {
         var all: [LinkItem.ID: LinkItem] = [:]
         for l in snapshot.links { all[l.id] = l }
@@ -302,6 +314,10 @@ public final class LibraryStore {
 
     /// Shows `temp` at once, swaps in the server's copy, or takes it back out and says why.
     private func insert(_ temp: LinkItem, suffix: String = "", create: () async throws -> LinkItem) async -> LinkItem? {
+        if saveLimitReached?() == true {
+            onSaveLimit?()
+            return nil
+        }
         links[temp.id] = temp
         order.insert(temp.id, at: 0)
         do {
@@ -548,9 +564,8 @@ public final class LibraryStore {
     /// Mock only until the backend adds `DELETE /api/account`.
     public func deleteAccount() async -> Bool {
         do {
-            // BACKEND: DELETE /api/account doesn't exist yet (App Store 5.1.1(v)).
             try await api.deleteAccount()
-            apply(LibrarySnapshot(links: [], trashed: [], collections: []))
+            reset()
             return true
         } catch {
             toasts.show(Self.message(for: error))

@@ -3,6 +3,7 @@ import DesignSystem
 import Models
 import QueryLanguage
 import Store
+import Auth
 
 // Placeholder destinations; each is replaced by its feature phase (see docs/08-build-plan.md).
 
@@ -96,7 +97,14 @@ struct SheetHost: View {
     var body: some View {
         switch sheet {
         case .addLink(let prefill, let collectionID):
-            AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID ?? defaultCollection)
+            // A guest out of free saves gets the sign-up sheet instead of a form they can't submit.
+            if store.saveLimitReached?() == true {
+                SignUpSheet()
+            } else {
+                AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID ?? defaultCollection)
+            }
+        case .signUp:
+            SignUpSheet()
         case .newCollection:
             CollectionNameSheet()
         case .rename(let id):
@@ -165,7 +173,7 @@ struct SheetHost: View {
             }
             .navigationTitle("Tag \(ids.count.linkCount)")
             .navigationBarTitleDisplayMode(.inline)
-        case .newCollection, .rename:
+        case .newCollection, .rename, .signUp:
             EmptyView()
         }
     }
@@ -264,6 +272,7 @@ private struct ConfirmDialogs: ViewModifier {
         case .deleteAccount:
             Task {
                 guard await store.deleteAccount() else { return }
+                try? await AuthService.client?.signOut(scope: .local)
                 router.setPath(router.tab, [])
                 router.tab = .library
                 UserDefaults.standard.set(false, forKey: "onboarded")

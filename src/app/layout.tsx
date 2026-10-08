@@ -7,6 +7,8 @@ import { AddLinkFlow } from "@/components/add-link-flow";
 import { GlobalCaptureListener } from "@/components/global-capture-listener";
 import { TourRunner } from "@/components/tour";
 import { getLibraryData } from "@/lib/db/queries";
+import { currentUser } from "@/lib/db/current-user";
+import { DEMO_COLLECTIONS, DEMO_LINKS } from "@/lib/demo-library";
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
@@ -30,7 +32,7 @@ export const viewport: Viewport = {
   themeColor: "#eceef0",
 };
 
-// Every route reads the live library from Postgres via the root layout —
+// Every route reads the session and the live library via the root layout —
 // none of it can be statically prerendered at build time.
 export const dynamic = "force-dynamic";
 
@@ -40,7 +42,11 @@ export const dynamic = "force-dynamic";
 const THEME_SCRIPT = `try{var t=localStorage.theme;if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark");document.querySelector('meta[name="theme-color"]')?.setAttribute("content","#0f1012")}}catch(e){}`;
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { links, trashed, collections } = await getLibraryData();
+  // Guests get the demo library, so the app is usable before signing up.
+  const user = await currentUser();
+  const { links, trashed, collections } = user
+    ? await getLibraryData()
+    : { links: DEMO_LINKS, trashed: [], collections: DEMO_COLLECTIONS };
 
   return (
     // The head script adds `dark` before React hydrates.
@@ -53,6 +59,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           initialLinks={links}
           initialTrashed={trashed}
           initialCollections={collections}
+          guest={!user}
+          email={user?.email ?? null}
         >
           {children}
           <AddLinkFlow />

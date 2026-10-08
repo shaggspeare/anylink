@@ -11,6 +11,7 @@ struct AnyLinkApp: App {
             // UI tests start signed in and onboarded unless they ask for those screens.
             let args = ProcessInfo.processInfo.arguments
             UserDefaults.standard.set(!args.contains("-welcome"), forKey: "signedIn")
+            UserDefaults.standard.set(false, forKey: "guest")
             UserDefaults.standard.set(true, forKey: "onboarded")
         }
         _env = State(initialValue: .current())

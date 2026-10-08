@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
 import { legibleStripe } from "../card-identity";
-import { CURRENT_USER_ID } from "./current-user";
+import { currentUserId } from "./current-user";
 import type {
   Collection,
   Highlight,
@@ -20,15 +20,16 @@ type ProductJson = Pick<
 /** Every user has exactly one inbox; created lazily on first read so there's no separate
  * provisioning step to keep in sync. Returns its id — imports need somewhere to land. */
 export async function ensureInbox(): Promise<string> {
+  const uid = await currentUserId();
   const [existing] = await db
     .select({ id: schema.collections.id })
     .from(schema.collections)
-    .where(and(eq(schema.collections.userId, CURRENT_USER_ID), eq(schema.collections.isInbox, true)));
+    .where(and(eq(schema.collections.userId, uid), eq(schema.collections.isInbox, true)));
   if (existing) return existing.id;
 
   const [created] = await db
     .insert(schema.collections)
-    .values({ userId: CURRENT_USER_ID, name: "Unsorted", color: "#9aa3ad", isInbox: true })
+    .values({ userId: uid, name: "Unsorted", color: "#9aa3ad", isInbox: true })
     .returning({ id: schema.collections.id });
   return created.id;
 }
@@ -38,12 +39,13 @@ export async function getLibraryData(): Promise<{
   trashed: LinkItem[];
   collections: Collection[];
 }> {
+  const uid = await currentUserId();
   await ensureInbox();
 
   const collectionRows = await db
     .select()
     .from(schema.collections)
-    .where(eq(schema.collections.userId, CURRENT_USER_ID))
+    .where(eq(schema.collections.userId, uid))
     // Inbox first — it's where unfiled links land, so it's the one opened most.
     .orderBy(
       desc(schema.collections.isInbox),
@@ -54,7 +56,7 @@ export async function getLibraryData(): Promise<{
   const linkRows = await db
     .select()
     .from(schema.links)
-    .where(eq(schema.links.userId, CURRENT_USER_ID))
+    .where(eq(schema.links.userId, uid))
     .orderBy(desc(schema.links.createdAt));
 
   const linkIds = linkRows.map((l) => l.id);

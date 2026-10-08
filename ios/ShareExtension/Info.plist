@@ -4,8 +4,8 @@
 <dict>
 	<key>AnyLinkAPIBase</key>
 	<string>$(ANYLINK_API_BASE)</string>
-	<key>AnyLinkAPIToken</key>
-	<string>$(ANYLINK_API_TOKEN)</string>
+	<key>AppIdentifierPrefix</key>
+	<string>$(AppIdentifierPrefix)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

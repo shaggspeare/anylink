@@ -1,7 +1,6 @@
 import { and, asc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
-import { CURRENT_USER_ID } from "./current-user";
 import { checkLinkStatus } from "../crawler/check-link";
 import { isDeadStatus } from "../link-health";
 
@@ -16,14 +15,14 @@ export type CheckedLink = { id: string; url: string; title: string; status: numb
 const CONCURRENCY = 24;
 
 /** Oldest-checked first (never-checked before that), which is what both callers want:
- * the cron works through the backlog, the import screen finds its own fresh rows. */
-export async function linksNeedingCheck(limit: number) {
+ * the cron works through every user's backlog, the import screen finds its own fresh rows. */
+export async function linksNeedingCheck(limit: number, userId?: string) {
   return db
     .select({ id: schema.links.id, url: schema.links.url, title: schema.links.title })
     .from(schema.links)
     .where(
       and(
-        eq(schema.links.userId, CURRENT_USER_ID),
+        userId ? eq(schema.links.userId, userId) : undefined,
         isNull(schema.links.deletedAt),
         eq(schema.links.status, "ready"),
         notInArray(schema.links.contentType, ["note", "image"])
@@ -33,13 +32,13 @@ export async function linksNeedingCheck(limit: number) {
     .limit(limit);
 }
 
-export async function countNeedingCheck(): Promise<number> {
+export async function countNeedingCheck(userId: string): Promise<number> {
   const [row] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(schema.links)
     .where(
       and(
-        eq(schema.links.userId, CURRENT_USER_ID),
+        eq(schema.links.userId, userId),
         isNull(schema.links.deletedAt),
         eq(schema.links.status, "ready"),
         notInArray(schema.links.contentType, ["note", "image"]),

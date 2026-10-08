@@ -1,4 +1,5 @@
 import { checkLinks, countNeedingCheck, linksNeedingCheck } from "@/lib/db/check-links";
+import { currentUser } from "@/lib/db/current-user";
 
 export const maxDuration = 300;
 
@@ -10,7 +11,9 @@ const PER_REQUEST = 600;
 /** Checks the links that have never been checked, streaming a line per link so the
  * import screen can count up. NDJSON, same as /api/crawl. */
 export async function POST() {
-  const links = await linksNeedingCheck(PER_REQUEST);
+  const user = await currentUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const links = await linksNeedingCheck(PER_REQUEST, user.id);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -30,7 +33,7 @@ export async function POST() {
           },
           Date.now() + BUDGET_MS
         );
-        send({ type: "done", checked, dead, remaining: await countNeedingCheck() });
+        send({ type: "done", checked, dead, remaining: await countNeedingCheck(user.id) });
       } catch (error) {
         send({ type: "failed", reason: error instanceof Error ? error.message : "unknown" });
       } finally {

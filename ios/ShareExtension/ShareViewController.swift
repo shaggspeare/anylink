@@ -16,9 +16,8 @@ final class ShareViewController: UIViewController {
         AL.registerFonts()
         let base = (Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIBase") as? String)
             .flatMap(URL.init(string:)).flatMap { $0.host() == nil ? nil : $0 }
-        let token = Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIToken") as? String
-        // BACKEND: a per-user token in the shared keychain replaces the build-time shared token.
-        let api: (any AnyLinkAPI)? = base.flatMap { b in token.flatMap { $0.isEmpty ? nil : $0 }.map { t in LiveAPI(base: b) { t } } }
+        // The app's Supabase session, from the shared keychain. A guest (or a mock build) reads as signed out.
+        let api: (any AnyLinkAPI)? = AuthService.client == nil ? nil : base.map { b in LiveAPI(base: b) { await AuthService.accessToken() } }
         let signedIn = UserDefaults(suiteName: Self.group)?.bool(forKey: "signedIn") ?? false
         let session = ShareSession(api: api, cache: LocalCache.appGroup(Self.group), signedIn: signedIn)
 

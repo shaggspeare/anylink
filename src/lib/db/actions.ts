@@ -4,11 +4,12 @@ import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
-import { CURRENT_USER_ID } from "./current-user";
+import { currentUserId } from "./current-user";
 import { reuploadHeroImage, deleteHeroImage, uploadImage } from "../storage/upload-hero-image";
+import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
-import { identityForDomain } from "../card-identity";
+import { IMAGE_IDENTITY, NOTE_IDENTITY, identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
 import { groupByMetadata, groupLinks, type Priorities } from "../rank/group-links";
 import { ensureInbox } from "./queries";
@@ -19,13 +20,23 @@ type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | 
   status?: LinkItem["status"];
 };
 
-async function tagIdsFor(names: string[]): Promise<string[]> {
+/** The subset of `ids` that are this user's — for writes to tables that only carry a link id. */
+async function ownedLinkIds(uid: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select({ id: schema.links.id })
+    .from(schema.links)
+    .where(and(inArray(schema.links.id, ids), eq(schema.links.userId, uid)));
+  return rows.map((r) => r.id);
+}
+
+async function tagIdsFor(uid: string, names: string[]): Promise<string[]> {
   if (names.length === 0) return [];
   const rows = await Promise.all(
     names.map((name) =>
       db
         .insert(schema.tags)
-        .values({ userId: CURRENT_USER_ID, name })
+        .values({ userId: uid, name })
         .onConflictDoUpdate({
           target: [schema.tags.userId, schema.tags.name],
           set: { name: sql`excluded.name` },
@@ -37,6 +48,7 @@ async function tagIdsFor(names: string[]): Promise<string[]> {
 }
 
 export async function createLink(input: NewLinkInput): Promise<LinkItem> {
+  const uid = await currentUserId();
   // Last stop before the DB: every save path (add-link form, bookmark import)
   // lands here, so the tracking-param strip belongs here rather than per caller.
   const url = cleanUrl(input.url);
@@ -60,7 +72,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
   const [row] = await db
     .insert(schema.links)
     .values({
-      userId: CURRENT_USER_ID,
+      userId: uid,
       collectionId: input.collectionId,
       url,
       domain: input.domain,
@@ -88,7 +100,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     });
   }
 
-  const tagIds = await tagIdsFor(input.tags);
+  const tagIds = await tagIdsFor(uid, input.tags);
   if (tagIds.length > 0) {
     await db
       .insert(schema.linkTags)
@@ -119,10 +131,6 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
   };
 }
 
-/** Notes and images share the links table so collections, tags, pins, Trash and search
- * work on them unchanged. These are the fields they don't have a page to fill in from. */
-const NOTE_IDENTITY = { domain: "", tint: "#d6f24b", stripe: "#17181b", initial: "✎" };
-const IMAGE_IDENTITY = { domain: "", tint: "#17181b", stripe: "#ffffff", initial: "▣" };
 const MAX_NOTE_CHARS = 20_000;
 
 function toItem(row: typeof schema.links.$inferSelect): LinkItem {
@@ -155,12 +163,13 @@ function cleanNoteText(text: unknown): string {
 }
 
 export async function createNote(text: string, collectionId?: string, source = "manual"): Promise<LinkItem> {
+  const uid = await currentUserId();
   const body = cleanNoteText(text);
   const [row] = await db
     .insert(schema.links)
     .values({
       ...NOTE_IDENTITY,
-      userId: CURRENT_USER_ID,
+      userId: uid,
       collectionId: collectionId || (await ensureInbox()),
       url: "",
       title: noteTitle(body),
@@ -174,11 +183,12 @@ export async function createNote(text: string, collectionId?: string, source = "
 
 /** A note's text is the note, so editing it re-derives the title too. */
 export async function setNoteText(id: string, text: string) {
+  const uid = await currentUserId();
   const body = cleanNoteText(text);
   await db
     .update(schema.links)
     .set({ title: noteTitle(body), excerpt: body, updatedAt: new Date() })
-    .where(and(eq(schema.links.id, id), eq(schema.links.userId, CURRENT_USER_ID), eq(schema.links.contentType, "note")));
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid), eq(schema.links.contentType, "note")));
 }
 
 /** Base64, not FormData: the iOS app reaches every action as a JSON array of arguments
@@ -189,6 +199,7 @@ export async function createImage(
   caption?: string,
   source = "manual"
 ): Promise<LinkItem> {
+  const uid = await currentUserId();
   if (typeof base64 !== "string" || !base64) throw new Error("No image to save.");
   const bytes = Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64");
   const title = caption?.trim() || "Image";
@@ -196,7 +207,7 @@ export async function createImage(
     .insert(schema.links)
     .values({
       ...IMAGE_IDENTITY,
-      userId: CURRENT_USER_ID,
+      userId: uid,
       collectionId: collectionId || (await ensureInbox()),
       url: "",
       title: title.slice(0, 200),
@@ -220,23 +231,27 @@ export async function createImage(
 }
 
 export async function setLinkSize(id: string, size: CardSize) {
+  const uid = await currentUserId();
   await db
     .update(schema.links)
     .set({ size, updatedAt: new Date() })
-    .where(eq(schema.links.id, id));
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
 }
 
 export async function moveLinks(ids: string[], collectionId: string) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
   await db
     .update(schema.links)
     .set({ collectionId, updatedAt: new Date() })
-    .where(inArray(schema.links.id, ids));
+    .where(and(inArray(schema.links.id, ids), eq(schema.links.userId, uid)));
 }
 
 export async function tagLinks(ids: string[], tag: string) {
+  const uid = await currentUserId();
+  ids = await ownedLinkIds(uid, ids);
   if (ids.length === 0) return;
-  const [tagId] = await tagIdsFor([tag]);
+  const [tagId] = await tagIdsFor(uid, [tag]);
   await db
     .insert(schema.linkTags)
     .values(ids.map((linkId) => ({ linkId, tagId })))
@@ -250,97 +265,110 @@ export async function tagLinks(ids: string[], tag: string) {
  * ponytail: rewrites a position for every card in view on each drop. Fine at personal
  * scale; fractional indexing is the upgrade if a collection ever grows enough to feel it. */
 export async function reorderLinks(ids: string[]) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
   const rows = ids.map((id, i) => sql`(${id}::uuid, ${i}::int)`);
   await db.execute(sql`
     update ${schema.links} set position = v.position
     from (values ${sql.join(rows, sql`, `)}) as v(id, position)
-    where ${schema.links.id} = v.id and ${schema.links.userId} = ${CURRENT_USER_ID}::uuid
+    where ${schema.links.id} = v.id and ${schema.links.userId} = ${uid}::uuid
   `);
 }
 
 export async function reorderCollections(ids: string[]) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
   const rows = ids.map((id, i) => sql`(${id}::uuid, ${i}::int)`);
   await db.execute(sql`
     update ${schema.collections} set position = v.position
     from (values ${sql.join(rows, sql`, `)}) as v(id, position)
-    where ${schema.collections.id} = v.id and ${schema.collections.userId} = ${CURRENT_USER_ID}::uuid
+    where ${schema.collections.id} = v.id and ${schema.collections.userId} = ${uid}::uuid
   `);
 }
 
 export async function archiveLinks(ids: string[]) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
   await db
     .update(schema.links)
     .set({ archivedAt: new Date(), pinned: false, updatedAt: new Date() })
-    .where(inArray(schema.links.id, ids));
+    .where(and(inArray(schema.links.id, ids), eq(schema.links.userId, uid)));
 }
 
 /** Serialize pin changes per user so simultaneous web/iOS requests cannot exceed two. */
 export async function setPinned(id: string, pinned: boolean): Promise<{ ok: boolean }> {
+  const uid = await currentUserId();
   if (typeof id !== "string" || typeof pinned !== "boolean") throw new Error("Invalid pin request.");
   return db.transaction(async (tx) => {
     await tx.select({ id: schema.users.id }).from(schema.users)
-      .where(eq(schema.users.id, CURRENT_USER_ID)).for("update");
+      .where(eq(schema.users.id, uid)).for("update");
     const [link] = await tx.select().from(schema.links)
-      .where(and(eq(schema.links.id, id), eq(schema.links.userId, CURRENT_USER_ID))).for("update");
+      .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid))).for("update");
     if (!link || (pinned && (link.deletedAt || link.archivedAt))) {
       throw new Error("This link is no longer in your library.");
     }
     if (pinned && !link.pinned) {
       const existing = await tx.select({ id: schema.links.id }).from(schema.links)
-        .where(and(eq(schema.links.userId, CURRENT_USER_ID), eq(schema.links.pinned, true),
+        .where(and(eq(schema.links.userId, uid), eq(schema.links.pinned, true),
           isNull(schema.links.deletedAt), isNull(schema.links.archivedAt))).limit(2);
       if (existing.length >= 2) return { ok: false };
     }
     await tx.update(schema.links).set({ pinned, updatedAt: new Date() })
-      .where(and(eq(schema.links.id, id), eq(schema.links.userId, CURRENT_USER_ID)));
+      .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
     return { ok: true };
   });
 }
 
 export async function setFavorite(id: string, favorite: boolean) {
+  const uid = await currentUserId();
   await db
     .update(schema.links)
     .set({ favorite, updatedAt: new Date() })
-    .where(eq(schema.links.id, id));
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
 }
 
 export async function setNote(id: string, note: string) {
+  const uid = await currentUserId();
   await db
     .update(schema.links)
     .set({ note: note.trim() || null, updatedAt: new Date() })
-    .where(eq(schema.links.id, id));
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
 }
 
 /** Delete means Trash. Nothing leaves the database until purgeLinks. */
 export async function deleteLinks(ids: string[]) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
   await db
     .update(schema.links)
     .set({ deletedAt: new Date(), pinned: false, updatedAt: new Date() })
-    .where(inArray(schema.links.id, ids));
+    .where(and(inArray(schema.links.id, ids), eq(schema.links.userId, uid)));
 }
 
 export async function restoreLinks(ids: string[]) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
   await db
     .update(schema.links)
     .set({ deletedAt: null, updatedAt: new Date() })
-    .where(inArray(schema.links.id, ids));
+    .where(and(inArray(schema.links.id, ids), eq(schema.links.userId, uid)));
 }
 
 export async function purgeLinks(ids: string[]) {
+  const uid = await currentUserId();
   if (ids.length === 0) return;
-  await db.delete(schema.links).where(inArray(schema.links.id, ids));
-  await Promise.all(ids.map((id) => deleteHeroImage(id).catch(() => {})));
+  const purged = await db
+    .delete(schema.links)
+    .where(and(inArray(schema.links.id, ids), eq(schema.links.userId, uid)))
+    .returning({ id: schema.links.id });
+  await Promise.all(purged.map(({ id }) => deleteHeroImage(id).catch(() => {})));
 }
 
 export async function createCollection(name: string, color: string) {
+  const uid = await currentUserId();
   const [row] = await db
     .insert(schema.collections)
-    .values({ userId: CURRENT_USER_ID, name, color })
+    .values({ userId: uid, name, color })
     .returning();
   return { id: row.id, name: row.name, color: row.color };
 }
@@ -348,10 +376,11 @@ export async function createCollection(name: string, color: string) {
 /** A custom filter: a saved query under a name of the user's choosing. Unnamed ones keep
  * the raw query as their label, which is what the palette used to save. */
 export async function createSmartCollection(query: string, name?: string) {
+  const uid = await currentUserId();
   const [row] = await db
     .insert(schema.collections)
     .values({
-      userId: CURRENT_USER_ID,
+      userId: uid,
       name: name?.trim() || query,
       color: "#7c8cff",
       isSmart: true,
@@ -362,20 +391,22 @@ export async function createSmartCollection(query: string, name?: string) {
 }
 
 export async function renameCollection(id: string, name: string) {
+  const uid = await currentUserId();
   await db
     .update(schema.collections)
     .set({ name, updatedAt: new Date() })
-    .where(eq(schema.collections.id, id));
+    .where(and(eq(schema.collections.id, id), eq(schema.collections.userId, uid)));
 }
 
 /** Dissolves a collection: its links — trashed ones too — go back to Unsorted first,
  * because `links.collection_id` cascades and deleting the row would take them with it.
  * `trashedIds` is always empty now; it stays in the shape the iOS client decodes. */
 export async function deleteCollection(id: string): Promise<{ trashedIds: string[] }> {
+  const uid = await currentUserId();
   const [collection] = await db
     .select({ isSmart: schema.collections.isSmart, isInbox: schema.collections.isInbox })
     .from(schema.collections)
-    .where(eq(schema.collections.id, id));
+    .where(and(eq(schema.collections.id, id), eq(schema.collections.userId, uid)));
   if (!collection) return { trashedIds: [] };
   if (collection.isInbox) throw new Error("The inbox can't be deleted.");
 
@@ -383,31 +414,32 @@ export async function deleteCollection(id: string): Promise<{ trashedIds: string
     const [inbox] = await db
       .select({ id: schema.collections.id })
       .from(schema.collections)
-      .where(and(eq(schema.collections.userId, CURRENT_USER_ID), eq(schema.collections.isInbox, true)));
+      .where(and(eq(schema.collections.userId, uid), eq(schema.collections.isInbox, true)));
     if (!inbox) throw new Error("No Unsorted collection to move the links into.");
     await db
       .update(schema.links)
       .set({ collectionId: inbox.id, updatedAt: new Date() })
-      .where(eq(schema.links.collectionId, id));
+      .where(and(eq(schema.links.collectionId, id), eq(schema.links.userId, uid)));
   }
 
-  await db.delete(schema.collections).where(eq(schema.collections.id, id));
+  await db.delete(schema.collections).where(and(eq(schema.collections.id, id), eq(schema.collections.userId, uid)));
   return { trashedIds: [] };
 }
 
 /** Housekeeping for the collections that pile up after a reorganisation. */
 export async function deleteEmptyCollections(): Promise<string[]> {
+  const uid = await currentUserId();
   const nonEmpty = await db
     .selectDistinct({ collectionId: schema.links.collectionId })
     .from(schema.links)
-    .where(and(eq(schema.links.userId, CURRENT_USER_ID), isNull(schema.links.deletedAt)));
+    .where(and(eq(schema.links.userId, uid), isNull(schema.links.deletedAt)));
   const keep = nonEmpty.map((r) => r.collectionId);
 
   const deleted = await db
     .delete(schema.collections)
     .where(
       and(
-        eq(schema.collections.userId, CURRENT_USER_ID),
+        eq(schema.collections.userId, uid),
         eq(schema.collections.isSmart, false),
         eq(schema.collections.isInbox, false),
         keep.length > 0 ? notInArray(schema.collections.id, keep) : sql`true`
@@ -418,10 +450,13 @@ export async function deleteEmptyCollections(): Promise<string[]> {
 }
 
 export async function addHighlight(linkId: string, quote: string) {
-  await db.insert(schema.highlights).values({ linkId, userId: CURRENT_USER_ID, quote });
+  const uid = await currentUserId();
+  if ((await ownedLinkIds(uid, [linkId])).length === 0) return;
+  await db.insert(schema.highlights).values({ linkId, userId: uid, quote });
 }
 
 export async function setAlertThreshold(linkId: string, threshold: number, currency: string) {
+  if ((await ownedLinkIds(await currentUserId(), [linkId])).length === 0) return;
   await db
     .insert(schema.priceAlerts)
     .values({ linkId, thresholdPrice: String(threshold), currency })
@@ -448,6 +483,7 @@ export type ImportLinksResult = {
  * already carries a title, a folder and a date, which is enough to check, rank and
  * group on; enrichment is a background job afterwards (see V1-DECLUTTER-RANK.md). */
 export async function importLinks(items: ImportedLink[]): Promise<ImportLinksResult> {
+  const uid = await currentUserId();
   if (items.length === 0) return { links: [], skipped: 0 };
 
   const collectionId = await ensureInbox();
@@ -457,7 +493,7 @@ export async function importLinks(items: ImportedLink[]): Promise<ImportLinksRes
   const existing = await db
     .select({ url: schema.links.url })
     .from(schema.links)
-    .where(eq(schema.links.userId, CURRENT_USER_ID));
+    .where(eq(schema.links.userId, uid));
   const known = new Set(existing.map((row) => row.url));
 
   const rows = [];
@@ -472,7 +508,7 @@ export async function importLinks(items: ImportedLink[]): Promise<ImportLinksRes
     // freshly imported library still reads newest-first in a way that means something.
     const savedAt = item.meta.savedAt ? new Date(item.meta.savedAt) : null;
     rows.push({
-      userId: CURRENT_USER_ID,
+      userId: uid,
       collectionId,
       url,
       domain,
@@ -528,6 +564,7 @@ export type GroupedResult = { collection: Collection; linkIds: string[]; reasoni
  * said matters and comes back as a few named collections. Dead links are left out —
  * they've already been checked by this point and nobody wants them ranked. */
 export async function groupInbox(priorities: Priorities): Promise<GroupedResult[]> {
+  const uid = await currentUserId();
   const inboxId = await ensureInbox();
 
   const rows = await db
@@ -541,7 +578,7 @@ export async function groupInbox(priorities: Priorities): Promise<GroupedResult[
     .from(schema.links)
     .where(
       and(
-        eq(schema.links.userId, CURRENT_USER_ID),
+        eq(schema.links.userId, uid),
         eq(schema.links.collectionId, inboxId),
         isNull(schema.links.deletedAt)
       )
@@ -568,7 +605,7 @@ export async function groupInbox(priorities: Priorities): Promise<GroupedResult[
     const [row] = await db
       .insert(schema.collections)
       .values({
-        userId: CURRENT_USER_ID,
+        userId: uid,
         name: group.name,
         color: SYSTEM_COLORS[i % SYSTEM_COLORS.length],
         reasoning: group.reasoning,
@@ -579,7 +616,7 @@ export async function groupInbox(priorities: Priorities): Promise<GroupedResult[
     await db
       .update(schema.links)
       .set({ collectionId: row.id, updatedAt: new Date() })
-      .where(inArray(schema.links.id, linkIds));
+      .where(and(inArray(schema.links.id, linkIds), eq(schema.links.userId, uid)));
 
     results.push({
       collection: {
@@ -609,16 +646,28 @@ export async function logSignal(
     payload,
   }: { linkId?: string; linkIds?: string[]; collectionId?: string; payload?: unknown } = {}
 ) {
+  const uid = await currentUserId();
   // A bulk move is one signal per link, not one per gesture — whatever reads this later
   // wants to know about the links, and reconstructing them from a payload is worse.
   const targets = linkIds?.length ? linkIds : [linkId ?? null];
   await db.insert(schema.userSignals).values(
     targets.map((id) => ({
-      userId: CURRENT_USER_ID,
+      userId: uid,
       linkId: id,
       collectionId: collectionId ?? null,
       action,
       payload: (payload ?? null) as object | null,
     }))
   );
+}
+
+/** App Store 5.1.1(v): an account made in the app can be deleted from it. Every library
+ * table cascades from users; the stored images and the auth user go explicitly. */
+export async function deleteAccount() {
+  const uid = await currentUserId();
+  const rows = await db.select({ id: schema.links.id }).from(schema.links).where(eq(schema.links.userId, uid));
+  await db.delete(schema.users).where(eq(schema.users.id, uid));
+  if (rows.length) await supabaseAdmin.storage.from(HERO_IMAGES_BUCKET).remove(rows.map((r) => `${r.id}.webp`));
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(uid);
+  if (error) throw new Error(error.message);
 }

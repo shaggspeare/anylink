@@ -28,6 +28,8 @@ public enum SheetRoute: Hashable, Identifiable, Sendable {
     case tagLinks(Set<LinkItem.ID>)
     case newCollection
     case rename(LinkCollection.ID)
+    /// A guest who has used their free saves.
+    case signUp
     public var id: Self { self }
 }
 

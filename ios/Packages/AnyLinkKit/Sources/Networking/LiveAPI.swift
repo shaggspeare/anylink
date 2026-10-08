@@ -230,7 +230,6 @@ public struct LiveAPI: AnyLinkAPI {
     }
 
     public func deleteAccount() async throws {
-        // BACKEND: DELETE /api/account doesn't exist yet (App Store 5.1.1(v)).
-        throw AppError.server(501)
+        _ = try await action("deleteAccount", [])
     }
 }

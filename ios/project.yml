@@ -55,9 +55,10 @@ targets:
             CFBundleURLSchemes: [anylink]
         NSUserActivityTypes: [com.apple.corespotlightitem]
         AnyLinkAPIBase: $(ANYLINK_API_BASE)
-        AnyLinkAPIToken: $(ANYLINK_API_TOKEN)
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        # The shared keychain group is "<prefix>app.anylink.ios.shared"; Auth.swift needs the prefix at runtime.
+        AppIdentifierPrefix: $(AppIdentifierPrefix)
     entitlements:
       path: AnyLink/AnyLink.entitlements
       properties:
@@ -76,6 +77,7 @@ targets:
     platform: iOS
     sources:
       - ShareExtension
+      - AnyLink/App/Auth.swift
     dependencies:
       - package: AnyLinkKit
         products: [Models, Networking, Persistence, DesignSystem, QueryLanguage, Store]
@@ -86,9 +88,10 @@ targets:
       properties:
         CFBundleDisplayName: AnyLink
         AnyLinkAPIBase: $(ANYLINK_API_BASE)
-        AnyLinkAPIToken: $(ANYLINK_API_TOKEN)
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        # The shared keychain group is "<prefix>app.anylink.ios.shared"; Auth.swift needs the prefix at runtime.
+        AppIdentifierPrefix: $(AppIdentifierPrefix)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController

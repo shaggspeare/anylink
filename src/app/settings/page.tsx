@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { deleteAccount } from "@/lib/db/actions";
 import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { AmbientOrbs } from "@/components/ambient-orbs";
@@ -27,10 +29,10 @@ const SHORTCUTS: [string, string][] = [
   ["← →  L  1–5", "Sort Unsorted: Trash, file, later, pick a collection"],
 ];
 
-/** Web Settings, after iOS S18. No account section: the web app has no sign-in yet, and
- * iOS's "Open links in" (in-app browser vs Safari) has no web counterpart. */
+/** Web Settings, after iOS S18. iOS's "Open links in" (in-app browser vs Safari) has no
+ * web counterpart. */
 export default function SettingsPage() {
-  const { links, trashed, collections } = useLibrary();
+  const { links, trashed, collections, guest, email, openSignUp } = useLibrary();
   const [theme, setTheme] = useLocalSetting<Theme>(THEME_KEY, "light");
   const [, setDefaultCollection] = useLocalSetting<string>(DEFAULT_COLLECTION_KEY, "");
   const defaultCollectionId = useDefaultCollection();
@@ -44,6 +46,46 @@ export default function SettingsPage() {
       <div className="relative lg:pl-[250px]">
         <div className="mx-auto flex max-w-[640px] flex-col gap-5 px-4 pb-10 pt-[max(24px,env(safe-area-inset-top))]">
           <h1 className="text-hero text-[30px]">Settings</h1>
+
+          <Section title="Account">
+            {guest ? (
+              <>
+                <p className="text-body text-ink">You&apos;re trying AnyLink without an account.</p>
+                <button type="button" onClick={openSignUp} className="self-start text-body font-semibold text-ink underline-offset-2 hover:underline">
+                  Sign in or create an account
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-body text-ink">{email}</p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await supabaseBrowser().auth.signOut();
+                    // A full load, so the store drops their library.
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                    location.assign("/");
+                  }}
+                  className="self-start text-body font-semibold text-ink underline-offset-2 hover:underline"
+                >
+                  Sign out
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm("Delete your account and everything in it? This can't be undone.")) return;
+                    await deleteAccount();
+                    await supabaseBrowser().auth.signOut();
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                    location.assign("/");
+                  }}
+                  className="self-start text-body font-semibold text-[var(--signal-orange)] underline-offset-2 hover:underline"
+                >
+                  Delete account…
+                </button>
+              </>
+            )}
+          </Section>
 
           <Section title="Your library">
             <p className="text-body text-ink">

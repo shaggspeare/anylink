@@ -4,6 +4,7 @@ import Models
 import Networking
 import Fixtures
 import Store
+import Auth
 import TipKit
 import AppIntents
 
@@ -31,6 +32,7 @@ struct SettingsView: View {
     @AppStorage("defaultCollection") private var defaultCollection = "unsorted"
     @AppStorage("resetTipsOnLaunch") private var resetTips = false
     @AppStorage("signedIn") private var signedIn = true
+    @AppStorage("guest") private var guest = false
 
     var body: some View {
         List {
@@ -79,9 +81,17 @@ struct SettingsView: View {
                     row("Show tips again", systemImage: "lightbulb")
                 }
             } header: { header("Reading") }
-            Section {
-                Button("Sign out") { signedIn = false }
-                Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
+            if !guest {
+                Section {
+                    Button("Sign out") {
+                        Task {
+                            try? await AuthService.client?.signOut()
+                            store.reset()
+                            signedIn = false
+                        }
+                    }
+                    Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
+                }
             }
             Section {
                 EmptyView()
@@ -102,13 +112,19 @@ struct SettingsView: View {
                 .frame(width: 52, height: 52)
                 .background(AL.periwinkle, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                Text("Your account").font(.headline)
-                Text("Apple ID · \(store.live.count.linkCount) · \(synced)")
-                    .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                if guest {
+                    Text("Trying AnyLink").font(.headline)
+                    Button("Sign in or create an account") { router.sheet = .signUp }
+                        .font(.footnote.weight(.semibold))
+                } else {
+                    Text(AuthService.client?.currentSession?.user.email ?? "Your account").font(.headline)
+                    Text("\(store.live.count.linkCount) · \(synced)")
+                        .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                }
             }
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: guest ? .contain : .combine)
     }
 
     /// Section headers at the raised secondary alpha: the system grey sits just under 4.5:1 here.
