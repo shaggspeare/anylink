@@ -94,7 +94,9 @@ struct SettingsView: View {
                 }
             }
             Section {
-                EmptyView()
+                Link(destination: URL(string: "https://www.anylink.space/privacy-policy")!) {
+                    row("Privacy Policy", systemImage: "hand.raised")
+                }
             } footer: {
                 Text(version).foregroundStyle(AL.ink.opacity(AL.Ink.a60)).frame(maxWidth: .infinity).padding(.top, 8)
             }

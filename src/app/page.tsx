@@ -259,6 +259,12 @@ export default function LandingPage() {
               </svg>
             </Scribble>
           </div>
+          <nav className="relative z-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-meta text-ink/50 md:col-span-2">
+            <span>© {new Date().getFullYear()} AnyLink</span>
+            <Link href="/privacy-policy" className="hover:text-ink hover:underline">
+              Privacy Policy
+            </Link>
+          </nav>
         </footer>
       </div>
     </div>

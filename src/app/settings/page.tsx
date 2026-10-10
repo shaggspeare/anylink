@@ -85,6 +85,9 @@ export default function SettingsPage() {
                 </button>
               </>
             )}
+            <a href="/privacy-policy" className="self-start text-meta text-ink/60 underline-offset-2 hover:underline">
+              Privacy Policy
+            </a>
           </Section>
 
           <Section title="Your library">
