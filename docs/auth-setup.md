@@ -8,7 +8,7 @@ The code for all three sign-in methods is done on web and iOS. This guide covers
 |---|---|
 | Website | `https://www.anylink.space` (`anylink.space` redirects here) |
 | App after sign-in, and the guest demo | `https://www.anylink.space/app` |
-| Web sign-in callback | `https://www.anylink.space/auth/callback` |
+| Web sign-in callback | `https://www.anylink.space/auth/callback` (allow-listed as `https://www.anylink.space/**`) |
 | iOS sign-in callback | `anylink://auth-callback` |
 | Supabase project | `xcljmzxsbepvcskjfadg` |
 | Supabase OAuth callback (used by Google and Apple) | `https://xcljmzxsbepvcskjfadg.supabase.co/auth/v1/callback` |
@@ -38,13 +38,13 @@ Open **Authentication → URL Configuration**.
 
 1. Set **Site URL** to `https://www.anylink.space`.
 2. Under **Redirect URLs**, add each of these:
-   - `https://www.anylink.space/auth/callback`
-   - `https://anylink.space/auth/callback`
-   - `http://localhost:3000/auth/callback`
+   - `https://www.anylink.space/**`
+   - `https://anylink.space/**`
+   - `http://localhost:3000/**`
    - `anylink://auth-callback`
-   - `https://*.vercel.app/auth/callback` (so sign-in also works on Vercel preview deployments)
+   - `https://*.vercel.app/**` (so sign-in also works on Vercel preview deployments)
 
-Supabase only sends people back to URLs on this list. If sign-in seems to do nothing, a missing entry here is the usual cause.
+Use the `/**` wildcards, not exact callback URLs. The app returns to `/auth/callback?next=…`, and that `?next=…` part fails an exact match. When an address isn't on the list, Supabase sends you to the Site URL instead. The app recovers from that, but you land on the home page instead of `/app`.
 
 ---
 
@@ -258,7 +258,7 @@ After changing it, run `xcodegen generate` in `ios/`.
 | `redirect_uri_mismatch` (Google) | The redirect URI in step 4a doesn't exactly match `https://xcljmzxsbepvcskjfadg.supabase.co/auth/v1/callback`. |
 | `invalid_client` (Apple, website) | The Services ID, domain or return URL in step 5b is wrong, or the secret has expired. |
 | `Unacceptable audience` (Apple, iPhone) | `app.anylink.ios` is missing from **Client IDs** in step 5e. |
-| You land on `/login?error=1` | The callback URL is missing from **Redirect URLs** in step 2. |
+| You land on `/login?error=1`, or on the home page with `?code=…` in the address | The site's `/**` entry is missing from **Redirect URLs** in step 2. |
 | No email arrives | Custom SMTP isn't set up (step 3c), or you've hit the rate limit. |
 | iOS build: "Associated Domains capability" signing error | Step 5a, item 3 hasn't been done yet. |
 
