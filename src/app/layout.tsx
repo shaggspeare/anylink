@@ -17,6 +17,8 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
+  // Absolute URLs for share previews (Open Graph, icons) resolve against the production site.
+  metadataBase: new URL("https://www.anylink.space"),
   title: "AnyLink",
   description: "Paste anything. We read the rest.",
   // Added to the home screen, iOS opens it full-screen like an app.

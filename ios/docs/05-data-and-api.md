@@ -150,7 +150,7 @@ library and their stored images (App Store 5.1.1(v)).
 `Config.xcconfig` (not committed; `Config.example.xcconfig` is committed):
 
 ```
-ANYLINK_API_BASE = https:/$()/anylink.example.com
+ANYLINK_API_BASE = https:/$()/www.anylink.space
 SUPABASE_URL = https:/$()/xxxx.supabase.co
 SUPABASE_ANON_KEY = …
 ```
