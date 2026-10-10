@@ -65,7 +65,9 @@ targets:
         com.apple.security.application-groups: [group.app.anylink.ios]
         keychain-access-groups: [$(AppIdentifierPrefix)app.anylink.ios.shared]
         com.apple.developer.applesignin: [Default]
-        # com.apple.developer.associated-domains: ["applinks:<web domain>"]   # phase 13
+        # Universal links for https://www.anylink.space/links/{id} (the site serves /.well-known/apple-app-site-association).
+        # Only www: the apex redirects, and Apple doesn't follow redirects for that file.
+        com.apple.developer.associated-domains: ["applinks:www.anylink.space"]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios

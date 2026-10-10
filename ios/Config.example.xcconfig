@@ -1,6 +1,6 @@
 // Copy to Config.xcconfig (git-ignored) and fill in values for device/live builds.
 // `//` starts a comment in xcconfig: write URLs as https:/$()/host, or they arrive as "https:".
-ANYLINK_API_BASE = https:/$()/anylink.app
+ANYLINK_API_BASE = https:/$()/www.anylink.space
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
 DEVELOPMENT_TEAM = 376HNWM383
