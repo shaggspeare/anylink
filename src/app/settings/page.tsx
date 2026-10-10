@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useLibrary } from "@/lib/store";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { signOut } from "@/lib/supabase/client";
 import { deleteAccount } from "@/lib/db/actions";
 import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
@@ -60,12 +60,7 @@ export default function SettingsPage() {
                 <p className="text-body text-ink">{email}</p>
                 <button
                   type="button"
-                  onClick={async () => {
-                    await supabaseBrowser().auth.signOut();
-                    // A full load, so the store drops their library.
-                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                    location.assign("/");
-                  }}
+                  onClick={signOut}
                   className="self-start text-body font-semibold text-ink underline-offset-2 hover:underline"
                 >
                   Sign out
@@ -75,9 +70,7 @@ export default function SettingsPage() {
                   onClick={async () => {
                     if (!confirm("Delete your account and everything in it? This can't be undone.")) return;
                     await deleteAccount();
-                    await supabaseBrowser().auth.signOut();
-                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                    location.assign("/");
+                    await signOut();
                   }}
                   className="self-start text-body font-semibold text-[var(--signal-orange)] underline-offset-2 hover:underline"
                 >

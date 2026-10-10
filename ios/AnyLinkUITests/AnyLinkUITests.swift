@@ -176,6 +176,7 @@ final class AnyLinkUITests: XCTestCase {
     func testAppearanceAppliesImmediately() throws {
         let app = launch()
         app.tabBars.buttons["Collections"].tap()
+        app.buttons["Account"].tap()
         app.buttons["Settings"].tap()
         app.buttons["Dark"].tap()
         XCTAssertTrue(app.buttons["Dark"].isSelected)
@@ -377,6 +378,8 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Collections"].waitForExistence(timeout: 3))
         audit(app, "Collections")
 
+        app.buttons["Account"].tap()
+
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.staticTexts["Your account"].waitForExistence(timeout: 3))
         audit(app, "Settings")
@@ -435,6 +438,7 @@ final class AnyLinkUITests: XCTestCase {
             out["NASA.GOV · 6 MIN READ"] = app.staticTexts["NASA.GOV · 6 MIN READ"].frame.height
             app.navigationBars.buttons.firstMatch.tap()
             app.tabBars.buttons["Collections"].tap()
+            app.buttons["Account"].tap()
             app.buttons["Settings"].tap()
             for l in ["Clipboard suggestions", "New links go to", Self.shareFooter] {
                 let t = app.staticTexts[l]

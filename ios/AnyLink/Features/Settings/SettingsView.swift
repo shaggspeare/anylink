@@ -22,6 +22,15 @@ enum Appearance: String, CaseIterable, Identifiable {
 }
 
 /// S18. System chrome (SF, inset-grouped list) per D4.
+/// Ends the Supabase session and clears this account's library and outbox from the device; RootView
+/// sees the flag and shows Welcome. Settings and the Collections avatar menu both call it.
+@MainActor
+func signOut(_ store: LibraryStore) async {
+    try? await AuthService.client?.signOut()
+    store.reset()
+    UserDefaults.standard.set(false, forKey: "signedIn")
+}
+
 struct SettingsView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
@@ -83,13 +92,7 @@ struct SettingsView: View {
             } header: { header("Reading") }
             if !guest {
                 Section {
-                    Button("Sign out") {
-                        Task {
-                            try? await AuthService.client?.signOut()
-                            store.reset()
-                            signedIn = false
-                        }
-                    }
+                    Button("Sign out") { Task { await signOut(store) } }
                     Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
                 }
             }

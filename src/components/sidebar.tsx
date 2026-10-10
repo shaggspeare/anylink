@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/icon";
+import { signOut } from "@/lib/supabase/client";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Logo } from "./logo";
@@ -76,6 +77,8 @@ export function Sidebar() {
     reorderCollections,
     menuOpen,
     setMenuOpen,
+    guest,
+    openSignUp,
   } = useLibrary();
   const pathname = usePathname();
   const activeQuery = useSearchParams().get("q") ?? "";
@@ -345,6 +348,17 @@ export function Sidebar() {
           <RowIcon name="sliders" />
           Settings
         </Link>
+        {guest ? (
+          <button type="button" onClick={openSignUp} className={`${QUIET_ROW} w-full`}>
+            <RowIcon name="user" />
+            Sign in
+          </button>
+        ) : (
+          <button type="button" onClick={signOut} className={`${QUIET_ROW} w-full`}>
+            <RowIcon name="logout" />
+            Sign out
+          </button>
+        )}
       </div>
 
       <PasteHint />
