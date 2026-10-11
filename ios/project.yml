@@ -46,6 +46,8 @@ targets:
       path: AnyLink/Info.plist
       properties:
         CFBundleDisplayName: AnyLink
+        # HTTPS only, which is exempt: skips the export-compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations~iphone: [UIInterfaceOrientationPortrait]
@@ -89,6 +91,8 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: AnyLink
+        # HTTPS only, which is exempt: skips the export-compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         AnyLinkAPIBase: $(ANYLINK_API_BASE)
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)

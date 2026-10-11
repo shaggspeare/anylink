@@ -272,6 +272,7 @@ struct LibraryEmptyState: View {
 
 // MARK: - Previews
 
+#if DEBUG
 private struct LibraryPreview: View {
     var layout: LibraryLayout = .tiles
     var snapshot: LibrarySnapshot? = Fixtures.library
@@ -307,3 +308,4 @@ private struct LibraryPreview: View {
 #Preview("Offline") { LibraryPreview(sync: .offline) }
 #Preview("Select mode") { LibraryPreview(selecting: true) }
 #Preview("Large type") { LibraryPreview().dynamicTypeSize(.accessibility2) }
+#endif
