@@ -127,7 +127,7 @@ public struct LiveAPI: AnyLinkAPI {
             title: d.title ?? cr?.title ?? domain, excerpt: d.excerpt ?? cr?.excerpt ?? "",
             tint: cr?.tint ?? "#9AA3AD", stripe: cr?.stripe ?? "#FFFFFF",
             initial: cr?.initial ?? String(domain.prefix(1)).uppercased(),
-            collectionId: d.collectionId ?? "unsorted",
+            collectionId: d.collectionId ?? "",   // empty: the server files it in the inbox
             articleText: cr?.articleText, heroImage: cr?.heroImage,
             contentType: cr?.contentType ?? .article, readingTimeMinutes: cr?.readingTimeMinutes,
             tags: d.tags, size: d.size, note: d.note, product: cr?.product, source: "ios"

@@ -73,7 +73,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     .insert(schema.links)
     .values({
       userId: uid,
-      collectionId: input.collectionId,
+      collectionId: input.collectionId || (await ensureInbox()),
       url,
       domain: input.domain,
       title: input.title,
