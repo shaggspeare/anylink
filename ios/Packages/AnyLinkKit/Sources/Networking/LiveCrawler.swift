@@ -24,8 +24,14 @@ public struct LiveCrawler: Sendable {
         let task = Task {
             do {
                 let (bytes, response) = try await session.bytes(for: request)
-                if (response as? HTTPURLResponse)?.statusCode == 400 {
-                    cont.yield(.failed(.init(reason: "invalid-url")))
+                // Not a stream: a bad URL, or a guest past their preview budget.
+                let refused = switch (response as? HTTPURLResponse)?.statusCode {
+                case 400: "invalid-url"
+                case 429: "rate-limited"
+                default: String?.none
+                }
+                if let refused {
+                    cont.yield(.failed(.init(reason: refused)))
                     cont.finish()
                     return
                 }

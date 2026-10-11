@@ -18,6 +18,42 @@ public enum PendingOp: Codable, Sendable, Equatable {
     case priceAlert(LinkItem.ID, threshold: Double, currency: String)
     case dissolve(LinkCollection.ID, members: [LinkItem.ID], inbox: LinkCollection.ID)
 
+    /// The links it touches.
+    var linkIDs: [LinkItem.ID] {
+        switch self {
+        case .move(let ids, _), .tag(let ids, _), .archive(let ids), .trash(let ids), .restore(let ids), .purge(let ids):
+            return ids
+        case .patch(let id, _, _), .noteText(let id, _), .pin(let id, _), .highlight(let id, _), .priceAlert(let id, _, _):
+            return [id]
+        case .dissolve(_, let members, _): return members
+        case .rename: return []
+        }
+    }
+
+    /// The same op with each link id swapped by `swap`; an id it maps to nil drops out.
+    /// Nil when no link is left for it to act on.
+    func resolving(_ swap: (LinkItem.ID) -> LinkItem.ID?) -> PendingOp? {
+        func list(_ ids: [LinkItem.ID], _ make: ([LinkItem.ID]) -> PendingOp) -> PendingOp? {
+            let ids = ids.compactMap(swap)
+            return ids.isEmpty ? nil : make(ids)
+        }
+        switch self {
+        case .move(let ids, let to): return list(ids) { .move($0, to: to) }
+        case .tag(let ids, let t): return list(ids) { .tag($0, t) }
+        case .archive(let ids): return list(ids) { .archive($0) }
+        case .trash(let ids): return list(ids) { .trash($0) }
+        case .restore(let ids): return list(ids) { .restore($0) }
+        case .purge(let ids): return list(ids) { .purge($0) }
+        case .patch(let id, let note, let fav): return swap(id).map { .patch($0, note: note, favorite: fav) }
+        case .noteText(let id, let text): return swap(id).map { .noteText($0, text) }
+        case .pin(let id, let pinned): return swap(id).map { .pin($0, pinned) }
+        case .highlight(let id, let quote): return swap(id).map { .highlight($0, quote: quote) }
+        case .priceAlert(let id, let t, let c): return swap(id).map { .priceAlert($0, threshold: t, currency: c) }
+        case .dissolve(let id, let members, let inbox): return .dissolve(id, members: members.compactMap(swap), inbox: inbox)
+        case .rename: return self
+        }
+    }
+
     func run(_ api: any AnyLinkAPI) async throws {
         switch self {
         case .move(let ids, let to): try await api.bulk(.move(to: to), ids: ids)

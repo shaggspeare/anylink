@@ -108,6 +108,8 @@ export function AddLinkFlow() {
         body: JSON.stringify({ url: targetUrl }),
         signal: controller.signal,
       });
+      // Guests get a per-IP preview budget; past it the route answers 429, not a stream.
+      if (res.status === 429) throw new Error("rate-limited");
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
@@ -538,8 +540,10 @@ function ReadyForm({
         )}
         {failed && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-ink/55" style={{ background: "rgba(255,90,31,.14)" }}>
-            The page wouldn&apos;t open ({result.reason}) — the title is guessed from the link.
-            Edit it and save; nothing else is needed.
+            {result.reason === "rate-limited"
+              ? "Too many previews. Sign in to keep going — or save this one with the title guessed from the link."
+              : <>The page wouldn&apos;t open ({result.reason}) — the title is guessed from the link.
+                Edit it and save; nothing else is needed.</>}
           </div>
         )}
         <div className="overflow-hidden rounded-[22px]" style={{ background: "rgb(var(--surface-rgb) / .62)", border: "1px solid rgb(var(--rim-rgb) / .75)" }}>

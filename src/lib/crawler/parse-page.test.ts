@@ -27,3 +27,11 @@ const b = 2;</pre>
   assert.ok(articleText.includes("const a = 1;\nconst b = 2;"));
   assert.equal(articleText.filter((p) => p === "quoted line").length, 1);
 });
+
+test("review counts come out whole: 1.2K is 1200, not 1.2", () => {
+  const ld = (count: string) => `<html><head><title>P</title><script type="application/ld+json">${JSON.stringify({
+    "@type": "Product", name: "P", aggregateRating: { ratingValue: "4.5", reviewCount: count },
+  })}</script></head><body><p>${filler}</p></body></html>`;
+  assert.equal(parseHtml(ld("1.2K"), "https://shop.example/p").product?.reviewCount, 1200);
+  assert.equal(parseHtml(ld("1,234 reviews"), "https://shop.example/p").product?.reviewCount, 1234);
+});

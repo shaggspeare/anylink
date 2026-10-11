@@ -9,6 +9,7 @@ import { reuploadHeroImage, deleteHeroImage, uploadImage } from "../storage/uplo
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
+import { crawlUrl } from "../crawler";
 import { IMAGE_IDENTITY, NOTE_IDENTITY, identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
 import { groupByMetadata, groupLinks, type Priorities } from "../rank/group-links";
@@ -52,27 +53,51 @@ async function tagIdsFor(uid: string, names: string[]): Promise<string[]> {
   return rows.map(([r]) => r.id);
 }
 
+function productJson(product?: ProductDetails): Partial<ProductDetails> | null {
+  return product
+    ? {
+        retailer: product.retailer,
+        retailerInitial: product.retailerInitial,
+        retailerColor: product.retailerColor,
+        code: product.code,
+        delivery: product.delivery,
+        rating: product.rating,
+        reviewCount: product.reviewCount,
+        warranty: product.warranty,
+        variants: product.variants,
+        specs: product.specs,
+        totalSpecCount: product.totalSpecCount,
+      }
+    : null;
+}
+
+async function savePrice(linkId: string, product?: ProductDetails) {
+  if (product?.price === undefined) return;
+  await db.insert(schema.priceSnapshots).values({
+    linkId,
+    price: String(product.price),
+    currency: product.currency,
+    inStock: product.inStock ?? null,
+  });
+}
+
+async function addTags(uid: string, linkId: string, names: string[]) {
+  const tagIds = await tagIdsFor(uid, names);
+  if (tagIds.length > 0) {
+    await db
+      .insert(schema.linkTags)
+      .values(tagIds.map((tagId) => ({ linkId, tagId })))
+      .onConflictDoNothing();
+  }
+}
+
 export async function createLink(input: NewLinkInput): Promise<LinkItem> {
   const uid = await currentUserId();
   // Last stop before the DB: every save path (add-link form, bookmark import)
   // lands here, so the tracking-param strip belongs here rather than per caller.
   const url = cleanUrl(input.url);
-
-  const productJson: Partial<ProductDetails> | null = input.product
-    ? {
-        retailer: input.product.retailer,
-        retailerInitial: input.product.retailerInitial,
-        retailerColor: input.product.retailerColor,
-        code: input.product.code,
-        delivery: input.product.delivery,
-        rating: input.product.rating,
-        reviewCount: input.product.reviewCount,
-        warranty: input.product.warranty,
-        variants: input.product.variants,
-        specs: input.product.specs,
-        totalSpecCount: input.product.totalSpecCount,
-      }
-    : null;
+  // Saved before anything read the page: the iOS share sheet, or "Save now" mid-read.
+  const unread = !input.excerpt && !input.articleText?.length;
 
   const [row] = await db
     .insert(schema.links)
@@ -91,29 +116,16 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       contentType: input.contentType,
       readingTimeMinutes: input.readingTimeMinutes ?? null,
       size: input.size,
-      status: input.status ?? "ready",
-      productData: productJson,
+      status: input.status ?? (unread ? "crawling" : "ready"),
+      productData: productJson(input.product),
       source: input.source || undefined,
       note: input.note?.trim() || null,
     })
     .returning();
 
-  if (input.product?.price !== undefined) {
-    await db.insert(schema.priceSnapshots).values({
-      linkId: row.id,
-      price: String(input.product.price),
-      currency: input.product.currency,
-      inStock: input.product.inStock ?? null,
-    });
-  }
-
-  const tagIds = await tagIdsFor(uid, input.tags);
-  if (tagIds.length > 0) {
-    await db
-      .insert(schema.linkTags)
-      .values(tagIds.map((tagId) => ({ linkId: row.id, tagId })))
-      .onConflictDoNothing();
-  }
+  await savePrice(row.id, input.product);
+  await addTags(uid, row.id, input.tags);
+  if (unread) after(() => fillFromPage(uid, row.id, url, input.title));
 
   // Download/resize/upload runs after the response: the card shows the hotlinked
   // image now and picks up the re-hosted copy on the next load.
@@ -139,6 +151,40 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     heroImage,
     pinned: row.pinned,
   };
+}
+
+/** Reads a link saved unread and fills in its card after the response — the same crawl the add-link
+ * form runs first. A title the client sent stays, unless it's only the URL or domain. Ends "ready"
+ * either way: a page that can't be read keeps what it was saved with. */
+async function fillFromPage(uid: string, id: string, url: string, sentTitle: string) {
+  let patch: Partial<typeof schema.links.$inferInsert> = {};
+  try {
+    const r = await crawlUrl(url, () => {});
+    if ("failed" in r) return;
+    const placeholder = !sentTitle || [url, r.domain, domainFromUrl(url)].includes(sentTitle);
+    patch = {
+      ...(placeholder && r.title ? { title: r.title } : {}),
+      canonicalUrl: r.canonicalUrl,
+      excerpt: r.excerpt,
+      articleText: r.articleText,
+      heroImage: r.heroImage ? ((await reuploadHeroImage(r.heroImage, id, url)) ?? r.heroImage) : null,
+      tint: r.tint,
+      stripe: r.stripe,
+      initial: r.initial,
+      contentType: r.contentType,
+      readingTimeMinutes: r.readingTimeMinutes ?? null,
+      productData: productJson(r.product),
+    };
+    await savePrice(id, r.product);
+    await addTags(uid, id, r.suggestedTags);
+  } catch (err) {
+    console.error("fillFromPage", url, err);
+  } finally {
+    await db
+      .update(schema.links)
+      .set({ ...patch, status: "ready", updatedAt: new Date() })
+      .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
+  }
 }
 
 const MAX_NOTE_CHARS = 20_000;

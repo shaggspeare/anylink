@@ -27,7 +27,6 @@ public final class ShareSession {
     public private(set) var title: String?
     public private(set) var saved: LinkItem?
     public private(set) var collection: LinkCollection?
-    public private(set) var crawlDone = false
     /// `.note` / `.image` when the share wasn't a link; drives the extension's copy.
     public private(set) var kind: ContentType = .article
     public let recent: [LinkCollection]
@@ -36,7 +35,6 @@ public final class ShareSession {
     @ObservationIgnored let cache: LocalCache?
     @ObservationIgnored let signedIn: Bool
     @ObservationIgnored private var pending: PendingSave?
-    @ObservationIgnored private var crawlTask: Task<Void, Never>?
 
     /// `api` is nil when no backend is configured (Mock builds): everything goes through a PendingSave.
     public init(api: (any AnyLinkAPI)?, cache: LocalCache?, signedIn: Bool) {
@@ -71,7 +69,6 @@ public final class ShareSession {
         do {
             saved = try await api.createNote(text, collectionId: nil)
             mode = .saved
-            crawlDone = true
         } catch {
             savePending(pendingNote)
         }
@@ -93,7 +90,6 @@ public final class ShareSession {
             LocalImages.rename(fileID, to: s.id)
             saved = s
             mode = .saved
-            crawlDone = true
         } catch {
             savePending(pendingImage)
         }
@@ -107,16 +103,8 @@ public final class ShareSession {
         guard let api else { savePending(); return }
         do {
             saved = try await api.createLink(LinkDraft(url: url.absoluteString, title: self.title))
+            // The server reads the page and adds the summary and tags after this returns.
             mode = .saved
-            crawlTask = Task { [weak self] in
-                // Drives the status line only; the server or the app finishes enrichment (`05` § Gaps).
-                do {
-                    for try await e in await api.crawl(url) {
-                        if case .done = e { self?.crawlDone = true }
-                        if case .failed = e { self?.crawlDone = true }
-                    }
-                } catch {}
-            }
         } catch {
             savePending()
         }
@@ -141,9 +129,8 @@ public final class ShareSession {
         }
     }
 
-    /// Done: stop listening, keep the note.
+    /// Done: keep the note.
     public func finish(note: String) async {
-        crawlTask?.cancel()
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !note.isEmpty else { return }
         if let saved, let api {

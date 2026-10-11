@@ -28,6 +28,9 @@ public final class LibraryStore {
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     /// Launch and becoming active both drain the share extension's saves; two at once would save each twice.
     @ObservationIgnored var drainingPendingSaves = false
+    /// A card shows before its save returns, under a "local-…" id. Each save's server id (nil if it failed),
+    /// so a change made to the card meanwhile reaches the server under the right id.
+    @ObservationIgnored private var creating: [LinkItem.ID: Task<LinkItem.ID?, Never>] = [:]
     public private(set) var syncState: SyncState = .idle
     public private(set) var lastSynced: Date?
     public var clipboardHasURL = false
@@ -150,7 +153,7 @@ public final class LibraryStore {
     private func sync(_ op: PendingOp, rollback: @escaping @MainActor () -> Void) {
         let api = api
         enqueue { [weak self] in
-            guard let self else { return }
+            guard let self, let op = await self.resolved(op) else { return }
             if !self.outbox.isEmpty {
                 self.queue(op)
                 await self.drain()
@@ -191,8 +194,13 @@ public final class LibraryStore {
 
     private func drain() async {
         while let item = outbox.first {
+            guard let op = await resolved(item.op) else {
+                outbox.removeFirst()   // its card never made it to the server
+                persistOutbox()
+                continue
+            }
             do {
-                try await item.op.run(api)
+                try await op.run(api)
                 outbox.removeFirst()
                 persistOutbox()
             } catch AppError.offline {
@@ -244,6 +252,15 @@ public final class LibraryStore {
     }
 
     private func put(_ before: [LinkItem]) { for l in before { links[l.id] = l } }
+
+    /// `op` with temporary ids swapped for the server's, once those saves finish. Nil if nothing is left to act on.
+    private func resolved(_ op: PendingOp) async -> PendingOp? {
+        var ids: [LinkItem.ID: LinkItem.ID] = [:]
+        for id in op.linkIDs where id.hasPrefix("local-") {
+            ids[id] = await creating[id]?.value
+        }
+        return op.resolving { $0.hasPrefix("local-") ? ids[$0] : $0 }
+    }
 
     // MARK: - Loading
 
@@ -315,16 +332,23 @@ public final class LibraryStore {
     }
 
     /// Shows `temp` at once, swaps in the server's copy, or takes it back out and says why.
-    private func insert(_ temp: LinkItem, suffix: String = "", create: () async throws -> LinkItem) async -> LinkItem? {
+    private func insert(_ temp: LinkItem, suffix: String = "", create: @escaping @MainActor () async throws -> LinkItem) async -> LinkItem? {
         if saveLimitReached?() == true {
             onSaveLimit?()
             return nil
         }
         links[temp.id] = temp
         order.insert(temp.id, at: 0)
+        let attempt = Task { @MainActor in try await create() }
+        creating[temp.id] = Task { @MainActor in try? await attempt.value.id }
         do {
-            let saved = try await create()
-            links[temp.id] = nil
+            var saved = try await attempt.value
+            // Changes made to the card while it saved are queued for the server; keep them on screen too.
+            if let edited = links.removeValue(forKey: temp.id), edited != temp {
+                saved.collectionId = edited.collectionId; saved.tags = edited.tags; saved.size = edited.size
+                saved.note = edited.note; saved.favorite = edited.favorite; saved.pinned = edited.pinned
+                saved.archived = edited.archived; saved.deleted = edited.deleted; saved.highlights = edited.highlights
+            }
             links[saved.id] = saved
             if let i = order.firstIndex(of: temp.id) { order[i] = saved.id }
             undo.register("Saved to \(name(of: saved.collectionId))" + suffix) { [weak self] in self?.trash([saved.id], announce: false) }

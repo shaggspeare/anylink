@@ -91,6 +91,15 @@ function asNumber(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** "1.2K" → 1200, "1,234 reviews" → 1234. Always whole: iOS decodes counts as Int, and one
+ * fraction fails the whole library load. */
+function asCount(value: unknown): number | undefined {
+  const m = String(value ?? "").replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*([km])?/i);
+  if (!m) return undefined;
+  const scale = !m[2] ? 1 : m[2].toLowerCase() === "k" ? 1_000 : 1_000_000;
+  return Math.round(Number(m[1]) * scale);
+}
+
 function extractProduct(domain: string, jsonLd: Record<string, unknown>[]): ProductDetails {
   const productNode = findByType(jsonLd, ["Product"]) ?? {};
   const offerRaw = (productNode as Record<string, unknown>).offers;
@@ -109,7 +118,7 @@ function extractProduct(domain: string, jsonLd: Record<string, unknown>[]): Prod
         ? offer.availability.toLowerCase().includes("instock")
         : undefined,
     rating: asNumber(rating?.ratingValue),
-    reviewCount: asNumber(rating?.reviewCount ?? rating?.ratingCount),
+    reviewCount: asCount(rating?.reviewCount ?? rating?.ratingCount),
     variants: [],
     specs: [],
     totalSpecCount: 0,

@@ -182,7 +182,9 @@ struct AddLinkSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if model.phase == .failed {
-                        Notice("The page wouldn't open (\(model.failure?.reason ?? "unknown")) — the title is guessed from the link. Edit it and save; nothing else is needed.")
+                        Notice(model.failure?.reason == "rate-limited"
+                            ? "Too many previews. Sign in to keep going — or save this one with the title guessed from the link."
+                            : "The page wouldn't open (\(model.failure?.reason ?? "unknown")) — the title is guessed from the link. Edit it and save; nothing else is needed.")
                     } else if model.isExcerptOnly {
                         Notice("The site wouldn't give up the full page — this card is built from its metadata and written up by AI. Worth a glance before you save.")
                     }

@@ -255,6 +255,21 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         #expect(added.url == url.absoluteString && added.collectionId == "ios" && added.note == "tab bars")
     }
 
+    /// A card is on screen before its save returns; a change made then reaches the server under the real id.
+    @Test func changesToACardStillSavingReachTheServer() async throws {
+        let api = MockAPI.fixtures(latency: true)
+        let store = LibraryStore(api: api, snapshot: Fixtures.library)
+        async let saving = store.saveNote("Call the plumber")
+        while !store.live.contains(where: { $0.id.hasPrefix("local-") }) { await Task.yield() }
+        let temp = try #require(store.live.first { $0.id.hasPrefix("local-") })
+        store.setFavorite(temp.id, true)
+        let saved = try #require(await saving)
+        await store.settle()
+        #expect(store.link(saved.id)?.favorite == true)
+        let server = try await api.library(since: nil).links.first { $0.id == saved.id }
+        #expect(server?.favorite == true)
+    }
+
     /// Launch and becoming active drain at the same moment; the share is still saved once.
     @Test func concurrentDrainsSaveOnce() async throws {
         let cache = try LocalCache(inMemory: true)

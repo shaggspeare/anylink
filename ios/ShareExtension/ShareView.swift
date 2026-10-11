@@ -82,9 +82,6 @@ struct ShareView: View {
                 case .saved where session.kind == .note || session.kind == .image:
                     Image(systemName: "checkmark").foregroundStyle(AL.inStock)
                     Text(session.kind == .note ? "Links in it stay tappable" : "Kept on this device and synced")
-                case .saved where session.crawlDone:
-                    Image(systemName: "checkmark").foregroundStyle(AL.inStock)
-                    Text("Summary and tags added")
                 default:
                     Circle().fill(AL.signal).frame(width: 7, height: 7).opacity(pulse ? 0.3 : 1)
                         .onAppear { if !reduceMotion { withAnimation(.easeInOut(duration: 0.7).repeatForever()) { pulse = true } } }
