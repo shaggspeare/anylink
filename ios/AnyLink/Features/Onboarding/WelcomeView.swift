@@ -16,7 +16,7 @@ struct WelcomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(spacing: 8) {
-                    Image(systemName: "link").font(.title2.weight(.bold)).foregroundStyle(AL.signal)
+                    Image(decorative: "Logo").resizable().scaledToFit().frame(width: 28, height: 28)
                     Text("AnyLink").font(AL.Font.brand(17, .semibold, relativeTo: .headline)).tracking(-0.6)
                 }
                 .accessibilityElement(children: .combine)
@@ -65,8 +65,8 @@ struct WelcomeView: View {
             Text("↓ AnyLink reads it").font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
                 .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
             VStack(alignment: .leading, spacing: 8) {
-                HeroFallback(tint: Color(hex: 0x17181B), stripe: AL.lime)
-                    .frame(height: 120)
+                Color.clear.frame(height: 120)
+                    .overlay { Image("OnboardingAstronaut").resizable().scaledToFill() }
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 HStack(spacing: 6) {
                     InitialBadge(initial: "N", tint: Color(hex: 0x17181B), stripe: AL.lime, size: 14)
