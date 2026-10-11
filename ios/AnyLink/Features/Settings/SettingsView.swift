@@ -23,7 +23,7 @@ enum Appearance: String, CaseIterable, Identifiable {
 
 /// S18. System chrome (SF, inset-grouped list) per D4.
 /// Ends the Supabase session and clears this account's library and outbox from the device; RootView
-/// sees the flag and shows Welcome. Settings and the Collections avatar menu both call it.
+/// sees the flag and shows Welcome.
 @MainActor
 func signOut(_ store: LibraryStore) async {
     try? await AuthService.client?.signOut()
@@ -105,8 +105,19 @@ struct SettingsView: View {
             }
         }
         .tint(AL.ink)
-        .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Same bar title as the other tab roots.
+            ToolbarItem(placement: .topBarLeading) {
+                Text("Profile")
+                    .font(AL.Font.largeTitle).tracking(-1.65)
+                    .foregroundStyle(AL.ink)
+                    .fixedSize()
+                    .padding(.trailing, 4).drawingGroup()
+                    .accessibilityAddTraits(.isHeader)
+            }
+            .sharedBackgroundVisibility(.hidden)
+        }
     }
 
     private var account: some View {

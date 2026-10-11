@@ -3,7 +3,7 @@ import Observation
 import Models
 import QueryLanguage
 
-public enum AppTab: Hashable, Sendable { case library, collections, search }
+public enum AppTab: Hashable, Sendable { case library, collections, search, profile }
 
 public enum Route: Hashable, Sendable {
     case link(LinkItem.ID)
@@ -11,12 +11,11 @@ public enum Route: Hashable, Sendable {
     case filter(Query, title: String)
     case triage
     case trash
-    case settings
 
     /// Screens with their own bottom toolbar (or none) hide the tab bar.
     public var hidesTabBar: Bool {
         switch self {
-        case .link, .triage, .settings: true
+        case .link, .triage: true
         default: false
         }
     }
@@ -48,6 +47,7 @@ public final class Router {
     public var library: [Route] = []
     public var collections: [Route] = []
     public var search: [Route] = []
+    public var profile: [Route] = []
     public var sheet: SheetRoute?
     public var confirm: Confirm?
     /// Presents the onboarding flow (first launch with an empty library, or "Import links").
@@ -66,6 +66,7 @@ public final class Router {
         case .library: library
         case .collections: collections
         case .search: search
+        case .profile: profile
         }
     }
 
@@ -74,6 +75,7 @@ public final class Router {
         case .library: library = p
         case .collections: collections = p
         case .search: search = p
+        case .profile: profile = p
         }
     }
 

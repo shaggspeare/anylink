@@ -31,8 +31,6 @@ struct RouteView: View {
             TrashView()
         case .triage:
             TriageView(store: store)
-        case .settings:
-            SettingsView()
         }
     }
 }

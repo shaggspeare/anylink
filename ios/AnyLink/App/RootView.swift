@@ -130,6 +130,9 @@ struct MainTabs: View {
             Tab("Search", systemImage: "magnifyingglass", value: AppTab?.some(.search)) {
                 NavigationStack(path: $router.search) { SearchView(store: store).routes(.search) }
             }
+            Tab("Profile", systemImage: "person.crop.circle", value: AppTab?.some(.profile)) {
+                NavigationStack(path: $router.profile) { SettingsView().routes(.profile) }
+            }
             // The .search role is what gives a tab the separate circle; it's never selected, so no search UI appears.
             Tab("New link", systemImage: "plus", value: AppTab?.none, role: .search) { EmptyView() }
         }

@@ -11,7 +11,6 @@ struct CollectionsView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
     @AppStorage("dismissedFilterSuggestions") private var dismissedRaw = ""
-    @AppStorage("guest") private var guest = false
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
     private var dismissed: Set<String> { Set(dismissedRaw.split(separator: ",").map(String.init)) }
@@ -59,26 +58,9 @@ struct CollectionsView: View {
                     .accessibilityAddTraits(.isHeader)
             }
             .sharedBackgroundVisibility(.hidden)
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { router.sheet = .newCollection } label: { Image(systemName: "plus") }
                     .accessibilityLabel("New collection")
-                Menu {
-                    Button { router.open(.settings) } label: { Label("Settings", systemImage: "gearshape") }
-                    if guest {
-                        Button { router.sheet = .signUp } label: { Label("Sign in", systemImage: "person.crop.circle") }
-                    } else {
-                        Button(role: .destructive) { Task { await signOut(store) } } label: {
-                            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "person.fill")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
-                        .background(AL.periwinkle, in: Circle())
-                }
-                .accessibilityLabel("Account")
             }
         }
     }
