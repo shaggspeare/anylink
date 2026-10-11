@@ -19,7 +19,8 @@ public final class OnboardingModel {
         }
     }
 
-    public enum Source: Sendable { case bookmarks, telegram }
+    /// In merge order: bookmark folders beat chat context when a URL is in both.
+    public enum Source: CaseIterable, Sendable { case safari, bookmarks, whatsapp, telegram, text }
     public struct ChosenFile: Equatable, Sendable { public let name: String; public let items: [ImportItem] }
     public enum DeadGroup: CaseIterable, Sendable { case gone, parked, noAnswer }
 
@@ -43,17 +44,23 @@ public final class OnboardingModel {
             files[source] = ChosenFile(name: name, items: try ImportParsers.parse(fileName: name, data: data))
             fileErrors[source] = nil
         } catch ImportParsers.Failure.empty {
-            fileErrors[source] = "No links in that file. A Chrome bookmarks export or a Telegram result.json both work."
+            fileErrors[source] = "No links in that file. Check it's the export the steps above make."
         } catch {
-            fileErrors[source] = "Couldn't read that file — is it the export itself, rather than a zip of it?"
+            fileErrors[source] = "Couldn't read that file. Pick the export itself — the zip, HTML, result.json or .txt the steps make."
         }
+    }
+
+    /// Text pasted in, links picked out of it. Pasting again replaces it.
+    public func loadText(_ text: String) {
+        let items = ImportParsers.plainText(text)
+        files[.text] = items.isEmpty ? nil : ChosenFile(name: "Pasted text", items: items)
+        fileErrors[.text] = items.isEmpty ? "No links in that text. Only links starting with http or www are picked out." : nil
     }
 
     public func remove(_ source: Source) { files[source] = nil }
 
-    /// Bookmarks first, so a URL in both keeps its folder.
     public var merged: [ImportItem] {
-        ImportParsers.merge([files[.bookmarks]?.items ?? [], files[.telegram]?.items ?? []])
+        ImportParsers.merge(Source.allCases.map { files[$0]?.items ?? [] })
     }
 
     public func runImport() async {

@@ -302,7 +302,7 @@ extension LinkCheckEvent: Decodable {
 public struct ImportItem: Codable, Hashable, Sendable {
     public var url: String
     public var title: String
-    public var source: String          // "chrome" | "telegram"
+    public var source: String          // "chrome" | "safari" | "telegram" | "whatsapp" | "text"
     public var meta: ImportMeta
     public init(url: String, title: String, source: String, meta: ImportMeta = ImportMeta()) {
         self.url = url; self.title = title; self.source = source; self.meta = meta

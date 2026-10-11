@@ -42,7 +42,7 @@ struct OnboardingFlow: View {
         .background { ZStack { AL.canvas; Orbs(.addLink) }.ignoresSafeArea() }
         .fileImporter(
             isPresented: Binding(get: { picking != nil }, set: { if !$0 { picking = nil } }),
-            allowedContentTypes: [.html, .json],
+            allowedContentTypes: [.html, .json, .zip, .plainText],
             allowsMultipleSelection: true
         ) { result in
             guard let source = picking, case .success(let urls) = result else { return }
@@ -88,12 +88,24 @@ struct OnboardingFlow: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 title("Bring your links", lead: "Your exports go only into your own library. Dead links get stripped out next.")
-                sourceCard(.bookmarks, icon: "book", name: "Browser bookmarks", subtitle: "Chrome, Safari, Firefox, Arc — any HTML export",
-                           steps: ["Open the bookmark manager", "Export bookmarks → HTML file", "AirDrop it to this iPhone"])
+                section("On this iPhone")
+                sourceCard(.safari, icon: "safari", name: "Safari bookmarks", subtitle: "Folders come along and help build your collections",
+                           steps: ["Settings → Apps → Safari → Export", "Tick Bookmarks only → Save to Downloads", "Choose file → Downloads → the “Safari Export” zip"],
+                           note: "Needs iOS 18.2 or later. Pick the zip as it is — there's nothing to unzip.")
+                sourceCard(.whatsapp, icon: "bubble.left.and.bubble.right", name: "WhatsApp chat", subtitle: "“Message yourself”, or any chat full of links",
+                           steps: ["Open the chat → tap its name at the top", "Export Chat → Without Media", "Save to Files, then pick the zip here"],
+                           note: "The message around each link is kept as context. In a group chat, links other people sent come in too.")
+                sourceCard(.text, icon: "text.alignleft", name: "Text with links", subtitle: "Notes, an email, a list — every link gets picked out",
+                           steps: ["Copy the text in Notes, Mail or anywhere else", "Tap Paste below"],
+                           note: "Only links starting with http or www are picked out. The line each one is on is kept as context.", paste: true)
+                section("From a computer")
+                sourceCard(.bookmarks, icon: "book", name: "Chrome, Firefox, Edge", subtitle: "Any browser's HTML bookmarks export",
+                           steps: ["Open the bookmark manager", "Export bookmarks → HTML file", "AirDrop it to this iPhone, or save it to iCloud Drive"],
+                           note: "Their iPhone apps can't export bookmarks — it has to be the computer.")
                 sourceCard(.telegram, icon: "paperplane", name: "Telegram Saved Messages", subtitle: "Message text is kept as context",
-                           steps: ["Telegram Desktop → Saved Messages", "⋮ → Export chat history → format JSON", "AirDrop result.json to this iPhone"])
-                Label("Exports usually live on your computer. AirDrop them here, or save them to iCloud Drive — they show up in Files.", systemImage: "info.circle")
-                    .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                           steps: ["Install Telegram Desktop from desktop.telegram.org", "Saved Messages → ⋮ → Export chat history",
+                                   "Untick photos and files, format: Machine-readable JSON", "AirDrop result.json to this iPhone"],
+                           note: "Telegram for iPhone can't export, and neither can the Mac App Store “Telegram” — only Telegram Desktop. A new desktop login waits 24 hours before it can export, unless you approve the request on your phone. Only Saved Messages is read.")
                 #if DEBUG
                 if AppConfig.isUITesting || model.files.isEmpty {
                     Button("Load sample exports") {
@@ -123,7 +135,15 @@ struct OnboardingFlow: View {
         }
     }
 
-    private func sourceCard(_ source: OnboardingModel.Source, icon: String, name: String, subtitle: String, steps: [String]) -> some View {
+    private func section(_ title: String) -> some View {
+        Text(title).font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
+            .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+            .padding(.top, 4)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func sourceCard(_ source: OnboardingModel.Source, icon: String, name: String, subtitle: String, steps: [String],
+                            note: String? = nil, paste: Bool = false) -> some View {
         let chosen = model.files[source]
         return VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
@@ -154,8 +174,16 @@ struct OnboardingFlow: View {
                         Text("\(i + 1). \(s)").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a65))
                     }
                 }
-                Button("Choose file") { picking = source }
-                    .buttonStyle(ALSmallButtonStyle(.ink))
+                if let note { Text(note).font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a50)) }
+                if paste {
+                    // The system Paste button reads the clipboard without the "Allow Paste" prompt.
+                    PasteButton(payloadType: String.self) { model.loadText($0.joined(separator: "\n")) }
+                        .buttonBorderShape(.capsule)
+                        .tint(AL.ink)
+                } else {
+                    Button("Choose file") { picking = source }
+                        .buttonStyle(ALSmallButtonStyle(.ink))
+                }
             }
             if let e = model.fileErrors[source] { Notice(e) }
         }

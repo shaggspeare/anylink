@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { CollectionMarker } from "@/components/collection-marker";
-import { mergeImports, parseImportFile, type ImportedLink } from "@/lib/import/parse";
+import { mergeImports, parseImportBytes, parseText, type ImportedLink } from "@/lib/import/parse";
 import { useLibrary } from "@/lib/store";
 import type { GroupedResult } from "@/lib/db/actions";
 import type { LinkItem } from "@/lib/types";
@@ -88,38 +88,80 @@ const PRIMARY =
 
 // ——————————————————————————————————————————— 1. Import
 
+/** Where each export comes from and how to get it. Kept beside the drop zone, because the
+ * hard part of importing is finding the export button, not reading the file. */
+const SOURCES: { name: string; where: string; steps: string; note?: string }[] = [
+  {
+    name: "Safari",
+    where: "iPhone or Mac",
+    steps:
+      "iPhone (iOS 18.2+): Settings → Apps → Safari → Export → tick Bookmarks → Save to Downloads. Mac: Safari → File → Export Browsing Data to File.",
+    note: "Drop the “Safari Export” zip as it is. Only bookmarks are read — leave passwords and cards unticked anyway.",
+  },
+  {
+    name: "Chrome, Firefox, Edge",
+    where: "computer",
+    steps: "Bookmark manager → Export bookmarks → an HTML file.",
+    note: "The phone apps can't export bookmarks. Folders come along and help build your collections.",
+  },
+  {
+    name: "WhatsApp",
+    where: "phone",
+    steps: "Open the chat → tap its name → Export Chat → Without Media.",
+    note: "iPhone makes a zip, Android a .txt — both work. Every link in the chat comes in with its message as context; in a group, that's everyone's links.",
+  },
+  {
+    name: "Telegram Saved Messages",
+    where: "Telegram Desktop",
+    steps: "Saved Messages → ⋮ → Export chat history → untick photos and files, format JSON → drop result.json.",
+    note: "Only Telegram Desktop (desktop.telegram.org) can export — not the phone apps or the Mac App Store “Telegram”. A fresh desktop login waits 24 hours before exporting unless you approve it on your phone. Only Saved Messages is read.",
+  },
+];
+
+const SOURCE_LABEL: Record<ImportedLink["source"], string> = {
+  chrome: "bookmarks",
+  safari: "Safari",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+  text: "pasted text",
+};
+
 function Upload({ onDone }: { onDone: () => void }) {
   const { importLinks } = useLibrary();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [items, setItems] = useState<ImportedLink[] | null>(null);
+  const [fileItems, setFileItems] = useState<ImportedLink[]>([]);
+  const [pasted, setPasted] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Files first, so a URL in both keeps its folder or message.
+  const items = useMemo(() => mergeImports([fileItems, parseText(pasted)]), [fileItems, pasted]);
 
   const handleFiles = async (files: FileList) => {
     setError("");
     try {
       const parsed = await Promise.all(
-        [...files].map(async (file) => parseImportFile(file.name, await file.text()))
+        [...files].map(async (file) => parseImportBytes(file.name, new Uint8Array(await file.arrayBuffer())))
       );
       const merged = mergeImports(parsed);
       if (merged.length === 0) {
-        setError("No links in that file. A Chrome bookmarks export or a Telegram result.json both work.");
+        setError("No links in that file. Check it's one of the exports below.");
         return;
       }
-      setItems(merged);
+      setFileItems(merged);
     } catch {
-      setError("Couldn't read that file — is it the export itself, rather than a zip of it?");
+      setError("Couldn't read that file. Drop the export itself — the zip, HTML, result.json or .txt the steps below make.");
     }
   };
 
   const counts = useMemo(() => {
-    const bySource = new Map<string, number>();
-    for (const item of items ?? []) bySource.set(item.source, (bySource.get(item.source) ?? 0) + 1);
+    const bySource = new Map<ImportedLink["source"], number>();
+    for (const item of items) bySource.set(item.source, (bySource.get(item.source) ?? 0) + 1);
     return [...bySource.entries()];
   }, [items]);
 
   const runImport = async () => {
-    if (!items) return;
+    if (items.length === 0) return;
     setBusy(true);
     try {
       await importLinks(items);
@@ -142,25 +184,28 @@ function Upload({ onDone }: { onDone: () => void }) {
           e.preventDefault();
           if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
         }}
-        className="flex flex-col items-start gap-3.5 rounded-[22px] border border-dashed border-ink/20 px-6 py-7"
+        className="flex flex-col items-start gap-4 rounded-[22px] border border-dashed border-ink/20 px-6 py-7"
       >
         <div className="flex flex-col gap-1">
           <div className="text-[15px] font-semibold">Drop your export files here</div>
-          <p className="max-w-[440px] text-[13px] leading-[1.6] text-ink/55">
-            <b className="font-semibold text-ink/70">Browser bookmarks:</b> Bookmark manager → Export
-            bookmarks → an HTML file.
-            <br />
-            <b className="font-semibold text-ink/70">Telegram:</b> Saved Messages → ⋮ → Export chat
-            history → JSON.
-            <br />
-            Both at once is fine — they get merged and de-duplicated.
-          </p>
+          <p className="text-[13px] text-ink/55">Several at once is fine — they get merged and de-duplicated.</p>
         </div>
+        <dl className="flex max-w-[520px] flex-col gap-3 text-[13px] leading-[1.6]">
+          {SOURCES.map((s) => (
+            <div key={s.name}>
+              <dt className="font-semibold text-ink/75">
+                {s.name} <span className="font-normal text-ink/40">· {s.where}</span>
+              </dt>
+              <dd className="text-ink/60">{s.steps}</dd>
+              {s.note && <dd className="text-ink/45">{s.note}</dd>}
+            </div>
+          ))}
+        </dl>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept=".html,.htm,.json"
+          accept=".html,.htm,.json,.zip,.txt"
           className="hidden"
           onChange={(e) => e.target.files?.length && handleFiles(e.target.files)}
         />
@@ -173,21 +218,35 @@ function Upload({ onDone }: { onDone: () => void }) {
         </button>
       </div>
 
+      <label className="flex flex-col gap-2">
+        <span className="text-[15px] font-semibold">Or paste text with links</span>
+        <span className="text-[13px] text-ink/55">
+          Notes, an email, a list — every link inside gets picked out, with its line kept as context.
+        </span>
+        <textarea
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          rows={4}
+          placeholder="https://… one per line, or buried in a paragraph"
+          className="rounded-[14px] border border-rim/80 bg-surface/70 px-4 py-3 text-body outline-none placeholder:text-ink/30"
+        />
+      </label>
+
       {error && <p className="text-[13px] text-signal">{error}</p>}
 
-      {items && (
+      {items.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-[15px] font-semibold">{items.length} links found</span>
           {counts.map(([source, n]) => (
             <span key={source} className="rounded-full bg-ink/6 px-3 py-1 text-meta text-ink/60">
-              {n} from {source === "chrome" ? "bookmarks" : "Telegram"}
+              {n} from {SOURCE_LABEL[source]}
             </span>
           ))}
         </div>
       )}
 
-      <button type="button" onClick={runImport} disabled={!items || busy} className={PRIMARY}>
-        {busy ? "Importing…" : items ? `Import ${items.length} links` : "Import"}
+      <button type="button" onClick={runImport} disabled={items.length === 0 || busy} className={PRIMARY}>
+        {busy ? "Importing…" : items.length > 0 ? `Import ${items.length} links` : "Import"}
       </button>
     </Panel>
   );

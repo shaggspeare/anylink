@@ -104,7 +104,7 @@ export const links = pgTable(
     // normalized table given how much they vary per site — see PLAN.md's product-parsing
     // risk note. Price itself stays relational, in price_snapshots/price_alerts below.
     productData: jsonb("product_data"),
-    // Where the link came in from: 'manual' | 'chrome' | 'telegram'. Text, not an enum,
+    // Where the link came in from: 'manual' | 'chrome' | 'safari' | 'telegram' | 'whatsapp' | 'text'. Text, not an enum,
     // so the next import source is a parser and nothing else.
     source: text("source").notNull().default("manual"),
     // Whatever the export file said about it — bookmark folder path, Telegram message

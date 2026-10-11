@@ -62,7 +62,7 @@ export type LinkItem = {
   position?: number;
   status: LinkStatus;
   createdAt: string;
-  /** 'manual' | 'chrome' | 'telegram' — where the link entered the library. */
+  /** 'manual' | 'chrome' | 'safari' | 'telegram' | 'whatsapp' | 'text' — where the link entered the library. */
   source?: string;
   /** What the export file knew: bookmark folder, Telegram message text, saved date. */
   importMeta?: ImportMeta;

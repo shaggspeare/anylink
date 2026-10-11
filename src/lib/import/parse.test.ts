@@ -1,7 +1,16 @@
 // Run: node --test src/lib/import/parse.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mergeImports, parseBookmarks, parseImportFile, parseTelegram } from "./parse.ts";
+import { deflateRawSync } from "node:zlib";
+import {
+  mergeImports,
+  parseBookmarks,
+  parseImportBytes,
+  parseImportFile,
+  parseTelegram,
+  parseText,
+  parseWhatsApp,
+} from "./parse.ts";
 
 // Shaped exactly like a Chrome export: an unclosed <DT>, <DL><p> for every folder,
 // a toolbar folder at the root, and one entry that isn't a web page at all.
@@ -124,4 +133,98 @@ test("merge: same URL from two sources lands once, first wins", () => {
 test("dispatch: .json reads as Telegram, .html as bookmarks", () => {
   assert.equal(parseImportFile("result.json", TELEGRAM)[0].source, "telegram");
   assert.equal(parseImportFile("bookmarks_9_18_26.html", BOOKMARKS)[0].source, "chrome");
+});
+
+const WHATSAPP_IOS = `\u200e[15/03/2024, 14:23:05] Ann: Messages and calls are end-to-end encrypted.
+[15/03/2024, 14:24:10] Ann: Rust macros guide https://example.com/macros.
+and a second line
+[16/03/2024, 9:01:00] Ben: \u200e<attached: 00000012-PHOTO-2024-03-16.jpg>
+[16/03/2024, 9:02:00] Ben: www.example.com/kitchen, (also https://example.com/macros)`;
+
+test("whatsapp: iPhone transcript, multi-line messages, context, dedupe, no file names", () => {
+  const links = parseWhatsApp(WHATSAPP_IOS);
+  assert.deepEqual(
+    links.map((l) => l.url),
+    ["https://example.com/macros", "https://www.example.com/kitchen"]
+  );
+  assert.equal(links[0].source, "whatsapp");
+  assert.equal(links[0].title, "Rust macros guide");
+  assert.equal(links[0].meta.context, "Rust macros guide . and a second line");
+  assert.equal(links[0].meta.savedAt, new Date(2024, 2, 15, 14, 24, 10).toISOString());
+});
+
+test("whatsapp: Android lines, month-first and 12-hour dates", () => {
+  const links = parseWhatsApp(
+    "3/15/24, 2:23\u202fPM - Ann: https://example.com/a\n3/16/24, 12:05 AM - Ann: https://example.com/b"
+  );
+  assert.deepEqual(
+    links.map((l) => l.meta.savedAt),
+    [new Date(2024, 2, 15, 14, 23).toISOString(), new Date(2024, 2, 16, 0, 5).toISOString()]
+  );
+});
+
+test("text: every http and www link, its line as context", () => {
+  const links = parseText("Reading list:\nhttps://example.com/one great read\n\nsee www.example.com/two in notes.txt");
+  assert.deepEqual(
+    links.map((l) => [l.url, l.title, l.source]),
+    [
+      ["https://example.com/one", "great read", "text"],
+      ["https://www.example.com/two", "see in notes", "text"],
+    ]
+  );
+});
+
+/** A real zip: one deflated entry, central directory, end record. */
+function zip(entries: Record<string, string>): Uint8Array {
+  const local: Buffer[] = [];
+  const central: Buffer[] = [];
+  let offset = 0;
+  for (const [name, text] of Object.entries(entries)) {
+    const raw = Buffer.from(text);
+    const data = deflateRawSync(raw);
+    const n = Buffer.from(name);
+    const head = Buffer.alloc(30);
+    head.writeUInt32LE(0x04034b50, 0);
+    head.writeUInt16LE(8, 8);
+    head.writeUInt32LE(data.length, 18);
+    head.writeUInt32LE(raw.length, 22);
+    head.writeUInt16LE(n.length, 26);
+    const dir = Buffer.alloc(46);
+    dir.writeUInt32LE(0x02014b50, 0);
+    dir.writeUInt16LE(8, 10);
+    dir.writeUInt32LE(data.length, 20);
+    dir.writeUInt32LE(raw.length, 24);
+    dir.writeUInt16LE(n.length, 28);
+    dir.writeUInt32LE(offset, 42);
+    local.push(head, n, data);
+    central.push(dir, n);
+    offset += 30 + n.length + data.length;
+  }
+  const cd = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(Object.keys(entries).length, 10);
+  end.writeUInt32LE(cd.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return new Uint8Array(Buffer.concat([...local, cd, end]));
+}
+
+test("zip: Safari export reads Bookmarks.html only, as Safari", async () => {
+  const links = await parseImportBytes(
+    "Safari Export 2026-01-13.zip",
+    zip({ "Bookmarks.html": BOOKMARKS, "History.json": "{}", "__MACOSX/._Bookmarks.html": "x" })
+  );
+  assert.equal(links.length, 4);
+  assert.equal(links[0].source, "safari");
+});
+
+test("zip: WhatsApp chat export", async () => {
+  const links = await parseImportBytes("WhatsApp Chat - Ann.zip", zip({ "_chat.txt": WHATSAPP_IOS }));
+  assert.equal(links.length, 2);
+  assert.equal(links[0].source, "whatsapp");
+});
+
+test("dispatch: .txt reads as WhatsApp when it looks like one, else as text", () => {
+  assert.equal(parseImportFile("notes.txt", WHATSAPP_IOS)[0].source, "whatsapp");
+  assert.equal(parseImportFile("notes.txt", "https://example.com/x")[0].source, "text");
 });

@@ -81,6 +81,73 @@ import Networking
         #expect(throws: ImportParsers.Failure.empty) { try ImportParsers.parse(fileName: "x.html", data: Data("<DL></DL>".utf8)) }
     }
 
+    static let whatsAppIOS = "\u{200E}[15/03/2024, 14:23:05] Ann: Messages and calls are end-to-end encrypted.\n"
+        + "[15/03/2024, 14:24:10] Ann: Rust macros guide https://example.com/macros.\nand a second line\n"
+        + "[16/03/2024, 9:01:00] Ben: \u{200E}<attached: 00000012-PHOTO-2024-03-16.jpg>\n"
+        + "[16/03/2024, 9:02:00] Ben: www.example.com/kitchen, (also https://example.com/macros)"
+
+    static func local(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int, _ s: Int = 0) -> String? {
+        Calendar(identifier: .gregorian).date(from: DateComponents(year: y, month: mo, day: d, hour: h, minute: mi, second: s))?
+            .formatted(ImportParsers.isoMillis)
+    }
+
+    @Test func whatsAppIPhoneTranscript() {
+        let links = ImportParsers.whatsApp(Self.whatsAppIOS)
+        #expect(links.map(\.url) == ["https://example.com/macros", "https://www.example.com/kitchen"])
+        #expect(links[0].source == "whatsapp")
+        #expect(links[0].title == "Rust macros guide")
+        #expect(links[0].meta.context == "Rust macros guide . and a second line")
+        #expect(links[0].meta.savedAt == Self.local(2024, 3, 15, 14, 24, 10))
+    }
+
+    @Test func whatsAppAndroidMonthFirst12Hour() {
+        let links = ImportParsers.whatsApp("3/15/24, 2:23\u{202F}PM - Ann: https://example.com/a\n3/16/24, 12:05 AM - Ann: https://example.com/b")
+        #expect(links.map(\.meta.savedAt) == [Self.local(2024, 3, 15, 14, 23), Self.local(2024, 3, 16, 0, 5)])
+    }
+
+    @Test func plainTextHTTPAndWWWOnly() {
+        let links = ImportParsers.plainText("Reading list:\nhttps://example.com/one great read\n\nsee www.example.com/two in notes.txt")
+        #expect(links.map(\.url) == ["https://example.com/one", "https://www.example.com/two"])
+        #expect(links.map(\.title) == ["great read", "see in notes"])
+        #expect(links.allSatisfy { $0.source == "text" })
+    }
+
+    /// A real zip, built with the system's own `zip` so the reader is checked against what Apple tools write.
+    static func zip(_ entries: [String: String]) throws -> Data {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        for (name, text) in entries {
+            let url = dir.appending(path: name)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(text.utf8).write(to: url)
+        }
+        let out = dir.appending(path: "out.zip")
+        let zip = Process()
+        zip.executableURL = URL(filePath: "/usr/bin/zip")
+        zip.currentDirectoryURL = dir
+        zip.arguments = ["-qr", "out.zip"] + entries.keys
+        try zip.run()
+        zip.waitUntilExit()
+        return try Data(contentsOf: out)
+    }
+
+    #if os(macOS)
+    @Test func zipSafariExportReadsBookmarksOnly() throws {
+        let data = try Self.zip(["Bookmarks.html": Self.bookmarks, "History.json": "{}", "__MACOSX/._Bookmarks.html": "x"])
+        let links = try ImportParsers.parse(fileName: "Safari Export 2026-01-13.zip", data: data)
+        #expect(links.count == 4 && links[0].source == "safari")
+    }
+
+    @Test func zipWhatsAppExport() throws {
+        let links = try ImportParsers.parse(fileName: "WhatsApp Chat - Ann.zip", data: try Self.zip(["_chat.txt": Self.whatsAppIOS]))
+        #expect(links.count == 2 && links[0].source == "whatsapp")
+    }
+    #endif
+
+    @Test func txtDispatch() throws {
+        #expect(try ImportParsers.parse(fileName: "notes.txt", data: Data(Self.whatsAppIOS.utf8))[0].source == "whatsapp")
+        #expect(try ImportParsers.parse(fileName: "notes.txt", data: Data("https://example.com/x".utf8))[0].source == "text")
+    }
+
     @Test func titleFromURL() {
         #expect(ImportParsers.titleFromURL("https://www.example.com/2026/09/designing-tab-bars.html") == "Designing tab bars")
         #expect(ImportParsers.titleFromURL("https://example.com/p123456") == "example.com")
@@ -126,9 +193,13 @@ import Networking
         let m = loaded()
         #expect(m.merged.count == 34)
         m.load(Data("<DL></DL>".utf8), named: "x.html", as: .bookmarks)
-        #expect(m.fileErrors[.bookmarks] == "No links in that file. A Chrome bookmarks export or a Telegram result.json both work.")
+        #expect(m.fileErrors[.bookmarks] == "No links in that file. Check it's the export the steps above make.")
         m.load(Data("PK\u{3}".utf8), named: "x.json", as: .telegram)
-        #expect(m.fileErrors[.telegram] == "Couldn't read that file — is it the export itself, rather than a zip of it?")
+        #expect(m.fileErrors[.telegram] == "Couldn't read that file. Pick the export itself — the zip, HTML, result.json or .txt the steps make.")
+        m.loadText("no links here")
+        #expect(m.fileErrors[.text] != nil && m.files[.text] == nil)
+        m.loadText("https://example.com/pasted-thing")
+        #expect(m.files[.text]?.items.count == 1 && m.merged.count == 35)
     }
 
     @Test func wholeFlowOnMock() async {

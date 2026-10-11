@@ -47,25 +47,33 @@ step.
 
 **Layout:**
 - Large title "Bring your links". Lead: "Your exports go only into your own library. Dead links get stripped out next."
-- Two frosted source cards (r22, padding 16). Each has a 40×40 r12 icon tile, a name (15/600) and a subtitle (meta):
-  - **Browser bookmarks**: "Chrome, Safari, Firefox, Arc — any HTML export". Steps:
-    1. Open the bookmark manager
-    2. Export bookmarks → HTML file
-    3. AirDrop it to this iPhone
-  - **Telegram Saved Messages**: "Message text is kept as context". Steps:
-    1. Telegram Desktop → Saved Messages
-    2. ⋮ → Export chat history → format JSON
-    3. AirDrop result.json to this iPhone
+- Five frosted source cards (r22, padding 16) in two sections, eyebrow headers "On this iPhone" and "From a computer".
+  Each has a 40×40 r12 icon tile, a name (15/600), a subtitle (meta), numbered steps and a footnote (ink .50) with
+  the source's limits:
+  - **Safari bookmarks** (`safari`): "Folders come along and help build your collections". Steps: Settings → Apps →
+    Safari → Export · Tick Bookmarks only → Save to Downloads · Choose file → Downloads → the "Safari Export" zip.
+    Note: needs iOS 18.2+, pick the zip as it is.
+  - **WhatsApp chat** (`bubble.left.and.bubble.right`): "“Message yourself”, or any chat full of links". Steps: Open
+    the chat → tap its name · Export Chat → Without Media · Save to Files, then pick the zip. Note: the message is kept
+    as context; in a group, other people's links come in too.
+  - **Text with links** (`text.alignleft`): "Notes, an email, a list — every link gets picked out". A system
+    `PasteButton` instead of Choose file (no paste prompt). Note: only http/www links; each line is the context.
+  - **Chrome, Firefox, Edge** (`book`): "Any browser's HTML bookmarks export". Steps: bookmark manager → Export →
+    HTML → AirDrop or iCloud Drive. Note: their iPhone apps can't export.
+  - **Telegram Saved Messages** (`paperplane`): "Message text is kept as context". Steps: install Telegram Desktop ·
+    Saved Messages → ⋮ → Export chat history · untick media, Machine-readable JSON · AirDrop result.json. Note: not
+    the iPhone app or the Mac App Store "Telegram"; a new desktop login waits 24 h unless approved on the phone; only
+    Saved Messages is read.
   - Unchosen cards show the steps and a **Choose file** button. Chosen cards get a 2 pt ink border, and a lime .38
     strip "✓ filename · 1,102 links" with ✕ to remove the file.
-- Info row: "Exports usually live on your computer. AirDrop them here, or save them to iCloud Drive — they show up in Files."
 - Bottom: **Import {n} links** (ink h52; disabled with the label "Choose a file to import" when n = 0), then a text
   button **Start with an empty library**.
 
 **Interactions:**
-- `.fileImporter(allowedContentTypes: [.html, .json], allowsMultipleSelection: true)`.
-- Parse on device with `BookmarksParser` (Netscape HTML; keep the folder path and `ADD_DATE`) and
-  `TelegramParser` (JSON; keep the message text as context).
+- `.fileImporter(allowedContentTypes: [.html, .json, .zip, .plainText], allowsMultipleSelection: true)`.
+- Parse on device with `ImportParsers` (mirrors the web's `src/lib/import/parse.ts`): zips (Safari, WhatsApp) are
+  opened in place; Netscape HTML keeps the folder path and `ADD_DATE`; Telegram JSON and WhatsApp `_chat.txt` keep the
+  message text as context; plain text keeps the line. Sources: `safari`, `chrome`, `whatsapp`, `telegram`, `text`.
 - Merge the results; the first occurrence of a URL wins. Max 5,000 links. Then `POST /api/import`.
 
 **Errors** (notice under the card, verbatim from spec §4.15):
