@@ -19,7 +19,7 @@ import { suggestThemes } from "@/lib/organize";
 import type { Collection } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const SWATCHES = ["#ff5a1f", "#d6f24b", "#7c8cff", "#9aa3ad", "#e0855a"];
+export const SWATCHES = ["#ff5a1f", "#d6f24b", "#7c8cff", "#9aa3ad", "#e0855a"];
 
 /** Candidate filters, in sidebar order. Each is just a query string — one that
  * matches nothing is never rendered, so the list always mirrors the library. */

@@ -20,6 +20,8 @@ struct AddLinkSheet: View {
     @State private var composingNote = false
     @State private var photo: PhotosPickerItem?
     @State private var savingImage = false
+    @State private var namingCollection = false
+    @State private var newCollectionName = ""
     private let prefill: URL?
 
     init(store: LibraryStore, prefill: URL?, collectionID: LinkCollection.ID?) {
@@ -325,7 +327,10 @@ struct AddLinkSheet: View {
     // MARK: Collections
 
     private var collectionPicker: some View {
-        let options = Array(store.collections.filter { $0.isSmart != true }.prefix(5))
+        let plain = store.collections.filter { $0.isSmart != true }
+        var options = Array(plain.prefix(5))
+        // A collection made here lands at the end of the list; keep the pick visible.
+        if let picked = plain.first(where: { $0.id == model.collectionID }), !options.contains(picked) { options.append(picked) }
         let suggested = model.suggestedCollection?.id
         return VStack(alignment: .leading, spacing: 8) {
             Text(model.phase == .crawling ? "Collection — you can pick while it reads" : "Save to")
@@ -340,10 +345,31 @@ struct AddLinkSheet: View {
                         .accessibilityAddTraits(model.collectionID == c.id ? .isSelected : [])
                         .accessibilityHint(c.id == suggested ? "Suggested" : "")
                     }
+                    Button { newCollectionName = ""; namingCollection = true } label: {
+                        ScopeChip("+ New", isSelected: false)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("New collection")
                 }
             }
         }
         .sensoryFeedback(.selection, trigger: model.collectionID)
+        .alert("New collection", isPresented: $namingCollection) {
+            TextField("Name", text: $newCollectionName)
+            Button("Add", action: createCollection)
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func createCollection() {
+        let name = newCollectionName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        let swatch = AL.collectionSwatches[store.collections.count % AL.collectionSwatches.count]
+        Task {
+            if let c = await store.createCollection(name: name, color: String(format: "#%06X", swatch)) {
+                model.collectionID = c.id
+            }
+        }
     }
 
     // MARK: Tags

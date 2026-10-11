@@ -10,6 +10,7 @@ import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
 import { CARD_SIZES, type CardSize, type Collection } from "@/lib/types";
 import { AmbientOrbs } from "./ambient-orbs";
 import { ImageComposer, NoteComposer } from "./capture-composers";
+import { SWATCHES } from "./sidebar";
 
 type Mode = "link" | "note" | "image";
 const MODES: { id: Mode; label: string; icon: "link" | "note" | "image" }[] = [
@@ -18,6 +19,7 @@ const MODES: { id: Mode; label: string; icon: "link" | "note" | "image" }[] = [
   { id: "image", label: "Image", icon: "image" },
 ];
 const IS_URL = /^https?:\/\/\S+$/i;
+const NEW_COLLECTION = "__new__";
 
 type Phase = "idle" | "crawling" | "ready";
 type ReadyResult = CrawlResult | CrawlFailure;
@@ -510,6 +512,17 @@ function ReadyForm({
   onSave: () => void;
   saving: boolean;
 }) {
+  const { addCollection } = useLibrary();
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
+  const createCollection = async () => {
+    const name = newName.trim();
+    setNaming(false);
+    setNewName("");
+    if (!name) return;
+    const c = await addCollection(name, SWATCHES[collections.length % SWATCHES.length]);
+    setCollectionId(c.id);
+  };
   const failed = "failed" in result;
   const heroImage = failed ? undefined : result.heroImage;
   const excerptOnly = !failed && result.excerptOnly;
@@ -583,9 +596,29 @@ function ReadyForm({
         </div>
         <label className="flex flex-col gap-1.5">
           <span className="text-eyebrow text-ink/40">Collection</span>
+          {naming ? (
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  createCollection();
+                } else if (e.key === "Escape") {
+                  e.stopPropagation();
+                  setNaming(false);
+                }
+              }}
+              onBlur={() => setNaming(false)}
+              placeholder="New collection name, then Enter"
+              className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-ink outline-none placeholder:text-ink/40"
+              style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
+            />
+          ) : (
           <select
             value={collectionId}
-            onChange={(e) => setCollectionId(e.target.value)}
+            onChange={(e) => (e.target.value === NEW_COLLECTION ? setNaming(true) : setCollectionId(e.target.value))}
             onBlur={onCollectionBlur}
             className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-ink outline-none"
             style={{
@@ -603,7 +636,9 @@ function ReadyForm({
                   {c.name}
                 </option>
               ))}
+            <option value={NEW_COLLECTION}>+ New collection…</option>
           </select>
+          )}
           {collectionError && <span className="text-[11px] text-signal-soft">Pick a collection to save into.</span>}
         </label>
         <div className="flex flex-col gap-1.5">
