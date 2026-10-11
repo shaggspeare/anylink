@@ -47,9 +47,13 @@ step.
 
 **Layout:**
 - Large title "Bring your links". Lead: "Your exports go only into your own library. Dead links get stripped out next."
-- Five frosted source cards (r22, padding 16) in two sections, eyebrow headers "On this iPhone" and "From a computer".
-  Each has a 40×40 r12 icon tile, a name (15/600), a subtitle (meta), numbered steps and a footnote (ink .50) with
-  the source's limits:
+- Five source **tiles** in a 2-column grid under eyebrow headers "On this iPhone" and "From a computer": frosted r20,
+  padding 14, min height 124; a 36×36 r11 icon tile, the name (15/600) and a few words (meta). A chosen tile gets a
+  2 pt ink border, a checkmark and "{n} links"; a failed one an orange alert icon. Tapping a tile opens its **sheet**
+  (medium/large, canvas background): icon + name + subtitle, numbered steps (ink circles), a footnote with the
+  source's limits, the chosen strip or the error, and the CTA pinned at the bottom — **Choose file** (alPrimary;
+  "Choose another file" once chosen) or the system `PasteButton` for text. A file that reads fine closes the sheet.
+  Sources:
   - **Safari bookmarks** (`safari`): "Folders come along and help build your collections". Steps: Settings → Apps →
     Safari → Export · Tick Bookmarks only → Save to Downloads · Choose file → Downloads → the "Safari Export" zip.
     Note: needs iOS 18.2+, pick the zip as it is.
@@ -64,9 +68,7 @@ step.
     Saved Messages → ⋮ → Export chat history · untick media, Machine-readable JSON · AirDrop result.json. Note: not
     the iPhone app or the Mac App Store "Telegram"; a new desktop login waits 24 h unless approved on the phone; only
     Saved Messages is read.
-  - Unchosen cards show the steps and a **Choose file** button. Chosen cards get a 2 pt ink border, and a lime .38
-    strip "✓ filename · 1,102 links" with ✕ to remove the file.
-- Bottom: **Import {n} links** (ink h52; disabled with the label "Choose a file to import" when n = 0), then a text
+- Bottom (solid canvas background, so tiles scroll under it): **Import {n} links** (ink h52; disabled with the label "Choose a file to import" when n = 0), then a text
   button **Start with an empty library**.
 
 **Interactions:**

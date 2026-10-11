@@ -88,47 +88,66 @@ const PRIMARY =
 
 // ——————————————————————————————————————————— 1. Import
 
-/** Where each export comes from and how to get it. Kept beside the drop zone, because the
- * hard part of importing is finding the export button, not reading the file. */
-const SOURCES: { name: string; where: string; steps: string; note?: string }[] = [
+type SourceId = ImportedLink["source"];
+
+/** Where each export comes from and how to get it. A tile names the source; picking it
+ * shows the steps, because the hard part of importing is finding the export button. */
+const SOURCES: { id: SourceId; name: string; blurb: string; where: string; steps: string[]; note: string }[] = [
   {
+    id: "safari",
     name: "Safari",
+    blurb: "Bookmarks and folders",
     where: "iPhone or Mac",
-    steps:
-      "iPhone (iOS 18.2+): Settings → Apps → Safari → Export → tick Bookmarks → Save to Downloads. Mac: Safari → File → Export Browsing Data to File.",
-    note: "Drop the “Safari Export” zip as it is. Only bookmarks are read — leave passwords and cards unticked anyway.",
+    steps: [
+      "iPhone (iOS 18.2+): Settings → Apps → Safari → Export → tick Bookmarks → Save to Downloads.",
+      "Mac: Safari → File → Export Browsing Data to File.",
+      "Choose the “Safari Export” zip as it is — there's nothing to unzip.",
+    ],
+    note: "Only bookmarks are read, and their folders help build your collections. Leave passwords and cards unticked anyway.",
   },
   {
-    name: "Chrome, Firefox, Edge",
-    where: "computer",
-    steps: "Bookmark manager → Export bookmarks → an HTML file.",
-    note: "The phone apps can't export bookmarks. Folders come along and help build your collections.",
-  },
-  {
+    id: "whatsapp",
     name: "WhatsApp",
+    blurb: "Links from a chat",
     where: "phone",
-    steps: "Open the chat → tap its name → Export Chat → Without Media.",
-    note: "iPhone makes a zip, Android a .txt — both work. Every link in the chat comes in with its message as context; in a group, that's everyone's links.",
+    steps: ["Open the chat → tap its name at the top.", "Export Chat → Without Media.", "Choose the zip (iPhone) or .txt (Android)."],
+    note: "The message around each link is kept as context. In a group chat, links other people sent come in too.",
   },
   {
-    name: "Telegram Saved Messages",
+    id: "text",
+    name: "Text with links",
+    blurb: "Paste from anywhere",
+    where: "anywhere",
+    steps: ["Copy the text — notes, an email, a list.", "Paste it below."],
+    note: "Only links starting with http or www are picked out. The line each one is on is kept as context.",
+  },
+  {
+    id: "chrome",
+    name: "Chrome, Firefox, Edge",
+    blurb: "HTML bookmarks file",
+    where: "computer",
+    steps: ["Open the bookmark manager.", "Export bookmarks → an HTML file.", "Choose that file."],
+    note: "Their phone apps can't export bookmarks — it has to be the computer.",
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    blurb: "Saved Messages",
     where: "Telegram Desktop",
-    steps: "Saved Messages → ⋮ → Export chat history → untick photos and files, format JSON → drop result.json.",
-    note: "Only Telegram Desktop (desktop.telegram.org) can export — not the phone apps or the Mac App Store “Telegram”. A fresh desktop login waits 24 hours before exporting unless you approve it on your phone. Only Saved Messages is read.",
+    steps: [
+      "Install Telegram Desktop from desktop.telegram.org.",
+      "Saved Messages → ⋮ → Export chat history.",
+      "Untick photos and files, format: Machine-readable JSON.",
+      "Choose result.json.",
+    ],
+    note: "The phone apps can't export, and neither can the Mac App Store “Telegram” — only Telegram Desktop. A new desktop login waits 24 hours before it can export, unless you approve the request on your phone. Only Saved Messages is read.",
   },
 ];
-
-const SOURCE_LABEL: Record<ImportedLink["source"], string> = {
-  chrome: "bookmarks",
-  safari: "Safari",
-  telegram: "Telegram",
-  whatsapp: "WhatsApp",
-  text: "pasted text",
-};
 
 function Upload({ onDone }: { onDone: () => void }) {
   const { importLinks } = useLibrary();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState<SourceId | null>(null);
   const [fileItems, setFileItems] = useState<ImportedLink[]>([]);
   const [pasted, setPasted] = useState("");
   const [error, setError] = useState("");
@@ -136,6 +155,7 @@ function Upload({ onDone }: { onDone: () => void }) {
 
   // Files first, so a URL in both keeps its folder or message.
   const items = useMemo(() => mergeImports([fileItems, parseText(pasted)]), [fileItems, pasted]);
+  const source = SOURCES.find((s) => s.id === open);
 
   const handleFiles = async (files: FileList) => {
     setError("");
@@ -145,19 +165,26 @@ function Upload({ onDone }: { onDone: () => void }) {
       );
       const merged = mergeImports(parsed);
       if (merged.length === 0) {
-        setError("No links in that file. Check it's one of the exports below.");
+        setError("No links in that file. Check it's the export the steps describe.");
         return;
       }
-      setFileItems(merged);
+      // Sources are picked one at a time, so each file adds to what's there.
+      setFileItems((prev) => mergeImports([prev, merged]));
+      setOpen(null);
     } catch {
-      setError("Couldn't read that file. Drop the export itself — the zip, HTML, result.json or .txt the steps below make.");
+      setError("Couldn't read that file. Choose the export itself — the zip, HTML, result.json or .txt the steps make.");
     }
   };
 
+  const remove = (id: SourceId) => {
+    if (id === "text") setPasted("");
+    else setFileItems((prev) => prev.filter((item) => item.source !== id));
+  };
+
   const counts = useMemo(() => {
-    const bySource = new Map<ImportedLink["source"], number>();
+    const bySource = new Map<SourceId, number>();
     for (const item of items) bySource.set(item.source, (bySource.get(item.source) ?? 0) + 1);
-    return [...bySource.entries()];
+    return bySource;
   }, [items]);
 
   const runImport = async () => {
@@ -173,82 +200,113 @@ function Upload({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <Panel>
-      <Title sub="Point AnyLink at the links you already have. Nothing is uploaded anywhere except your own library.">
-        Bring your links
-      </Title>
+    <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+      }}
+    >
+      <Panel>
+        <Title sub="Pick where your links are. Nothing is uploaded anywhere except your own library.">
+          Bring your links
+        </Title>
 
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
-        }}
-        className="flex flex-col items-start gap-4 rounded-[22px] border border-dashed border-ink/20 px-6 py-7"
-      >
-        <div className="flex flex-col gap-1">
-          <div className="text-[15px] font-semibold">Drop your export files here</div>
-          <p className="text-[13px] text-ink/55">Several at once is fine — they get merged and de-duplicated.</p>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          {SOURCES.map((s) => {
+            const n = counts.get(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                aria-expanded={open === s.id}
+                onClick={() => setOpen(open === s.id ? null : s.id)}
+                className={`flex min-h-[104px] flex-col items-start justify-between gap-3 rounded-[18px] bg-surface/60 p-4 text-left transition-shadow ${
+                  open === s.id || n ? "ring-2 ring-ink" : "hover:ring-1 hover:ring-ink/20"
+                }`}
+              >
+                <span className="text-meta text-ink/40">{s.where}</span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[15px] font-semibold">{s.name}</span>
+                  <span className="text-meta text-ink/55">{n ? `✓ ${n} links` : s.blurb}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <dl className="flex max-w-[520px] flex-col gap-3 text-[13px] leading-[1.6]">
-          {SOURCES.map((s) => (
-            <div key={s.name}>
-              <dt className="font-semibold text-ink/75">
-                {s.name} <span className="font-normal text-ink/40">· {s.where}</span>
-              </dt>
-              <dd className="text-ink/60">{s.steps}</dd>
-              {s.note && <dd className="text-ink/45">{s.note}</dd>}
-            </div>
-          ))}
-        </dl>
+
+        {source && (
+          <div className="flex flex-col gap-4 rounded-[22px] border border-dashed border-ink/20 px-6 py-6">
+            <div className="text-[15px] font-semibold">{source.name}</div>
+            <ol className="flex flex-col gap-2 text-[13.5px] leading-[1.55] text-ink/75">
+              {source.steps.map((step, i) => (
+                <li key={step} className="flex gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-bold text-on-ink">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+            <p className="text-[13px] leading-[1.6] text-ink/50">{source.note}</p>
+            {source.id === "text" ? (
+              <textarea
+                autoFocus
+                value={pasted}
+                onChange={(e) => setPasted(e.target.value)}
+                rows={5}
+                placeholder="https://… one per line, or buried in a paragraph"
+                className="rounded-[14px] border border-rim/80 bg-surface/70 px-4 py-3 text-body outline-none placeholder:text-ink/30"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="self-start rounded-full bg-signal px-5 py-2.5 text-[13px] font-semibold text-on-accent"
+              >
+                Choose file…
+              </button>
+            )}
+          </div>
+        )}
         <input
           ref={inputRef}
           type="file"
           multiple
           accept=".html,.htm,.json,.zip,.txt"
           className="hidden"
-          onChange={(e) => e.target.files?.length && handleFiles(e.target.files)}
+          onChange={(e) => {
+            if (e.target.files?.length) handleFiles(e.target.files);
+            e.target.value = "";
+          }}
         />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-signal px-5 py-2.5 text-[13px] font-semibold text-on-accent"
-        >
-          Choose files…
+
+        {error && <p className="text-[13px] text-signal">{error}</p>}
+
+        {items.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[15px] font-semibold">{items.length} links found</span>
+            {[...counts.entries()].map(([id, n]) => (
+              <span key={id} className="flex items-center gap-1.5 rounded-full bg-ink/6 py-1 pl-3 pr-1.5 text-meta text-ink/60">
+                {n} from {SOURCES.find((s) => s.id === id)?.name ?? id}
+                <button
+                  type="button"
+                  onClick={() => remove(id)}
+                  aria-label={`Remove links from ${SOURCES.find((s) => s.id === id)?.name ?? id}`}
+                  className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-ink/10"
+                >
+                  <Icon name="close" size={9} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <button type="button" onClick={runImport} disabled={items.length === 0 || busy} className={PRIMARY}>
+          {busy ? "Importing…" : items.length > 0 ? `Import ${items.length} links` : "Pick a source to import"}
         </button>
-      </div>
-
-      <label className="flex flex-col gap-2">
-        <span className="text-[15px] font-semibold">Or paste text with links</span>
-        <span className="text-[13px] text-ink/55">
-          Notes, an email, a list — every link inside gets picked out, with its line kept as context.
-        </span>
-        <textarea
-          value={pasted}
-          onChange={(e) => setPasted(e.target.value)}
-          rows={4}
-          placeholder="https://… one per line, or buried in a paragraph"
-          className="rounded-[14px] border border-rim/80 bg-surface/70 px-4 py-3 text-body outline-none placeholder:text-ink/30"
-        />
-      </label>
-
-      {error && <p className="text-[13px] text-signal">{error}</p>}
-
-      {items.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[15px] font-semibold">{items.length} links found</span>
-          {counts.map(([source, n]) => (
-            <span key={source} className="rounded-full bg-ink/6 px-3 py-1 text-meta text-ink/60">
-              {n} from {SOURCE_LABEL[source]}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <button type="button" onClick={runImport} disabled={items.length === 0 || busy} className={PRIMARY}>
-        {busy ? "Importing…" : items.length > 0 ? `Import ${items.length} links` : "Import"}
-      </button>
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 

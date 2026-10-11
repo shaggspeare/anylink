@@ -11,7 +11,8 @@ struct OnboardingFlow: View {
     let onFinish: () -> Void
     @Environment(LibraryStore.self) private var store
     @State private var model: OnboardingModel
-    @State private var picking: OnboardingModel.Source?
+    /// The source whose steps are open in a sheet.
+    @State private var open: OnboardingModel.Source?
 
     init(store: LibraryStore, onFinish: @escaping () -> Void) {
         _model = State(initialValue: OnboardingModel(store: store))
@@ -40,18 +41,7 @@ struct OnboardingFlow: View {
             .animation(AL.Motion.sheet, value: model.step)
         }
         .background { ZStack { AL.canvas; Orbs(.addLink) }.ignoresSafeArea() }
-        .fileImporter(
-            isPresented: Binding(get: { picking != nil }, set: { if !$0 { picking = nil } }),
-            allowedContentTypes: [.html, .json, .zip, .plainText],
-            allowsMultipleSelection: true
-        ) { result in
-            guard let source = picking, case .success(let urls) = result else { return }
-            for url in urls {
-                let scoped = url.startAccessingSecurityScopedResource()
-                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                if let data = try? Data(contentsOf: url) { model.load(data, named: url.lastPathComponent, as: source) }
-            }
-        }
+        .sheet(item: $open) { SourceSheet(info: ImportSource.info($0), model: model) }
     }
 
     // MARK: Header
@@ -88,24 +78,8 @@ struct OnboardingFlow: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 title("Bring your links", lead: "Your exports go only into your own library. Dead links get stripped out next.")
-                section("On this iPhone")
-                sourceCard(.safari, icon: "safari", name: "Safari bookmarks", subtitle: "Folders come along and help build your collections",
-                           steps: ["Settings → Apps → Safari → Export", "Tick Bookmarks only → Save to Downloads", "Choose file → Downloads → the “Safari Export” zip"],
-                           note: "Needs iOS 18.2 or later. Pick the zip as it is — there's nothing to unzip.")
-                sourceCard(.whatsapp, icon: "bubble.left.and.bubble.right", name: "WhatsApp chat", subtitle: "“Message yourself”, or any chat full of links",
-                           steps: ["Open the chat → tap its name at the top", "Export Chat → Without Media", "Save to Files, then pick the zip here"],
-                           note: "The message around each link is kept as context. In a group chat, links other people sent come in too.")
-                sourceCard(.text, icon: "text.alignleft", name: "Text with links", subtitle: "Notes, an email, a list — every link gets picked out",
-                           steps: ["Copy the text in Notes, Mail or anywhere else", "Tap Paste below"],
-                           note: "Only links starting with http or www are picked out. The line each one is on is kept as context.", paste: true)
-                section("From a computer")
-                sourceCard(.bookmarks, icon: "book", name: "Chrome, Firefox, Edge", subtitle: "Any browser's HTML bookmarks export",
-                           steps: ["Open the bookmark manager", "Export bookmarks → HTML file", "AirDrop it to this iPhone, or save it to iCloud Drive"],
-                           note: "Their iPhone apps can't export bookmarks — it has to be the computer.")
-                sourceCard(.telegram, icon: "paperplane", name: "Telegram Saved Messages", subtitle: "Message text is kept as context",
-                           steps: ["Install Telegram Desktop from desktop.telegram.org", "Saved Messages → ⋮ → Export chat history",
-                                   "Untick photos and files, format: Machine-readable JSON", "AirDrop result.json to this iPhone"],
-                           note: "Telegram for iPhone can't export, and neither can the Mac App Store “Telegram” — only Telegram Desktop. A new desktop login waits 24 hours before it can export, unless you approve the request on your phone. Only Saved Messages is read.")
+                section("On this iPhone", ImportSource.all.filter(\.onPhone))
+                section("From a computer", ImportSource.all.filter { !$0.onPhone })
                 #if DEBUG
                 if AppConfig.isUITesting || model.files.isEmpty {
                     Button("Load sample exports") {
@@ -131,68 +105,63 @@ struct OnboardingFlow: View {
                     .frame(minHeight: 44)
             }
             .padding(.horizontal, 20)
-            .background(.bar.opacity(0))
+            .padding(.top, 12)
+            // Solid, so the tiles scroll under the buttons instead of through them.
+            .background(AL.canvas.ignoresSafeArea(edges: .bottom))
         }
     }
 
-    private func section(_ title: String) -> some View {
-        Text(title).font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
-            .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
-            .padding(.top, 4)
-            .accessibilityAddTraits(.isHeader)
+    private func section(_ title: String, _ sources: [ImportSource]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
+                .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+                .accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
+                ForEach(sources) { tile($0) }
+            }
+        }
+        .padding(.top, 4)
     }
 
-    private func sourceCard(_ source: OnboardingModel.Source, icon: String, name: String, subtitle: String, steps: [String],
-                            note: String? = nil, paste: Bool = false) -> some View {
-        let chosen = model.files[source]
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title3.weight(.semibold)).foregroundStyle(AL.ink)
-                    .frame(width: 40, height: 40)
-                    .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(AL.Font.brand(15, .semibold, relativeTo: .subheadline)).foregroundStyle(AL.ink)
-                    Text(subtitle).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
-                }
-            }
-            if let chosen {
-                HStack {
-                    Text("✓ \(chosen.name) · \(chosen.items.count.linkCount)")
-                        .font(AL.Font.chip).foregroundStyle(AL.onAccent).lineLimit(1)
+    /// Icon, name and a few words; the steps open in a sheet. Chosen: ink border and the link count.
+    private func tile(_ info: ImportSource) -> some View {
+        let chosen = model.files[info.source]
+        let failed = model.fileErrors[info.source] != nil
+        return Button { open = info.source } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    Image(systemName: info.icon)
+                        .font(.body.weight(.semibold)).foregroundStyle(AL.ink)
+                        .frame(width: 36, height: 36)
+                        .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                     Spacer()
-                    Button { model.remove(source) } label: { Image(systemName: "xmark").font(.caption.weight(.bold)) }
-                        .foregroundStyle(AL.onAccent)
-                        .frame(width: AL.Control.md, height: 32)
-                        .accessibilityLabel("Remove \(chosen.name)")
-                }
-                .padding(.leading, 12)
-                .background(AL.lime.opacity(0.38), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(steps.enumerated()), id: \.offset) { i, s in
-                        Text("\(i + 1). \(s)").font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a65))
+                    if chosen != nil {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(AL.ink)
+                    } else if failed {
+                        Image(systemName: "exclamationmark.circle.fill").foregroundStyle(AL.signal)
                     }
                 }
-                if let note { Text(note).font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a50)) }
-                if paste {
-                    // The system Paste button reads the clipboard without the "Allow Paste" prompt.
-                    PasteButton(payloadType: String.self) { model.loadText($0.joined(separator: "\n")) }
-                        .buttonBorderShape(.capsule)
-                        .tint(AL.ink)
-                } else {
-                    Button("Choose file") { picking = source }
-                        .buttonStyle(ALSmallButtonStyle(.ink))
+                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(info.name).font(AL.Font.brand(15, .semibold, relativeTo: .subheadline)).foregroundStyle(AL.ink)
+                        .multilineTextAlignment(.leading)
+                    Text(chosen.map { $0.items.count.linkCount } ?? info.blurb)
+                        .font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                        .multilineTextAlignment(.leading)
                 }
             }
-            if let e = model.fileErrors[source] { Notice(e) }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
+            .frosted(0.62, radius: 20)
+            .overlay {
+                if chosen != nil { RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(AL.ink, lineWidth: 2) }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .frosted(0.62, radius: 22)
-        .overlay {
-            if chosen != nil { RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(AL.ink, lineWidth: 2) }
-        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(chosen.map { "\(info.name), \($0.items.count.linkCount) chosen" } ?? info.name)
+        .accessibilityHint("Shows how to export, and lets you choose the file")
     }
 
     // MARK: S3 Clean
@@ -441,4 +410,130 @@ private struct SampleCard: View {
 #Preview("Onboarding — Dark") {
     let env = AppEnvironment.mock(latency: false)
     OnboardingFlow(store: env.store) {}.environment(env.store).environment(env.router).preferredColorScheme(.dark)
+}
+
+// MARK: - Import sources
+
+/// What each source is called and how to export it. The steps live in a sheet; the tile only names the source.
+struct ImportSource: Identifiable {
+    let source: OnboardingModel.Source
+    let icon: String
+    let name: String
+    /// A few words under the name on the tile.
+    let blurb: String
+    let subtitle: String
+    let steps: [String]
+    let note: String
+    let onPhone: Bool
+    var id: OnboardingModel.Source { source }
+
+    static func info(_ source: OnboardingModel.Source) -> ImportSource { all.first { $0.source == source } ?? all[0] }
+
+    static let all: [ImportSource] = [
+        ImportSource(source: .safari, icon: "safari", name: "Safari", blurb: "Bookmarks and folders",
+                     subtitle: "Folders come along and help build your collections",
+                     steps: ["Settings → Apps → Safari → Export", "Tick Bookmarks only → Save to Downloads", "Choose file below → Downloads → the “Safari Export” zip"],
+                     note: "Needs iOS 18.2 or later. Pick the zip as it is — there's nothing to unzip.", onPhone: true),
+        ImportSource(source: .whatsapp, icon: "bubble.left.and.bubble.right", name: "WhatsApp", blurb: "Links from a chat",
+                     subtitle: "“Message yourself”, or any chat full of links",
+                     steps: ["Open the chat → tap its name at the top", "Export Chat → Without Media", "Save to Files, then choose the zip below"],
+                     note: "The message around each link is kept as context. In a group chat, links other people sent come in too.", onPhone: true),
+        ImportSource(source: .text, icon: "text.alignleft", name: "Text with links", blurb: "Paste from anywhere",
+                     subtitle: "Notes, an email, a list — every link gets picked out",
+                     steps: ["Copy the text in Notes, Mail or anywhere else", "Tap Paste below"],
+                     note: "Only links starting with http or www are picked out. The line each one is on is kept as context.", onPhone: true),
+        ImportSource(source: .bookmarks, icon: "book", name: "Chrome, Firefox, Edge", blurb: "HTML bookmarks file",
+                     subtitle: "Any browser's HTML bookmarks export",
+                     steps: ["Open the bookmark manager", "Export bookmarks → HTML file", "AirDrop it to this iPhone, or save it to iCloud Drive"],
+                     note: "Their iPhone apps can't export bookmarks — it has to be the computer.", onPhone: false),
+        ImportSource(source: .telegram, icon: "paperplane", name: "Telegram", blurb: "Saved Messages",
+                     subtitle: "Saved Messages, with the message text kept as context",
+                     steps: ["Install Telegram Desktop from desktop.telegram.org", "Saved Messages → ⋮ → Export chat history",
+                             "Untick photos and files, format: Machine-readable JSON", "AirDrop result.json to this iPhone"],
+                     note: "Telegram for iPhone can't export, and neither can the Mac App Store “Telegram” — only Telegram Desktop. A new desktop login waits 24 hours before it can export, unless you approve the request on your phone. Only Saved Messages is read.",
+                     onPhone: false),
+    ]
+}
+
+/// One source's steps, its limits, and the way in: Choose file, or the system Paste button for text.
+private struct SourceSheet: View {
+    let info: ImportSource
+    let model: OnboardingModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var picking = false
+
+    var body: some View {
+        let chosen = model.files[info.source]
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 12) {
+                    Image(systemName: info.icon)
+                        .font(.title3.weight(.semibold)).foregroundStyle(AL.ink)
+                        .frame(width: 44, height: 44)
+                        .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(info.name).font(AL.Font.cardTitleL).foregroundStyle(AL.ink).accessibilityAddTraits(.isHeader)
+                        Text(info.subtitle).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                    }
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(info.steps.enumerated()), id: \.offset) { i, step in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text("\(i + 1)").font(.footnote.weight(.bold)).monospacedDigit()
+                                .foregroundStyle(AL.onInk)
+                                .frame(width: 22, height: 22)
+                                .background(AL.ink, in: Circle())
+                            Text(step).font(.subheadline).foregroundStyle(AL.ink)
+                        }
+                    }
+                }
+                Text(info.note).font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                if let chosen {
+                    HStack {
+                        Text("✓ \(chosen.name) · \(chosen.items.count.linkCount)")
+                            .font(AL.Font.chip).foregroundStyle(AL.onAccent).lineLimit(1)
+                        Spacer()
+                        Button { model.remove(info.source) } label: { Image(systemName: "xmark").font(.caption.weight(.bold)) }
+                            .foregroundStyle(AL.onAccent)
+                            .frame(width: AL.Control.md, height: 32)
+                            .accessibilityLabel("Remove \(chosen.name)")
+                    }
+                    .padding(.leading, 12)
+                    .background(AL.lime.opacity(0.38), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                if let e = model.fileErrors[info.source] { Notice(e) }
+            }
+            .padding(24)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Group {
+                if info.source == .text {
+                    // The system Paste button reads the clipboard without the "Allow Paste" prompt.
+                    PasteButton(payloadType: String.self) { strings in
+                        model.loadText(strings.joined(separator: "\n"))
+                        if model.files[.text] != nil { dismiss() }
+                    }
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    .tint(AL.ink)
+                } else {
+                    Button(chosen == nil ? "Choose file" : "Choose another file") { picking = true }
+                        .buttonStyle(.alPrimary)
+                }
+            }
+            .padding(.horizontal, 24).padding(.bottom, 8)
+        }
+        .fileImporter(isPresented: $picking, allowedContentTypes: [.html, .json, .zip, .plainText], allowsMultipleSelection: true) { result in
+            guard case .success(let urls) = result else { return }
+            for url in urls {
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                if let data = try? Data(contentsOf: url) { model.load(data, named: url.lastPathComponent, as: info.source) }
+            }
+            // Read fine: back to the tiles. Didn't: stay, with the error under the steps.
+            if model.fileErrors[info.source] == nil, model.files[info.source] != nil { dismiss() }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationBackground(AL.canvas)
+    }
 }

@@ -20,7 +20,10 @@ public final class OnboardingModel {
     }
 
     /// In merge order: bookmark folders beat chat context when a URL is in both.
-    public enum Source: CaseIterable, Sendable { case safari, bookmarks, whatsapp, telegram, text }
+    public enum Source: CaseIterable, Identifiable, Sendable {
+        case safari, bookmarks, whatsapp, telegram, text
+        public var id: Self { self }
+    }
     public struct ChosenFile: Equatable, Sendable { public let name: String; public let items: [ImportItem] }
     public enum DeadGroup: CaseIterable, Sendable { case gone, parked, noAnswer }
 

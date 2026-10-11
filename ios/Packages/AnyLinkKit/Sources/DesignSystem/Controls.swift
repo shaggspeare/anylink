@@ -252,7 +252,8 @@ public struct ALPrimaryButtonStyle: ButtonStyle {
     private struct Styled: View {
         let configuration: Configuration
         @Environment(\.isEnabled) private var isEnabled
-        var body: some View { styled.opacity(isEnabled ? 1 : 0.35) }
+        // Faded but opaque when disabled: a see-through button over scrolling content reads as broken.
+        var body: some View { styled.opacity(isEnabled ? 1 : 0.35).background(AL.canvas, in: Capsule()) }
         @ViewBuilder private var styled: some View {
         configuration.label
             .font(AL.Font.brand(15, .semibold, relativeTo: .body))
