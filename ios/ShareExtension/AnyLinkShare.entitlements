@@ -4,11 +4,11 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.app.anylink.ios</string>
+		<string>group.com.shaggspeare.anylink</string>
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)app.anylink.ios.shared</string>
+		<string>$(AppIdentifierPrefix)com.shaggspeare.anylink.shared</string>
 	</array>
 </dict>
 </plist>

@@ -3,7 +3,7 @@
 export function GET() {
   return Response.json({
     applinks: {
-      details: [{ appIDs: ["376HNWM383.app.anylink.ios"], components: [{ "/": "/links/*" }] }],
+      details: [{ appIDs: ["376HNWM383.com.shaggspeare.anylink"], components: [{ "/": "/links/*" }] }],
     },
   });
 }

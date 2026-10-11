@@ -25,7 +25,7 @@ struct RootView: View {
         .preferredColorScheme(appearance.scheme)
         .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } }
         .onChange(of: signedIn, initial: true) { was, on in
-            UserDefaults(suiteName: "group.app.anylink.ios")?.set(on, forKey: "signedIn")
+            UserDefaults(suiteName: "group.com.shaggspeare.anylink")?.set(on, forKey: "signedIn")
             if on && !was { didSignIn() }
         }
         .onChange(of: guest, initial: true) { _, on in

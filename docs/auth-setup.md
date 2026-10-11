@@ -13,8 +13,8 @@ The code for all three sign-in methods is done on web and iOS. This guide covers
 | Supabase project | `xcljmzxsbepvcskjfadg` |
 | Supabase OAuth callback (used by Google and Apple) | `https://xcljmzxsbepvcskjfadg.supabase.co/auth/v1/callback` |
 | Apple Team ID | `376HNWM383` |
-| iOS bundle ID | `app.anylink.ios` |
-| Apple Services ID (web) | `app.anylink.web` |
+| iOS bundle ID | `com.shaggspeare.anylink` |
+| Apple Services ID (web) | `com.shaggspeare.anylink.web` |
 
 ---
 
@@ -146,7 +146,7 @@ This needs a paid Apple Developer account. Everything below is under **developer
 
 ### 5a. App ID (the iOS app)
 
-1. Open **Identifiers** and select `app.anylink.ios`. If it doesn't exist, create it under **App IDs → App**.
+1. Open **Identifiers** and select `com.shaggspeare.anylink`. If it doesn't exist, create it under **App IDs → App**.
 2. Turn on **Sign In with Apple** (Enable as a primary App ID).
 3. Turn on **Associated Domains**. This lets `https://www.anylink.space/links/…` links open in the app.
 4. Click **Save**. If Xcode asks, let it regenerate the provisioning profiles.
@@ -154,9 +154,9 @@ This needs a paid Apple Developer account. Everything below is under **developer
 ### 5b. Services ID (the website)
 
 1. In **Identifiers**, click **+**, choose **Services IDs**, and click **Continue**.
-2. Set the description to `AnyLink Web` and the identifier to `app.anylink.web`, then click **Register**.
+2. Set the description to `AnyLink Web` and the identifier to `com.shaggspeare.anylink.web`, then click **Register**.
 3. Open the new Services ID, turn on **Sign In with Apple**, and click **Configure**:
-   - Primary App ID: `app.anylink.ios`
+   - Primary App ID: `com.shaggspeare.anylink`
    - Domains and Subdomains: `xcljmzxsbepvcskjfadg.supabase.co`
    - Return URLs: `https://xcljmzxsbepvcskjfadg.supabase.co/auth/v1/callback`
 4. Click **Next**, then **Done**, **Continue** and **Save**.
@@ -165,7 +165,7 @@ This needs a paid Apple Developer account. Everything below is under **developer
 
 1. Open **Keys** and click **+**.
 2. Name it `AnyLink Sign in with Apple`.
-3. Turn on **Sign in with Apple**, click **Configure**, and pick `app.anylink.ios` as the primary App ID.
+3. Turn on **Sign in with Apple**, click **Configure**, and pick `com.shaggspeare.anylink` as the primary App ID.
 4. Click **Register**, then **Download** the `.p8` file. You can only download it once, so store it somewhere safe.
 5. Note the **Key ID**.
 
@@ -177,7 +177,7 @@ Supabase needs a secret generated from the `.p8` file, not the file itself.
 2. Enter:
    - Team ID: `376HNWM383`
    - Key ID: from step 5c
-   - Services ID: `app.anylink.web`
+   - Services ID: `com.shaggspeare.anylink.web`
    - The contents of the `.p8` file
 3. Copy the generated secret.
 
@@ -186,7 +186,7 @@ Supabase needs a secret generated from the `.p8` file, not the file itself.
 ### 5e. Supabase
 
 1. Open **Authentication → Sign In / Providers → Apple** and turn it on.
-2. Set **Client IDs** to `app.anylink.web,app.anylink.ios`. You need both: the iOS ID is what lets the iPhone's built-in button work.
+2. Set **Client IDs** to `com.shaggspeare.anylink.web,com.shaggspeare.anylink`. You need both: the iOS ID is what lets the iPhone's built-in button work.
 3. Paste the secret from step 5d into **Secret Key (for OAuth)** and click **Save**.
 
 ### 5f. Emails to "Hide My Email" users (optional)
@@ -217,7 +217,7 @@ The server then verifies each request itself instead of calling Supabase every t
    - Delete `CURRENT_USER_ID` and `API_TOKEN`.
    - Keep `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `DATABASE_URL`.
 3. Redeploy.
-4. Check that `https://www.anylink.space/.well-known/apple-app-site-association` returns JSON containing `376HNWM383.app.anylink.ios`.
+4. Check that `https://www.anylink.space/.well-known/apple-app-site-association` returns JSON containing `376HNWM383.com.shaggspeare.anylink`.
 
 In your local `.env.local`, also delete `CURRENT_USER_ID` and `API_TOKEN`.
 
@@ -257,7 +257,7 @@ After changing it, run `xcodegen generate` in `ios/`.
 |---|---|
 | `redirect_uri_mismatch` (Google) | The redirect URI in step 4a doesn't exactly match `https://xcljmzxsbepvcskjfadg.supabase.co/auth/v1/callback`. |
 | `invalid_client` (Apple, website) | The Services ID, domain or return URL in step 5b is wrong, or the secret has expired. |
-| `Unacceptable audience` (Apple, iPhone) | `app.anylink.ios` is missing from **Client IDs** in step 5e. |
+| `Unacceptable audience` (Apple, iPhone) | `com.shaggspeare.anylink` is missing from **Client IDs** in step 5e. |
 | You land on `/login?error=1`, or on the home page with `?code=…` in the address | The site's `/**` entry is missing from **Redirect URLs** in step 2. |
 | No email arrives | Custom SMTP isn't set up (step 3c), or you've hit the rate limit. |
 | iOS build: "Associated Domains capability" signing error | Step 5a, item 3 hasn't been done yet. |

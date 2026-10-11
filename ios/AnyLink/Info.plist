@@ -26,7 +26,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>app.anylink.ios</string>
+			<string>com.shaggspeare.anylink</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>anylink</string>

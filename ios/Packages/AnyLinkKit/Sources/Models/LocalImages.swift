@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// The on-device copy of saved images, in the App Group so the share extension and the app see the same
 /// files. A card shows the local file when there is one — instantly, offline — and the uploaded copy otherwise.
 public enum LocalImages {
-    public static let group = "group.app.anylink.ios"
+    public static let group = "group.com.shaggspeare.anylink"
 
     static var directory: URL {
         let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)

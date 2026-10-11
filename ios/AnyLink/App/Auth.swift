@@ -20,7 +20,7 @@ enum AuthService {
             headers: ["apikey": key],
             flowType: .pkce,
             redirectToURL: redirect,
-            localStorage: KeychainLocalStorage(service: "app.anylink.auth", accessGroup: prefix.map { "\($0)app.anylink.ios.shared" }),
+            localStorage: KeychainLocalStorage(service: "com.shaggspeare.anylink.auth", accessGroup: prefix.map { "\($0)com.shaggspeare.anylink.shared" }),
             emitLocalSessionAsInitialSession: true
         )
     }()

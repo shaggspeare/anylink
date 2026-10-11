@@ -4,15 +4,15 @@
 
 | Target | Type | Bundle id (placeholder, change once) | Notes |
 |---|---|---|---|
-| `AnyLink` | iOS app | `app.anylink.ios` | iOS 26.0, iPhone (iPad allowed, phone layout until phase 14) |
-| `AnyLinkShare` | Share extension | `app.anylink.ios.share` | SwiftUI inside `UIHostingController` |
+| `AnyLink` | iOS app | `com.shaggspeare.anylink` | iOS 26.0, iPhone (iPad allowed, phone layout until phase 14) |
+| `AnyLinkShare` | Share extension | `com.shaggspeare.anylink.share` | SwiftUI inside `UIHostingController` |
 | `AnyLinkUITests` | UI tests | — | Launch argument `-ui-testing` switches to `MockAPI` |
 | `AnyLinkKit` | Local Swift package | — | All logic and shared UI. Linked by the app and the extension |
 
 Shared capabilities:
 
-- **App Group** `group.app.anylink.ios`: SwiftData store and settings shared with the extension.
-- **Keychain Sharing** group `$(AppIdentifierPrefix)app.anylink.ios.shared`: auth session.
+- **App Group** `group.com.shaggspeare.anylink`: SwiftData store and settings shared with the extension.
+- **Keychain Sharing** group `$(AppIdentifierPrefix)com.shaggspeare.anylink.shared`: auth session.
 - **Associated Domains** (phase 13): `applinks:<web domain>`.
 - **Sign in with Apple**.
 

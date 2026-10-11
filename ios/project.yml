@@ -1,8 +1,8 @@
 # XcodeGen spec — copy to the repo root in Phase 0, then `xcodegen generate`.
-# Placeholders: bundle ids (app.anylink.*), DEVELOPMENT_TEAM, App Group, keychain group. See docs/10-decisions.md Q1.
+# Placeholders: bundle ids (com.shaggspeare.anylink.*), DEVELOPMENT_TEAM, App Group, keychain group. See docs/10-decisions.md Q1.
 name: AnyLink
 options:
-  bundleIdPrefix: app.anylink
+  bundleIdPrefix: com.shaggspeare
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -51,26 +51,26 @@ targets:
         UISupportedInterfaceOrientations~iphone: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         CFBundleURLTypes:
-          - CFBundleURLName: app.anylink.ios
+          - CFBundleURLName: com.shaggspeare.anylink
             CFBundleURLSchemes: [anylink]
         NSUserActivityTypes: [com.apple.corespotlightitem]
         AnyLinkAPIBase: $(ANYLINK_API_BASE)
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
-        # The shared keychain group is "<prefix>app.anylink.ios.shared"; Auth.swift needs the prefix at runtime.
+        # The shared keychain group is "<prefix>com.shaggspeare.anylink.shared"; Auth.swift needs the prefix at runtime.
         AppIdentifierPrefix: $(AppIdentifierPrefix)
     entitlements:
       path: AnyLink/AnyLink.entitlements
       properties:
-        com.apple.security.application-groups: [group.app.anylink.ios]
-        keychain-access-groups: [$(AppIdentifierPrefix)app.anylink.ios.shared]
+        com.apple.security.application-groups: [group.com.shaggspeare.anylink]
+        keychain-access-groups: [$(AppIdentifierPrefix)com.shaggspeare.anylink.shared]
         com.apple.developer.applesignin: [Default]
         # Universal links for https://www.anylink.space/links/{id} (the site serves /.well-known/apple-app-site-association).
         # Only www: the apex redirects, and Apple doesn't follow redirects for that file.
         com.apple.developer.associated-domains: ["applinks:www.anylink.space"]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios
+        PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
@@ -92,7 +92,7 @@ targets:
         AnyLinkAPIBase: $(ANYLINK_API_BASE)
         SupabaseURL: $(SUPABASE_URL)
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
-        # The shared keychain group is "<prefix>app.anylink.ios.shared"; Auth.swift needs the prefix at runtime.
+        # The shared keychain group is "<prefix>com.shaggspeare.anylink.shared"; Auth.swift needs the prefix at runtime.
         AppIdentifierPrefix: $(AppIdentifierPrefix)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
@@ -105,11 +105,11 @@ targets:
     entitlements:
       path: ShareExtension/AnyLinkShare.entitlements
       properties:
-        com.apple.security.application-groups: [group.app.anylink.ios]
-        keychain-access-groups: [$(AppIdentifierPrefix)app.anylink.ios.shared]
+        com.apple.security.application-groups: [group.com.shaggspeare.anylink]
+        keychain-access-groups: [$(AppIdentifierPrefix)com.shaggspeare.anylink.shared]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios.share
+        PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.share
         TARGETED_DEVICE_FAMILY: "1,2"
 
   AnyLinkUITests:
@@ -121,7 +121,7 @@ targets:
       - target: AnyLink
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.anylink.ios.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.uitests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:

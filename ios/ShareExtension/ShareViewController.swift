@@ -9,7 +9,7 @@ import Store
 
 /// Hosts `ShareView`. Saves on appear; Done closes. Memory: no image decoding (identity fallback thumb only).
 final class ShareViewController: UIViewController {
-    private static let group = "group.app.anylink.ios"
+    private static let group = "group.com.shaggspeare.anylink"
 
     override func viewDidLoad() {
         super.viewDidLoad()

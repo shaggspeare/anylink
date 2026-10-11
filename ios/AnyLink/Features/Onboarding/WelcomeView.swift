@@ -101,6 +101,7 @@ struct WelcomeView: View {
 /// UI tests, mock builds) every button signs in at once.
 struct SignInButtons: View {
     let onSignedIn: () -> Void
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 18
     @Environment(\.colorScheme) private var scheme
     @State private var busy = false
     @State private var emailSheet = false
@@ -113,7 +114,7 @@ struct SignInButtons: View {
         VStack(spacing: 12) {
             if mock {
                 Button(action: onSignedIn) {
-                    Label("Sign in with Apple", systemImage: "apple.logo")
+                    Label("Continue with Apple", systemImage: "apple.logo")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(scheme == .dark ? .black : .white)
                         .frame(maxWidth: .infinity)
@@ -121,7 +122,7 @@ struct SignInButtons: View {
                         .background(scheme == .dark ? Color.white : Color.black, in: Capsule())
                 }
             } else {
-                SignInWithAppleButton(.signIn) { request in
+                SignInWithAppleButton(.continue) { request in
                     nonce = UUID().uuidString
                     request.requestedScopes = [.email]
                     request.nonce = SHA256.hash(data: Data(nonce.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -132,8 +133,8 @@ struct SignInButtons: View {
                 .frame(height: AL.Control.lg)
                 .clipShape(Capsule())
             }
-            wide("Continue with Google") { Task { await google() } }
-            wide("Continue with email") { emailSheet = true }
+            wide("Continue with Google", icon: Image("GoogleLogo")) { Task { await google() } }
+            wide("Continue with email", icon: Image(systemName: "envelope")) { emailSheet = true }
             if let error {
                 Text(error).font(.footnote).foregroundStyle(AL.signal).accessibilityAddTraits(.updatesFrequently)
             }
@@ -142,9 +143,9 @@ struct SignInButtons: View {
         .sheet(isPresented: $emailSheet) { EmailSignIn(onSignedIn: onSignedIn) }
     }
 
-    private func wide(_ title: String, action: @escaping () -> Void) -> some View {
+    private func wide(_ title: LocalizedStringKey, icon: Image, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Label { Text(title) } icon: { icon.resizable().scaledToFit().frame(width: iconSize, height: iconSize) }
                 .font(.body.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .frame(height: AL.Control.lg - 14)

@@ -232,7 +232,7 @@ final class AnyLinkUITests: XCTestCase {
     func testWelcomeSignsInWithMockAuth() throws {
         let app = launch(["-welcome"])
         XCTAssertTrue(app.staticTexts["Paste anything.\nWe read the rest."].waitForExistence(timeout: 3))
-        app.buttons["Sign in with Apple"].tap()
+        app.buttons["Continue with Apple"].tap()
         XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 3))
     }
 
@@ -419,7 +419,7 @@ final class AnyLinkUITests: XCTestCase {
         audit(app, "Trash")
 
         let welcome = launch(["-welcome"])
-        XCTAssertTrue(welcome.buttons["Sign in with Apple"].waitForExistence(timeout: 3))
+        XCTAssertTrue(welcome.buttons["Continue with Apple"].waitForExistence(timeout: 3))
         audit(welcome, "Welcome")
     }
 

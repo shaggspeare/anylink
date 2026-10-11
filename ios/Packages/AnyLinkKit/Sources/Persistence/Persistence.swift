@@ -49,7 +49,7 @@ public final class LocalCache {
     }
 
     /// The App Group store shared with the share extension, falling back to the app's own container.
-    public static func appGroup(_ group: String = "group.app.anylink.ios") -> LocalCache? {
+    public static func appGroup(_ group: String = "group.com.shaggspeare.anylink") -> LocalCache? {
         let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)?
             .appending(path: "AnyLink.store")
         return (try? LocalCache(url: url)) ?? (try? LocalCache())
