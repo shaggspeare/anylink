@@ -79,8 +79,6 @@ struct RootView: View {
             .task { await env.reachability.start() }
             .task {
                 IntentBridge.store = env.store
-                if env.isLive { await env.store.refresh() }
-                await syncWithExtension(env)
                 await Spotlight.reindex(env.store.live)
             }
             .onContinueUserActivity(CSSearchableItemActionType) { activity in
@@ -90,8 +88,11 @@ struct RootView: View {
                 if phase == .background { Task { await Spotlight.reindex(env.store.live) } }
                 if phase == .active {
                     Task { await env.clipboard.check() }
-                    env.store.drainOutbox()
-                    Task { await syncWithExtension(env) }
+                    // Launch and every return: the share extension saves straight to the server while we're away.
+                    Task {
+                        if env.isLive { await env.store.refresh() } else { env.store.drainOutbox() }
+                        await syncWithExtension(env)
+                    }
                 }
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }

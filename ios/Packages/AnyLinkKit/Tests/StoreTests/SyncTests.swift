@@ -255,6 +255,19 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         #expect(added.url == url.absoluteString && added.collectionId == "ios" && added.note == "tab bars")
     }
 
+    /// Launch and becoming active drain at the same moment; the share is still saved once.
+    @Test func concurrentDrainsSaveOnce() async throws {
+        let cache = try LocalCache(inMemory: true)
+        await ShareSession(api: nil, cache: cache, signedIn: true).start(url: url, title: "A story")
+        let api = MockAPI.fixtures(latency: true)
+        let store = LibraryStore(api: api, snapshot: Fixtures.library)
+        async let a: Void = store.drainPendingSaves(from: cache)
+        async let b: Void = store.drainPendingSaves(from: cache)
+        _ = await (a, b)
+        let saved = try await api.library(since: nil).links.filter { $0.url == url.absoluteString }
+        #expect(saved.count == 1)
+    }
+
     @Test func offlineFallsBackToPending() async throws {
         let api = MockAPI.fixtures(latency: false)
         await api.failNext(.offline)

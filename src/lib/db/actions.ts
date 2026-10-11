@@ -20,6 +20,11 @@ type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | 
   status?: LinkItem["status"];
 };
 
+/** Empty, or "unsorted" — the placeholder clients use before their collections load: the user's inbox. */
+async function collectionOrInbox(id?: string): Promise<string> {
+  return id && id !== "unsorted" ? id : ensureInbox();
+}
+
 /** The subset of `ids` that are this user's — for writes to tables that only carry a link id. */
 async function ownedLinkIds(uid: string, ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];
@@ -73,7 +78,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     .insert(schema.links)
     .values({
       userId: uid,
-      collectionId: input.collectionId || (await ensureInbox()),
+      collectionId: await collectionOrInbox(input.collectionId),
       url,
       domain: input.domain,
       title: input.title,
@@ -88,6 +93,8 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       size: input.size,
       status: input.status ?? "ready",
       productData: productJson,
+      source: input.source || undefined,
+      note: input.note?.trim() || null,
     })
     .returning();
 
@@ -124,6 +131,9 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     ...input,
     url,
     id: row.id,
+    collectionId: row.collectionId,
+    source: row.source,
+    note: row.note ?? undefined,
     createdAt: row.createdAt.toISOString(),
     status: row.status,
     heroImage,
@@ -170,7 +180,7 @@ export async function createNote(text: string, collectionId?: string, source = "
     .values({
       ...NOTE_IDENTITY,
       userId: uid,
-      collectionId: collectionId || (await ensureInbox()),
+      collectionId: await collectionOrInbox(collectionId),
       url: "",
       title: noteTitle(body),
       excerpt: body,
@@ -208,7 +218,7 @@ export async function createImage(
     .values({
       ...IMAGE_IDENTITY,
       userId: uid,
-      collectionId: collectionId || (await ensureInbox()),
+      collectionId: await collectionOrInbox(collectionId),
       url: "",
       title: title.slice(0, 200),
       contentType: "image",

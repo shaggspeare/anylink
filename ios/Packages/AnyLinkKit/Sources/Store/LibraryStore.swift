@@ -26,6 +26,8 @@ public final class LibraryStore {
     @ObservationIgnored public var retryBase: Duration = .milliseconds(500)
     @ObservationIgnored let cache: LocalCache?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    /// Launch and becoming active both drain the share extension's saves; two at once would save each twice.
+    @ObservationIgnored var drainingPendingSaves = false
     public private(set) var syncState: SyncState = .idle
     public private(set) var lastSynced: Date?
     public var clipboardHasURL = false

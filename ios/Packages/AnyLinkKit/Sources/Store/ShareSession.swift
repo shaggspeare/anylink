@@ -158,6 +158,9 @@ public final class ShareSession {
 extension LibraryStore {
     /// Saves what the share extension left in the App Group, oldest first, then clears them.
     public func drainPendingSaves(from cache: LocalCache) async {
+        guard !drainingPendingSaves else { return }
+        drainingPendingSaves = true
+        defer { drainingPendingSaves = false }
         for p in cache.pendingSaves().sorted(by: { $0.createdAt < $1.createdAt }) {
             let saved: LinkItem?
             if let text = p.text {
