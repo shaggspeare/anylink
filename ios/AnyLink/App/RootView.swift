@@ -42,8 +42,16 @@ struct RootView: View {
 
     /// The email's link, opened on this iPhone. Called from Welcome and from inside the app (a guest signing up).
     private func finishMagicLink(_ url: URL) {
+        guard let client = AuthService.client else { return }
         Task {
-            if (try? await AuthService.client?.session(from: url)) != nil { signedIn = true }
+            do {
+                _ = try await client.session(from: url)
+                UserDefaults.standard.removeObject(forKey: AuthService.linkErrorKey)
+                signedIn = true
+            } catch {
+                // Shown by whichever sign-in view is on screen — the email sheet may still be covering Welcome.
+                UserDefaults.standard.set(AuthService.linkFailure(error), forKey: AuthService.linkErrorKey)
+            }
         }
     }
 

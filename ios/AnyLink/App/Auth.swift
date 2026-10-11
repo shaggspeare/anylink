@@ -31,4 +31,13 @@ enum AuthService {
     }
 
     static func isCallback(_ url: URL) -> Bool { url.scheme == redirect.scheme && url.host() == redirect.host() }
+
+    /// Why the last email link didn't sign in, for the sign-in screens (UserDefaults, so every one of them sees it).
+    static let linkErrorKey = "authLinkError"
+
+    /// A link only works with the most recent "Send code" on this iPhone, and only once.
+    static func linkFailure(_ error: Error) -> String {
+        let reason = (error as? AuthError)?.message ?? error.localizedDescription
+        return "That sign-in link didn't work (\(reason)). Enter the 6-digit code from the newest email, or send a new one."
+    }
 }

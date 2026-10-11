@@ -106,6 +106,7 @@ struct SignInButtons: View {
     @State private var busy = false
     @State private var emailSheet = false
     @State private var nonce = ""
+    @AppStorage(AuthService.linkErrorKey) private var linkError = ""
     @State private var error: String?
 
     private var mock: Bool { AuthService.client == nil || AppConfig.isUITesting }
@@ -135,7 +136,7 @@ struct SignInButtons: View {
             }
             wide("Continue with Google", icon: Image("GoogleLogo")) { Task { await google() } }
             wide("Continue with email", icon: Image(systemName: "envelope")) { emailSheet = true }
-            if let error {
+            if let error = error ?? (linkError.isEmpty ? nil : linkError) {
                 Text(error).font(.footnote).foregroundStyle(AL.signal).accessibilityAddTraits(.updatesFrequently)
             }
         }
@@ -192,6 +193,7 @@ private struct EmailSignIn: View {
     @State private var code = ""
     @State private var sent = false
     @State private var busy = false
+    @AppStorage(AuthService.linkErrorKey) private var linkError = ""
     @State private var error: String?
 
     private var address: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -218,7 +220,7 @@ private struct EmailSignIn: View {
                         .buttonStyle(.alPrimary)
                         .disabled(busy || !address.contains("@") || !address.contains("."))
                 }
-                if let error { Text(error).font(.footnote).foregroundStyle(AL.signal) }
+                if let error = error ?? (linkError.isEmpty ? nil : linkError) { Text(error).font(.footnote).foregroundStyle(AL.signal) }
                 Spacer()
             }
             .padding(20)
@@ -234,6 +236,7 @@ private struct EmailSignIn: View {
         defer { busy = false }
         do {
             try await AuthService.client?.signInWithOTP(email: address)
+            linkError = ""
             sent = true
             error = nil
         } catch {
