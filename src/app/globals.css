@@ -233,6 +233,12 @@ button {
   pointer-events: none;
 }
 
+/* The note card minus its top-right triangle, so the fold sits in a real gap. --fold is the
+ * fold's size; +2px covers the 1px border the fold sits inside. Masks out the box-shadow too. */
+.note-cut {
+  mask: linear-gradient(225deg, transparent calc((var(--fold) + 2px) * 0.7071), #000 0);
+}
+
 /* Images sit on a dark mat so screenshots — mostly white — keep their edges in light mode. */
 .image-frame {
   background:

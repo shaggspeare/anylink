@@ -26,6 +26,7 @@ public struct LinkTile: View {
         }
         .frame(minHeight: 184, maxHeight: link.isNote || link.isImage ? 184 : nil, alignment: .top)   // grows with Dynamic Type instead of clipping
         .frosted(0.62, radius: 18)
+        .noteCorner(link.isNote ? 22 : 0)
         .alShadow(AL.Shadow.card)
         .overlay(alignment: .topLeading) { selectBadge }
         .overlay { selectOutline }

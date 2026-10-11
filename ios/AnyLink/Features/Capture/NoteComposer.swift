@@ -39,7 +39,7 @@ struct NoteComposer: View {
                             }
                         }
                         .frosted(0.62, radius: AL.Radius.card)
-                        .overlay(alignment: .topTrailing) { NoteFold(size: 28).clipShape(UnevenRoundedRectangle(topTrailingRadius: AL.Radius.card)) }
+                        .noteCorner(28)
                         .accessibilityLabel("Note text")
                     if linkCount > 0 {
                         Label(linkCount == 1 ? "1 link — tappable once saved" : "\(linkCount) links — tappable once saved", systemImage: "link")

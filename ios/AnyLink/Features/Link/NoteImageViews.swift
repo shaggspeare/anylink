@@ -72,9 +72,7 @@ struct NoteView: View {
         .padding(.horizontal, 22)
         .padding(.vertical, 24)
         .frosted(0.7, radius: AL.Radius.panel)
-        .overlay(alignment: .topTrailing) {
-            NoteFold(size: 34).clipShape(UnevenRoundedRectangle(topTrailingRadius: AL.Radius.panel))
-        }
+        .noteCorner(34)
         .alShadow(AL.Shadow.card)
     }
 

@@ -179,7 +179,7 @@ export function Card({
         }}
         role="button"
         tabIndex={0}
-        className={`group absolute flex cursor-pointer overflow-hidden ${row ? "flex-row items-center" : "flex-col"} transition-[box-shadow,transform] ${
+        className={`group absolute flex cursor-pointer overflow-hidden ${row ? "flex-row items-center" : "flex-col"} ${isNote && !row ? `note-cut ${tile ? "[--fold:1.25rem]" : "[--fold:1.75rem]"}` : ""} transition-[box-shadow,transform] ${
           tile ? `${row ? "inset-x-0 inset-y-[2px] rounded-[12px]" : "inset-1 rounded-[16px]"} select-none [-webkit-touch-callout:none]` : "inset-1.5 rounded-[22px] hover:-translate-y-0.5 sm:inset-[7px]"
         }`}
         style={{

@@ -80,6 +80,7 @@ private struct LoadedImage: View {
         }
         .frame(width: size.width, height: size.height)
         .clipped()
+        .contentShape(Rectangle())   // clipped() hides the .fill overflow but still hit-tests it; a tall image would steal taps above its tile
         .task(id: url) {
             let px = Int(max(size.width, size.height) * scale)
             do { image = try await ImageLoader.shared.image(for: url, maxPixels: px) } catch { failed = true }

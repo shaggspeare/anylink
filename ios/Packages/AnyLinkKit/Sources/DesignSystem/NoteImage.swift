@@ -37,6 +37,29 @@ public struct NoteFold: View {
     }
 }
 
+/// The card minus its top-right triangle, so the fold sits in a real gap instead of on top of the glass.
+struct NoteCornerCut: Shape {
+    let size: CGFloat
+    func path(in r: CGRect) -> Path {
+        Path { p in
+            p.move(to: CGPoint(x: r.minX, y: r.minY))
+            p.addLine(to: CGPoint(x: r.maxX - size, y: r.minY))
+            p.addLine(to: CGPoint(x: r.maxX, y: r.minY + size))
+            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+            p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+            p.closeSubpath()
+        }
+    }
+}
+
+extension View {
+    /// Turns a note card's top-right corner down: cuts it away and lays the fold in the gap. Apply after `frosted`.
+    public func noteCorner(_ size: CGFloat = 22) -> some View {
+        clipShape(NoteCornerCut(size: size))
+            .overlay(alignment: .topTrailing) { if size > 0 { NoteFold(size: size) } }
+    }
+}
+
 /// Tile body for a note: label row, first line as the title, the rest fading out at the bottom edge.
 struct NoteTileBody: View {
     let link: LinkItem
@@ -73,7 +96,6 @@ struct NoteTileBody: View {
         .padding(.top, 11)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .mask(LinearGradient(stops: [.init(color: .black, location: 0.7), .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
-        .overlay(alignment: .topTrailing) { NoteFold() }
     }
 }
 

@@ -37,7 +37,7 @@ export function NoteComposer({ initialText = "", collectionId, setCollectionId, 
   return (
     <div className="flex flex-col gap-4">
       <div
-        className="relative overflow-hidden rounded-[22px]"
+        className="note-cut relative overflow-hidden rounded-[22px] [--fold:1.75rem]"
         style={{ background: "rgb(var(--surface-rgb) / .62)", border: "1px solid rgb(var(--rim-rgb) / .75)" }}
       >
         {/* The lime fold is the note's mark everywhere it appears — card, row, composer. */}

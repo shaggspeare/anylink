@@ -40,7 +40,7 @@ export function NotePanel({ link }: { link: LinkItem }) {
         </button>
       </div>
       <div
-        className="relative overflow-hidden rounded-[26px] px-6 py-6 sm:px-9 sm:py-8"
+        className="note-cut relative overflow-hidden rounded-[26px] px-6 py-6 sm:px-9 sm:py-8 [--fold:2.5rem]"
         style={{
           background: "rgb(var(--surface-rgb) / .7)",
           border: "1px solid rgb(var(--rim-rgb) / .8)",
