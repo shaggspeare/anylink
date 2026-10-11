@@ -68,6 +68,10 @@ public struct DateSection: Identifiable, Equatable, Sendable {
 }
 
 extension LibraryStore {
+    public var widgetSummary: WidgetSummary {
+        WidgetSummary(unsorted: scopeCount(.unsorted), recent: Array(links(in: .all, sortedBy: .newest).prefix(WidgetSummary.limit)))
+    }
+
     public func scopeCount(_ scope: LibraryScope) -> Int {
         let inbox = inboxID
         return live.reduce(0) { $0 + (scope.includes($1, inbox: inbox) ? 1 : 0) }

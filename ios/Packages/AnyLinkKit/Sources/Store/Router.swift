@@ -98,13 +98,19 @@ public final class Router {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
-    /// `anylink://add?url=…` and `anylink://link/{id}`, plus universal `https://<web>/links/{id}`.
+    /// `anylink://add?url=…`, `anylink://triage` and `anylink://link/{id}`, plus universal `https://<web>/links/{id}`.
     @discardableResult
     public func handle(_ url: URL) -> Bool {
         let parts = url.pathComponents.filter { $0 != "/" }
         if url.scheme == "anylink", url.host() == "add" {
             let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "url" }?.value
             sheet = .addLink(prefill: raw.flatMap(URL.init(string:)))
+            return true
+        }
+        if url.scheme == "anylink", url.host() == "triage" {
+            sheet = nil
+            tab = .library
+            library = [.triage]
             return true
         }
         let id: String? = url.scheme == "anylink" && url.host() == "link" ? parts.first

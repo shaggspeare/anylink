@@ -6,6 +6,7 @@ import Models
 import Networking
 import Persistence
 import Store
+import WidgetKit
 
 /// Hosts `ShareView`. Saves on appear; Done closes. Memory: no image decoding (identity fallback thumb only).
 final class ShareViewController: UIViewController {
@@ -22,6 +23,7 @@ final class ShareViewController: UIViewController {
         let session = ShareSession(api: api, cache: LocalCache.appGroup(Self.group), signedIn: signedIn)
 
         let host = UIHostingController(rootView: ShareView(session: session) { [weak self] in
+            Self.updateWidgets(session)
             self?.extensionContext?.completeRequest(returningItems: nil)
         })
         addChild(host)
@@ -34,6 +36,13 @@ final class ShareViewController: UIViewController {
         Task { @MainActor in
             await session.start(await self.sharedPayload())
         }
+    }
+
+    /// Shows a save in the widgets before the app next syncs. A pending save has no id to open yet, so it waits.
+    private static func updateWidgets(_ session: ShareSession) {
+        guard let saved = session.saved, let summary = WidgetSummary.load() else { return }
+        summary.adding(saved, toUnsorted: session.collection.map { $0.isInbox == true } ?? true).save()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// A URL item, or the first http(s) link in shared text; otherwise an image, otherwise the text as a note.

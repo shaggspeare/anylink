@@ -22,6 +22,8 @@ public final class LibraryStore {
     @ObservationIgnored public var saveLimitReached: (@MainActor () -> Bool)?
     /// What a save does instead when the limit is reached (the app asks them to sign up).
     @ObservationIgnored public var onSaveLimit: (@MainActor () -> Void)?
+    /// Set by the app: runs after each (debounced) library save, with or without a cache. Feeds the widgets.
+    @ObservationIgnored public var onSave: (@MainActor () -> Void)?
     /// First retry delay for a failing outbox call; doubles each attempt, 5 attempts.
     @ObservationIgnored public var retryBase: Duration = .milliseconds(500)
     @ObservationIgnored let cache: LocalCache?
@@ -231,12 +233,13 @@ public final class LibraryStore {
     }
 
     private func scheduleSave() {
-        guard cache != nil else { return }
+        guard cache != nil || onSave != nil else { return }
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled, let self else { return }
             self.cache?.save(self.snapshot)
+            self.onSave?()
         }
     }
 

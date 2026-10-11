@@ -325,6 +325,29 @@ import Fixtures
         #expect(r.handle(URL(string: "https://anylink.app/links/ytrt")!))
         #expect(r.tab == .library && r.library == [.link("ytrt")])
         #expect(!r.handle(URL(string: "https://anylink.app/about")!))
+        r.sheet = .newCollection
+        #expect(r.handle(URL(string: "anylink://triage")!))
+        #expect(r.tab == .library && r.library == [.triage] && r.sheet == nil)
+    }
+}
+
+@MainActor
+@Suite struct WidgetSummaryTests {
+    @Test func summaryIsUnsortedCountAndNewestThreeWithoutArticleText() {
+        let store = LibraryStore(api: MockAPI.fixtures(latency: false), snapshot: Fixtures.library)
+        let s = store.widgetSummary
+        #expect(s.unsorted == store.scopeCount(.unsorted))
+        #expect(s.recent.map(\.id) == store.links(in: .all, sortedBy: .newest).prefix(3).map(\.id))
+        #expect(s.recent.allSatisfy { $0.articleText == nil && $0.highlights == nil })
+    }
+
+    @Test func addingPutsTheShareFirstOnce() {
+        let links = Fixtures.library.links
+        let s = WidgetSummary(unsorted: 2, recent: Array(links.prefix(3)))
+        let added = s.adding(links[1], toUnsorted: true)
+        #expect(added.unsorted == 3)
+        #expect(added.recent.map(\.id) == [links[1].id, links[0].id, links[2].id])
+        #expect(s.adding(links[5], toUnsorted: false).unsorted == 2)
     }
 }
 

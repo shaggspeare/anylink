@@ -100,8 +100,9 @@ struct NoteTileBody: View {
 }
 
 /// Row thumbnail for a note: a lime square with the text glyph — its identity at 32–44pt.
-struct NoteThumb: View {
-    var body: some View {
+public struct NoteThumb: View {
+    public init() {}
+    public var body: some View {
         ZStack(alignment: .topTrailing) {
             Rectangle().fill(AL.lime.opacity(0.9))
             Image(systemName: "text.alignleft")

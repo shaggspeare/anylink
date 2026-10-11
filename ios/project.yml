@@ -42,6 +42,8 @@ targets:
         product: Auth
       - target: AnyLinkShare
         embed: true
+      - target: AnyLinkWidgets
+        embed: true
     info:
       path: AnyLink/Info.plist
       properties:
@@ -117,6 +119,32 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.share
         TARGETED_DEVICE_FAMILY: "1,2"
 
+  AnyLinkWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      # The control's intent lives in the app too, so the system runs it there.
+      - AnyLink/Intents/OpenAddLinkIntent.swift
+    dependencies:
+      - package: AnyLinkKit
+        products: [Models, DesignSystem, Fixtures]
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: AnyLink
+        ITSAppUsesNonExemptEncryption: false
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/AnyLinkWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.shaggspeare.anylink]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.widgets
+        TARGETED_DEVICE_FAMILY: "1,2"
+
   AnyLinkUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -135,6 +163,7 @@ schemes:
       targets:
         AnyLink: all
         AnyLinkShare: all
+        AnyLinkWidgets: all
     run:
       config: Debug
     test:

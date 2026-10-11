@@ -4,6 +4,8 @@ import DesignSystem
 import Store
 import Auth
 import CoreSpotlight
+import Models
+import WidgetKit
 
 struct RootView: View {
     let env: AppEnvironment
@@ -29,6 +31,7 @@ struct RootView: View {
         .sheet(isPresented: $choosingPassword) { NewPasswordSheet() }
         .onChange(of: signedIn, initial: true) { was, on in
             UserDefaults(suiteName: "group.com.shaggspeare.anylink")?.set(on, forKey: "signedIn")
+            if !on { WidgetSummary.clear(); WidgetCenter.shared.reloadAllTimelines() }
             if on && !was { didSignIn() }
         }
         .onChange(of: guest, initial: true) { _, on in

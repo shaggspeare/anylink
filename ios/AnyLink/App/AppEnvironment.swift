@@ -4,6 +4,7 @@ import Networking
 import Fixtures
 import Persistence
 import Store
+import WidgetKit
 
 @MainActor
 struct AppEnvironment {
@@ -25,6 +26,14 @@ struct AppEnvironment {
         self.shared = shared
         // A 401 (after the token can't be refreshed) signs out to Welcome.
         store.onUnauthorized = { UserDefaults.standard.set(false, forKey: "signedIn") }
+        // The widgets read the App Group, so only an App Group library feeds them (not a guest's).
+        if shared != nil {
+            store.onSave = { [weak store] in
+                guard let summary = store?.widgetSummary, summary != WidgetSummary.load() else { return }
+                summary.save()
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+        }
     }
 
     static func mock(latency: Bool = true) -> AppEnvironment {
