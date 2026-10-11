@@ -278,8 +278,9 @@ import Fixtures
     }
 
     @Test func createCollectionAndFilter() async throws {
-        let c = await store.createCollection(name: "Music", color: "#7C8CFF")
+        let c = await store.createCollection(name: "Music", color: "#7C8CFF", icon: "🎵")
         #expect(store.collection(c!.id)?.name == "Music")
+        #expect(store.collection(c!.id)?.icon == "🎵")
         let f = await store.createFilter(name: "Videos", query: "type:video")
         #expect(store.count(in: f!.id) == 2)
         #expect(store.toasts.current?.message == "Saved as a filter in Collections")
@@ -728,7 +729,7 @@ actor SignalSpy: AnyLinkAPI {
     func bulk(_ a: BulkAction, ids: [LinkItem.ID]) async throws { try await inner.bulk(a, ids: ids) }
     func reorder(_ ids: [LinkItem.ID]) async throws { try await inner.reorder(ids) }
     func reorderCollections(_ ids: [LinkCollection.ID]) async throws { try await inner.reorderCollections(ids) }
-    func createCollection(name: String, color: String) async throws -> LinkCollection { try await inner.createCollection(name: name, color: color) }
+    func createCollection(name: String, color: String, icon: String?) async throws -> LinkCollection { try await inner.createCollection(name: name, color: color, icon: icon) }
     func createFilter(name: String, query: String) async throws -> LinkCollection { try await inner.createFilter(name: name, query: query) }
     func updateCollection(_ id: LinkCollection.ID, name: String) async throws { try await inner.updateCollection(id, name: name) }
     func deleteCollection(_ id: LinkCollection.ID) async throws -> [LinkItem.ID] { try await inner.deleteCollection(id) }

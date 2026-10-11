@@ -17,7 +17,7 @@ Examples:
 POST /api/v1/actions/moveLinks         [["<linkId>"], "<collectionId>"]
 POST /api/v1/actions/setFavorite       ["<linkId>", true]
 POST /api/v1/actions/setPinned         ["<linkId>", true]
-POST /api/v1/actions/createCollection  ["Reading", "#7c8cff"]
+POST /api/v1/actions/createCollection  ["Reading", "#7c8cff", "📚"]   (icon optional: an emoji or null)
 POST /api/v1/actions/createLink        [{ ...LinkItem fields minus id/createdAt/status/archived/highlights }]
 ```
 

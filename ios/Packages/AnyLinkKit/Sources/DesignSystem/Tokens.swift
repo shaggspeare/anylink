@@ -140,7 +140,15 @@ public enum AL {
     // MARK: Identity
     public static let identityTints: [UInt32] = [0xFF5A1F, 0x7C8CFF, 0xD6F24B, 0x9AA3AD, 0x17181B, 0xE0855A]
     public static let identityStripes: [UInt32] = [0xFFFFFF, 0x17181B, 0xD6F24B]
-    public static let collectionSwatches: [UInt32] = [0xFF5A1F, 0xD6F24B, 0x7C8CFF, 0x9AA3AD, 0xE0855A]
+    public static let collectionSwatches: [UInt32] = [
+        0xFF5A1F, 0xE0855A, 0xFFC23D, 0xD6F24B, 0x3CC6A0,
+        0x4AA8FF, 0x7C8CFF, 0xC264D9, 0xFF7AB6, 0x9AA3AD,
+    ]
+    /// Mirrors COLLECTION_ICONS on the web. No icon means the colour dot.
+    public static let collectionIcons: [String] = [
+        "📌", "⭐️", "❤️", "💡", "📚", "🎬", "🎵", "🍳", "✈️", "🛍️",
+        "🎁", "💪", "💻", "🎨", "📰", "💰", "🏠", "🌱", "✅",
+    ]
 
     public static func identity(for domain: String) -> (tint: UInt32, stripe: UInt32, initial: String) {
         var h: Int32 = 0

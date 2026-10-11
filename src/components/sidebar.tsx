@@ -19,7 +19,15 @@ import { suggestThemes } from "@/lib/organize";
 import type { Collection } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export const SWATCHES = ["#ff5a1f", "#d6f24b", "#7c8cff", "#9aa3ad", "#e0855a"];
+export const SWATCHES = [
+  "#ff5a1f", "#e0855a", "#ffc23d", "#d6f24b", "#3cc6a0",
+  "#4aa8ff", "#7c8cff", "#c264d9", "#ff7ab6", "#9aa3ad",
+];
+// Mirrors AL.collectionIcons on iOS. The first slot is "no icon": the colour dot.
+export const COLLECTION_ICONS = [
+  "📌", "⭐️", "❤️", "💡", "📚", "🎬", "🎵", "🍳", "✈️", "🛍️",
+  "🎁", "💪", "💻", "🎨", "📰", "💰", "🏠", "🌱", "✅",
+];
 
 /** Candidate filters, in sidebar order. Each is just a query string — one that
  * matches nothing is never rendered, so the list always mirrors the library. */
@@ -193,8 +201,8 @@ export function Sidebar() {
       <div className="mt-1 flex-1 overflow-y-auto">
         {creating ? (
           <NewCollectionForm
-            onCreate={async (name, color) => {
-              await addCollection(name, color);
+            onCreate={async (name, color, icon) => {
+              await addCollection(name, color, icon);
               setCreating(false);
             }}
             onCancel={() => setCreating(false)}
@@ -377,10 +385,10 @@ function RowIcon({ name }: { name: Parameters<typeof Icon>[0]["name"] }) {
   );
 }
 
-function RowMarker({ color }: { color: string }) {
+function RowMarker({ color, icon }: { color: string; icon?: string }) {
   return (
     <span className="flex h-[18px] w-[18px] flex-none items-center justify-center">
-      <CollectionMarker color={color} size={10} />
+      <CollectionMarker color={color} icon={icon} size={10} />
     </span>
   );
 }
@@ -428,17 +436,18 @@ function NewCollectionForm({
   onCreate,
   onCancel,
 }: {
-  onCreate: (name: string, color: string) => Promise<void>;
+  onCreate: (name: string, color: string, icon?: string) => Promise<void>;
   onCancel: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(SWATCHES[0]);
+  const [icon, setIcon] = useState<string>();
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
     if (!name.trim() || saving) return;
     setSaving(true);
-    await onCreate(name.trim(), color);
+    await onCreate(name.trim(), color, icon);
   };
 
   return (
@@ -457,13 +466,14 @@ function NewCollectionForm({
         placeholder="Collection name"
         className="h-8 rounded-[10px] border border-ink/10 bg-surface px-2.5 text-[12.5px] text-ink outline-none"
       />
-      <div className="flex items-center gap-1.5 px-0.5">
+      <div className="grid grid-cols-5 justify-items-center gap-y-2 py-1">
         {SWATCHES.map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => setColor(s)}
-            aria-label={s}
+            aria-label={`Colour ${s}`}
+            aria-pressed={s === color}
             className="h-5 w-5 rounded-full"
             style={{
               background: s,
@@ -471,6 +481,24 @@ function NewCollectionForm({
             }}
           />
         ))}
+      </div>
+      <div className="grid grid-cols-5 gap-1">
+        {[undefined, ...COLLECTION_ICONS].map((i) => (
+          <button
+            key={i ?? "none"}
+            type="button"
+            onClick={() => setIcon(i)}
+            aria-label={i ? `Icon ${i}` : "No icon"}
+            aria-pressed={i === icon}
+            className={`flex h-8 items-center justify-center rounded-[10px] text-[16px] ${
+              i === icon ? "bg-surface shadow-[0_0_0_1.5px_var(--ink)]" : "hover:bg-ink/6"
+            }`}
+          >
+            <CollectionMarker color={color} icon={i} size={10} />
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center px-0.5">
         <div className="ml-auto flex items-center gap-1.5">
           <button type="button" onClick={onCancel} className="rounded-full px-2.5 py-1 text-[11.5px] text-ink/50 hover:text-ink">
             Cancel
@@ -531,7 +559,7 @@ function CollectionRow({
   if (renaming) {
     return (
       <div className="flex items-center gap-2.5 rounded-[14px] px-3 py-2">
-        <RowMarker color={collection.color} />
+        <RowMarker color={collection.color} icon={collection.icon} />
         <input
           autoFocus
           value={name}
@@ -583,7 +611,7 @@ function CollectionRow({
         draggable={false}
         className="flex flex-1 items-center gap-2.5 px-3 py-3 text-body lg:py-2.5"
       >
-        <RowMarker color={collection.color} />
+        <RowMarker color={collection.color} icon={collection.icon} />
         <span className="flex-1 truncate">{collection.name}</span>
         <span className="text-meta text-ink/45 group-hover:hidden">{count}</span>
       </Link>

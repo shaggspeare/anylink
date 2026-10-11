@@ -140,7 +140,7 @@ struct SheetHost: View {
                     dismiss()
                 } label: {
                     HStack(spacing: 10) {
-                        Circle().fill(Color.fromHex(c.color)).frame(width: 10, height: 10)
+                        CollectionMarker(color: c.color, icon: c.icon, size: 10)
                         Text(c.name).foregroundStyle(AL.ink)
                         Spacer()
                         Text("\(store.count(in: c.id))").foregroundStyle(.secondary)

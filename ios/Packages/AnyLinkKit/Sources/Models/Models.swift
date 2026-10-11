@@ -152,9 +152,11 @@ public struct LinkCollection: Codable, Identifiable, Hashable, Sendable {
     public var isInbox: Bool?
     public var reasoning: String?
     public var createdBy: String?
+    /// An emoji shown in place of the colour dot.
+    public var icon: String?
 
-    public init(id: String, name: String, color: String, isSmart: Bool? = nil, smartQuery: String? = nil, isInbox: Bool? = nil, reasoning: String? = nil, createdBy: String? = nil) {
-        self.id = id; self.name = name; self.color = color; self.isSmart = isSmart; self.smartQuery = smartQuery; self.isInbox = isInbox; self.reasoning = reasoning; self.createdBy = createdBy
+    public init(id: String, name: String, color: String, isSmart: Bool? = nil, smartQuery: String? = nil, isInbox: Bool? = nil, reasoning: String? = nil, createdBy: String? = nil, icon: String? = nil) {
+        self.id = id; self.name = name; self.color = color; self.isSmart = isSmart; self.smartQuery = smartQuery; self.isInbox = isInbox; self.reasoning = reasoning; self.createdBy = createdBy; self.icon = icon
     }
 }
 

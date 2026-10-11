@@ -19,7 +19,7 @@ public struct CollectionCard: View {
             mosaic.padding(6)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Circle().fill(dotColor).frame(width: 8, height: 8)
+                    CollectionMarker(color: collection.color, icon: collection.icon)
                     Text(collection.name)
                         .font(AL.Font.brand(14, .semibold, relativeTo: .subheadline))
                         .foregroundStyle(AL.ink)
@@ -55,6 +55,27 @@ public struct CollectionCard: View {
         }
         .frame(height: 80)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+// MARK: - CollectionMarker
+
+/// The collection's emoji when it has one, otherwise its colour dot.
+public struct CollectionMarker: View {
+    let color: String
+    let icon: String?
+    let size: CGFloat
+
+    public init(color: String, icon: String?, size: CGFloat = 8) {
+        self.color = color; self.icon = icon; self.size = size
+    }
+
+    public var body: some View {
+        if let icon {
+            Text(icon).font(.system(size: max(size * 1.6, 12))).accessibilityHidden(true)
+        } else {
+            Circle().fill(Color.fromHex(color)).frame(width: size, height: size)
+        }
     }
 }
 

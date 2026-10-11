@@ -228,9 +228,9 @@ public actor MockAPI: AnyLinkAPI {
     public func reorder(_ ids: [LinkItem.ID]) async throws { try maybeThrow() }
     public func reorderCollections(_ ids: [LinkCollection.ID]) async throws { try maybeThrow() }
 
-    public func createCollection(name: String, color: String) async throws -> LinkCollection {
+    public func createCollection(name: String, color: String, icon: String?) async throws -> LinkCollection {
         try maybeThrow(); await delay()
-        let c = LinkCollection(id: UUID().uuidString, name: name, color: color, createdBy: "user")
+        let c = LinkCollection(id: UUID().uuidString, name: name, color: color, createdBy: "user", icon: icon)
         collections.append(c)
         return c
     }

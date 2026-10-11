@@ -42,7 +42,7 @@ type LibraryContextValue = {
   setFavorite: (id: string, favorite: boolean) => void;
   setPinned: (id: string, pinned: boolean) => Promise<void>;
   setNote: (id: string, note: string) => void;
-  addCollection: (name: string, color: string) => Promise<Collection>;
+  addCollection: (name: string, color: string, icon?: string) => Promise<Collection>;
   saveSmartCollection: (query: string, name?: string) => Promise<Collection>;
   renameCollection: (id: string, name: string) => void;
   /** Dissolves it: its links go back to Unsorted. `announce` adds a toast whose Undo recreates it. */
@@ -131,7 +131,7 @@ const LOCAL_ACTIONS = new Proxy(
       status: "ready",
       createdAt: now(),
     }),
-    createCollection: async (name, color) => ({ id: nextId("guest"), name, color }),
+    createCollection: async (name, color, icon) => ({ id: nextId("guest"), name, color, icon: icon ?? undefined }),
     createSmartCollection: async (query, name) => ({
       id: nextId("guest"),
       name: name?.trim() || query,
@@ -239,7 +239,7 @@ export function LibraryProvider({
       for (const c of saved.collections) {
         const made = c.isSmart
           ? await actions.createSmartCollection(c.smartQuery ?? "", c.name)
-          : await actions.createCollection(c.name, c.color);
+          : await actions.createCollection(c.name, c.color, c.icon);
         ids.set(c.id, made.id);
         created.push(made);
       }
@@ -411,8 +411,8 @@ export function LibraryProvider({
         setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, note: note.trim() || undefined } : l)));
         api.setNote(id, note).catch(console.error);
       },
-      addCollection: async (name, color) => {
-        const collection = await api.createCollection(name, color);
+      addCollection: async (name, color, icon) => {
+        const collection = await api.createCollection(name, color, icon);
         setCollections((prev) => [...prev, collection]);
         return collection;
       },
@@ -457,7 +457,7 @@ export function LibraryProvider({
               await lib.saveSmartCollection(collection.smartQuery ?? "", collection.name);
               return;
             }
-            const recreated = await lib.addCollection(collection.name, collection.color);
+            const recreated = await lib.addCollection(collection.name, collection.color, collection.icon);
             if (memberIds.length) lib.moveLinks(memberIds, recreated.id);
           },
           key: Date.now(),

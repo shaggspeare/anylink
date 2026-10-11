@@ -40,6 +40,8 @@ export const collections = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     color: text("color").notNull(),
+    // An emoji shown in place of the colour dot. Null keeps the dot.
+    icon: text("icon"),
     isSmart: boolean("is_smart").notNull().default(false),
     smartQuery: text("smart_query"),
     // The inbox links land in when you save without picking a collection. Exactly one

@@ -185,8 +185,8 @@ public struct LiveAPI: AnyLinkAPI {
 
     // MARK: - Collections
 
-    public func createCollection(name: String, color: String) async throws -> LinkCollection {
-        try await action("createCollection", [name, color], as: LinkCollection.self)
+    public func createCollection(name: String, color: String, icon: String?) async throws -> LinkCollection {
+        try await action("createCollection", [name, color, icon], as: LinkCollection.self)
     }
 
     public func createFilter(name: String, query: String) async throws -> LinkCollection {

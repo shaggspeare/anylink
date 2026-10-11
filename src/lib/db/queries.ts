@@ -152,6 +152,7 @@ function toCollection(row: typeof schema.collections.$inferSelect): Collection {
     id: row.id,
     name: row.name,
     color: row.color,
+    icon: row.icon ?? undefined,
     isSmart: row.isSmart,
     smartQuery: row.smartQuery ?? undefined,
     isInbox: row.isInbox,

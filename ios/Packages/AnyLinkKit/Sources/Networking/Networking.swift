@@ -16,7 +16,7 @@ public protocol AnyLinkAPI: Sendable {
     func bulk(_ action: BulkAction, ids: [LinkItem.ID]) async throws
     func reorder(_ ids: [LinkItem.ID]) async throws
     func reorderCollections(_ ids: [LinkCollection.ID]) async throws
-    func createCollection(name: String, color: String) async throws -> LinkCollection
+    func createCollection(name: String, color: String, icon: String?) async throws -> LinkCollection
     func createFilter(name: String, query: String) async throws -> LinkCollection
     func updateCollection(_ id: LinkCollection.ID, name: String) async throws
     func deleteCollection(_ id: LinkCollection.ID) async throws -> [LinkItem.ID]

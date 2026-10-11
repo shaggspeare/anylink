@@ -44,7 +44,7 @@ public protocol AnyLinkAPI: Sendable {
     func bulk(_ action: BulkAction, ids: [LinkItem.ID]) async throws                  // see BulkAction mapping below
     func reorder(_ ids: [LinkItem.ID]) async throws                                   // reorderLinks [ids]
     func reorderCollections(_ ids: [LinkCollection.ID]) async throws                  // reorderCollections [ids]
-    func createCollection(name: String, color: String) async throws -> LinkCollection // createCollection [name, color]
+    func createCollection(name: String, color: String, icon: String?) async throws -> LinkCollection // createCollection [name, color, icon]
     func createFilter(name: String, query: String) async throws -> LinkCollection     // createSmartCollection [query, name]
     func updateCollection(_ id: LinkCollection.ID, name: String) async throws          // renameCollection [id, name]
     func deleteCollection(_ id: LinkCollection.ID) async throws -> [LinkItem.ID]       // deleteCollection [id] → { trashedIds }; 400 for the inbox

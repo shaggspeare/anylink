@@ -82,6 +82,8 @@ export type Collection = {
   id: string;
   name: string;
   color: string;
+  /** An emoji shown in place of the colour dot. */
+  icon?: string;
   isSmart?: boolean;
   smartQuery?: string;
   isInbox?: boolean;

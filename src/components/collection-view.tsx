@@ -58,7 +58,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
       <div className="relative lg:pl-[250px]" style={{ paddingRight: split.openId ? PANE_PX : undefined }}>
         <header className="flex flex-col gap-3 px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
           <div data-tour="collection-header" className="flex items-center gap-3">
-            <CollectionMarker color={collection.color} size={14} />
+            <CollectionMarker color={collection.color} icon={collection.icon} size={14} />
             <h1 className="text-title min-w-0 truncate text-[26px]">{collection.name}</h1>
             <span className="flex-none whitespace-nowrap text-meta text-ink/50">{linkCount(scoped.length)}</span>
             {collection.isSmart && (

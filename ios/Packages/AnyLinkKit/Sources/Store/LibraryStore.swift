@@ -514,9 +514,9 @@ public final class LibraryStore {
 
     // MARK: - Collection intents
 
-    public func createCollection(name: String, color: String) async -> LinkCollection? {
+    public func createCollection(name: String, color: String, icon: String? = nil) async -> LinkCollection? {
         do {
-            let c = try await api.createCollection(name: name, color: color)
+            let c = try await api.createCollection(name: name, color: color, icon: icon)
             collections.append(c)
             return c
         } catch {
@@ -570,7 +570,7 @@ public final class LibraryStore {
         // BACKEND: no restore-collection endpoint; Undo recreates it with a new id and loses `reasoning`/`createdBy`.
         enqueue { [weak self] in
             do {
-                let new = try await api.createCollection(name: c.name, color: c.color)
+                let new = try await api.createCollection(name: c.name, color: c.color, icon: c.icon)
                 self?.remapCollection(c.id, to: new.id)
                 if !ids.isEmpty { try await api.bulk(.move(to: new.id), ids: ids) }
             } catch {
@@ -583,7 +583,7 @@ public final class LibraryStore {
         guard let i = collections.firstIndex(where: { $0.id == old }) else { return }
         let c = collections[i]
         collections[i] = LinkCollection(id: new, name: c.name, color: c.color, isSmart: c.isSmart, smartQuery: c.smartQuery,
-                                        isInbox: c.isInbox, reasoning: c.reasoning, createdBy: c.createdBy)
+                                        isInbox: c.isInbox, reasoning: c.reasoning, createdBy: c.createdBy, icon: c.icon)
         for l in ordered where l.collectionId == old { links[l.id]?.collectionId = new }
     }
 

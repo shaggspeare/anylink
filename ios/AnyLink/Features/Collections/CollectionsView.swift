@@ -205,49 +205,67 @@ struct CollectionsView: View {
     }
 }
 
-/// New collection (name + 5 swatches) and Rename (name only: the API can't recolour).
+/// New collection (name, colour, icon) and Rename (name only: the API can't recolour).
 struct CollectionNameSheet: View {
     var renaming: LinkCollection?
     @Environment(LibraryStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var color = String(format: "#%06X", AL.collectionSwatches[0])
+    @State private var icon: String?
     @State private var busy = false
     @FocusState private var nameFocused: Bool
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
+
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                ALField("Name", text: $name)
-                    .focused($nameFocused)
-                    .submitLabel(.done)
-                    .onSubmit(submit)
-                if renaming == nil {
-                    HStack(spacing: 14) {
-                        ForEach(AL.collectionSwatches, id: \.self) { hex in
-                            let value = String(format: "#%06X", hex)
-                            Button { color = value } label: {
-                                Circle().fill(Color(hex: hex)).frame(width: 32, height: 32)
-                                    .overlay(Circle().strokeBorder(AL.ink, lineWidth: color == value ? 2.5 : 0).padding(-4))
-                                    .frame(width: AL.Control.md, height: AL.Control.md)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    ALField("Name", text: $name)
+                        .focused($nameFocused)
+                        .submitLabel(.done)
+                        .onSubmit(submit)
+                    if renaming == nil {
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach(AL.collectionSwatches, id: \.self) { hex in
+                                let value = String(format: "#%06X", hex)
+                                Button { color = value } label: {
+                                    Circle().fill(Color(hex: hex)).frame(width: 32, height: 32)
+                                        .overlay(Circle().strokeBorder(AL.ink, lineWidth: color == value ? 2.5 : 0).padding(-4))
+                                        .frame(width: AL.Control.md, height: AL.Control.md)
+                                }
+                                .accessibilityLabel("Colour \(value)")
+                                .accessibilityAddTraits(color == value ? .isSelected : [])
                             }
-                            .accessibilityLabel("Colour \(value)")
-                            .accessibilityAddTraits(color == value ? .isSelected : [])
+                        }
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach([String?.none] + AL.collectionIcons.map(Optional.some), id: \.self) { option in
+                                Button { icon = option } label: {
+                                    CollectionMarker(color: color, icon: option, size: 14)
+                                        .frame(maxWidth: .infinity, minHeight: AL.Control.md)
+                                        .background(AL.ink.opacity(icon == option ? AL.Ink.a08 : 0), in: .rect(cornerRadius: AL.Radius.nav))
+                                        .overlay(RoundedRectangle(cornerRadius: AL.Radius.nav).strokeBorder(AL.ink, lineWidth: icon == option ? 1.5 : 0))
+                                        .contentShape(.rect)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(option.map { "Icon \($0)" } ?? "No icon")
+                                .accessibilityAddTraits(icon == option ? .isSelected : [])
+                            }
                         }
                     }
+                    Button(renaming == nil ? "Add collection" : "Save", action: submit)
+                        .buttonStyle(.alPrimary)
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || busy)
                 }
-                Button(renaming == nil ? "Add collection" : "Save", action: submit)
-                    .buttonStyle(.alPrimary)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || busy)
-                Spacer()
+                .padding(20)
             }
-            .padding(20)
             .navigationTitle(renaming == nil ? "New collection" : "Rename")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .onAppear { name = renaming?.name ?? ""; nameFocused = true }
         }
-        .presentationDetents([.medium])
+        .presentationDetents(renaming == nil ? [.large] : [.medium])
         .interactiveDismissDisabled(busy)
     }
 
@@ -260,7 +278,7 @@ struct CollectionNameSheet: View {
         } else {
             busy = true
             Task {
-                _ = await store.createCollection(name: n, color: color)
+                _ = await store.createCollection(name: n, color: color, icon: icon)
                 dismiss()
             }
         }

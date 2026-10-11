@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { CollectionMarker } from "@/components/collection-marker";
 import { Icon } from "@/components/icon";
 import { useLibrary } from "@/lib/store";
 import type { LinkItem } from "@/lib/types";
@@ -111,7 +112,7 @@ export function LinkActionSheet({
                 })}
                 className={ROW}
               >
-                <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ background: c.color }} />
+                <CollectionMarker color={c.color} icon={c.icon} size={10} />
                 {c.name}
               </button>
             ))}

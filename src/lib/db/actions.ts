@@ -420,13 +420,15 @@ export async function purgeLinks(ids: string[]) {
   await Promise.all(purged.map(({ id }) => deleteHeroImage(id).catch(() => {})));
 }
 
-export async function createCollection(name: string, color: string) {
+export async function createCollection(name: string, color: string, icon?: string | null) {
   const uid = await currentUserId();
+  // One emoji, maybe with modifiers; anything longer isn't an icon.
+  const safeIcon = icon && [...icon].length <= 8 ? icon : null;
   const [row] = await db
     .insert(schema.collections)
-    .values({ userId: uid, name, color })
+    .values({ userId: uid, name, color, icon: safeIcon })
     .returning();
-  return { id: row.id, name: row.name, color: row.color };
+  return { id: row.id, name: row.name, color: row.color, icon: row.icon ?? undefined };
 }
 
 /** A custom filter: a saved query under a name of the user's choosing. Unnamed ones keep
