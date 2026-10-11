@@ -185,74 +185,156 @@ struct SignInButtons: View {
     }
 }
 
-/// One email, two ways in: type the 6-digit code here, or tap the link in it on this iPhone.
+/// Email and password. Mail only goes out to confirm a new account or reset a forgotten password; the reset
+/// link comes back to `anylink://auth-callback/recovery`, and RootView then asks for the new password.
 private struct EmailSignIn: View {
+    enum Mode { case signIn, signUp, forgot }
+
     let onSignedIn: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var mode = Mode.signIn
     @State private var email = ""
-    @State private var code = ""
-    @State private var sent = false
+    @State private var password = ""
     @State private var busy = false
+    @State private var notice: String?
     @AppStorage(AuthService.linkErrorKey) private var linkError = ""
     @State private var error: String?
 
     private var address: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var canSubmit: Bool {
+        guard !busy, address.contains("@"), address.contains(".") else { return false }
+        switch mode {
+        case .signIn: return !password.isEmpty
+        case .signUp: return password.count >= 8
+        case .forgot: return true
+        }
+    }
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 14) {
-                if sent {
-                    Text("Enter the code we sent to \(address), or tap the link in the email.")
-                        .font(AL.Font.lead).foregroundStyle(AL.ink)
-                    ALField("123456", text: $code)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                    Button("Sign in") { Task { await verify() } }
-                        .buttonStyle(.alPrimary)
-                        .disabled(busy || code.count < 6)
-                } else {
-                    ALField("you@example.com", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button("Send code") { Task { await send() } }
-                        .buttonStyle(.alPrimary)
-                        .disabled(busy || !address.contains("@") || !address.contains("."))
+                ALField("you@example.com", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                if mode != .forgot {
+                    ALField(mode == .signUp ? "Password (8+ characters)" : "Password", text: $password, isSecure: true)
+                        .textContentType(mode == .signUp ? .newPassword : .password)
                 }
+                Button(mode == .signIn ? "Sign in" : mode == .signUp ? "Create account" : "Send reset link") {
+                    Task { await submit() }
+                }
+                .buttonStyle(.alPrimary)
+                .disabled(!canSubmit)
+                HStack {
+                    if mode == .signIn {
+                        Button("New here? Create an account") { switchTo(.signUp) }
+                        Spacer()
+                        Button("Forgot password?") { switchTo(.forgot) }
+                    } else {
+                        Button(mode == .signUp ? "Have an account? Sign in" : "Back to sign in") { switchTo(.signIn) }
+                    }
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                if let notice { Text(notice).font(.footnote).foregroundStyle(AL.ink) }
                 if let error = error ?? (linkError.isEmpty ? nil : linkError) { Text(error).font(.footnote).foregroundStyle(AL.signal) }
                 Spacer()
             }
             .padding(20)
-            .navigationTitle("Continue with email")
+            .navigationTitle(mode == .signUp ? "Create account" : mode == .forgot ? "Reset password" : "Sign in with email")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func switchTo(_ next: Mode) {
+        mode = next
+        error = nil
+        notice = nil
+    }
+
+    private func submit() async {
+        guard let client = AuthService.client else { dismiss(); return onSignedIn() }
+        busy = true
+        error = nil
+        notice = nil
+        linkError = ""
+        defer { busy = false }
+        do {
+            switch mode {
+            case .signIn:
+                _ = try await client.signIn(email: address, password: password)
+                dismiss()
+                onSignedIn()
+            case .signUp:
+                if case .session = try await client.signUp(email: address, password: password, redirectTo: AuthService.redirect) {
+                    dismiss()
+                    onSignedIn()
+                } else {
+                    // Confirm email is on: the account waits for the link.
+                    mode = .signIn
+                    notice = "Check \(address) for a link to confirm your account, then sign in."
+                }
+            case .forgot:
+                try await client.resetPasswordForEmail(address, redirectTo: AuthService.recoveryRedirect)
+                // Same answer whether or not the address has an account.
+                notice = "If \(address) has an account, a link to reset the password is on its way. Open it on this iPhone."
+            }
+        } catch {
+            self.error = Self.message(for: error)
+        }
+    }
+
+    static func message(for error: Error) -> String {
+        guard let e = error as? AuthError else { return "Couldn't reach AnyLink. Check your connection and try again." }
+        switch e.errorCode {
+        case .invalidCredentials: return "That email and password don't match."
+        case .emailNotConfirmed: return "Confirm your email first — the link is in your inbox."
+        case .userAlreadyExists, .emailExists: return "There's already an account with this email. Sign in instead."
+        case .weakPassword: return "Choose a longer password (8+ characters)."
+        case .overEmailSendRateLimit: return "Too many emails right now. Wait a few minutes, then try again."
+        default: return e.message
+        }
+    }
+}
+
+/// After a reset link: they're signed in, and only the new password is left.
+struct NewPasswordSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var password = ""
+    @State private var busy = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                ALField("New password (8+ characters)", text: $password, isSecure: true)
+                    .textContentType(.newPassword)
+                Button("Save") { Task { await save() } }
+                    .buttonStyle(.alPrimary)
+                    .disabled(busy || password.count < 8)
+                if let error { Text(error).font(.footnote).foregroundStyle(AL.signal) }
+                Spacer()
+            }
+            .padding(20)
+            .navigationTitle("Choose a new password")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Later") { dismiss() } } }
         }
         .presentationDetents([.medium])
     }
 
-    private func send() async {
+    private func save() async {
         busy = true
         defer { busy = false }
         do {
-            try await AuthService.client?.signInWithOTP(email: address)
-            linkError = ""
-            sent = true
-            error = nil
-        } catch {
-            self.error = "Couldn't send the code. Check the address and try again."
-        }
-    }
-
-    private func verify() async {
-        busy = true
-        defer { busy = false }
-        do {
-            _ = try await AuthService.client?.verifyOTP(email: address, token: code.trimmingCharacters(in: .whitespaces), type: .email)
+            _ = try await AuthService.client?.update(user: UserAttributes(password: password))
             dismiss()
-            onSignedIn()
         } catch {
-            self.error = "That code didn't work. Check it, or send a new one."
+            self.error = EmailSignIn.message(for: error)
         }
     }
 }

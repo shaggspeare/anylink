@@ -13,7 +13,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-canvas p-6">
       <AmbientOrbs variant="library" />
       <div className="glass-55 relative flex w-full max-w-md justify-center rounded-[28px] p-8">
-        <AuthPanel subtitle={error ? "That sign-in link didn't work. Try again." : undefined} />
+        <AuthPanel
+          subtitle={
+            error
+              ? "That link didn't work — links only open in the browser that asked for them, and only once. If you just confirmed your email, sign in with your password; otherwise ask for a new link."
+              : undefined
+          }
+        />
       </div>
       <Link href="/privacy-policy" className="relative mt-4 text-meta text-ink/55 hover:text-ink hover:underline">
         Privacy Policy

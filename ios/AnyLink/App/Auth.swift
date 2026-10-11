@@ -6,6 +6,8 @@ import Auth
 enum AuthService {
     /// Google's browser sheet and the email's magic link come back here.
     static let redirect = URL(string: "anylink://auth-callback")!
+    /// A password-reset link: same callback, and RootView asks for the new password after signing in.
+    static let recoveryRedirect = URL(string: "anylink://auth-callback/recovery")!
 
     /// nil without `SUPABASE_URL` / `SUPABASE_ANON_KEY`: the app then runs on mock data with mock sign-in.
     static let client: AuthClient? = {
@@ -35,9 +37,9 @@ enum AuthService {
     /// Why the last email link didn't sign in, for the sign-in screens (UserDefaults, so every one of them sees it).
     static let linkErrorKey = "authLinkError"
 
-    /// A link only works with the most recent "Send code" on this iPhone, and only once.
+    /// A link only works on the iPhone that asked for it, for the newest request, and only once.
     static func linkFailure(_ error: Error) -> String {
         let reason = (error as? AuthError)?.message ?? error.localizedDescription
-        return "That sign-in link didn't work (\(reason)). Enter the 6-digit code from the newest email, or send a new one."
+        return "That link didn't work (\(reason)). If you just confirmed your email, sign in with your password; otherwise ask for a new link."
     }
 }

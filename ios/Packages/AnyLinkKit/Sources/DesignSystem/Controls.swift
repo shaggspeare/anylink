@@ -208,13 +208,17 @@ public struct ALField: View {
     public let placeholder: String
     @Binding public var text: String
     public var isURL: Bool = false
+    /// Hides what's typed (passwords).
+    public var isSecure: Bool = false
 
-    public init(_ placeholder: String, text: Binding<String>, isURL: Bool = false) {
-        self.placeholder = placeholder; self._text = text; self.isURL = isURL
+    public init(_ placeholder: String, text: Binding<String>, isURL: Bool = false, isSecure: Bool = false) {
+        self.placeholder = placeholder; self._text = text; self.isURL = isURL; self.isSecure = isSecure
     }
 
     public var body: some View {
-        TextField(placeholder, text: $text)
+        Group {
+            if isSecure { SecureField(placeholder, text: $text) } else { TextField(placeholder, text: $text) }
+        }
             .font(.callout)
             .padding(.horizontal, 14)
             .frame(height: 44)

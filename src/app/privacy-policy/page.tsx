@@ -44,7 +44,7 @@ export default function PrivacyPolicyPage() {
           <P>When you create an account or sign in, we receive:</P>
           <Ul>
             <li>
-              <b>Email sign-in:</b> your email address. We send it a one-time code and sign-in link.
+              <b>Email and password:</b> your email address and your password. Our sign-in provider stores the password only as a secure hash, and we never see it. We email you only to confirm your account and to reset a forgotten password.
             </li>
             <li>
               <b>Sign in with Google:</b> your email address, your name and your profile picture URL, together with

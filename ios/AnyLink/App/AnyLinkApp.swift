@@ -7,6 +7,8 @@ struct AnyLinkApp: App {
 
     init() {
         AL.registerFonts()
+        // A failed email link is news for this launch only.
+        UserDefaults.standard.removeObject(forKey: AuthService.linkErrorKey)
         if AppConfig.isUITesting {
             // UI tests start signed in and onboarded unless they ask for those screens.
             let args = ProcessInfo.processInfo.arguments

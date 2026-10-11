@@ -15,6 +15,8 @@ struct RootView: View {
     @AppStorage("guest") private var guest = false
     @AppStorage("onboarded") private var onboarded = false
     @State private var guestEnv: AppEnvironment?
+    /// A password-reset link signed them in; ask for the new password.
+    @State private var choosingPassword = false
 
     var body: some View {
         Group {
@@ -24,6 +26,7 @@ struct RootView: View {
         }
         .preferredColorScheme(appearance.scheme)
         .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } }
+        .sheet(isPresented: $choosingPassword) { NewPasswordSheet() }
         .onChange(of: signedIn, initial: true) { was, on in
             UserDefaults(suiteName: "group.com.shaggspeare.anylink")?.set(on, forKey: "signedIn")
             if on && !was { didSignIn() }
@@ -40,7 +43,7 @@ struct RootView: View {
         shared.saveRecentCollections(env.store.recentCollections)
     }
 
-    /// The email's link, opened on this iPhone. Called from Welcome and from inside the app (a guest signing up).
+    /// An email link (confirm account, reset password) opened on this iPhone. Called from Welcome and from inside the app (a guest signing up).
     private func finishMagicLink(_ url: URL) {
         guard let client = AuthService.client else { return }
         Task {
@@ -48,6 +51,7 @@ struct RootView: View {
                 _ = try await client.session(from: url)
                 UserDefaults.standard.removeObject(forKey: AuthService.linkErrorKey)
                 signedIn = true
+                if url.path() == AuthService.recoveryRedirect.path() { choosingPassword = true }
             } catch {
                 // Shown by whichever sign-in view is on screen — the email sheet may still be covering Welcome.
                 UserDefaults.standard.set(AuthService.linkFailure(error), forKey: AuthService.linkErrorKey)

@@ -41,35 +41,50 @@ Open **Authentication → URL Configuration**.
    - `https://www.anylink.space/**`
    - `https://anylink.space/**`
    - `http://localhost:3000/**`
-   - `anylink://auth-callback`
+   - `anylink://**` (the iOS app: account confirmation and password-reset links)
    - `https://*.vercel.app/**` (so sign-in also works on Vercel preview deployments)
 
 Use the `/**` wildcards, not exact callback URLs. The app returns to `/auth/callback?next=…`, and that `?next=…` part fails an exact match. When an address isn't on the list, Supabase sends you to the Site URL instead. The app recovers from that, but you land on the home page instead of `/app`.
 
 ---
 
-## 3. Email sign-in
+## 3. Email and password
 
-Users get one email containing both a 6-digit code and a sign-in link. They can type the code, or tap the link on the device they're signing in on.
+People create an account with their email and a password, and sign in with them. No email is sent when they sign in. Email goes out only twice: a link to confirm a new account, and a link to reset a forgotten password. Each link only works in the browser, or on the iPhone, that asked for it.
 
 ### 3a. Turn on the provider
 
 Open **Authentication → Sign In / Providers → Email** and set:
 
 - **Enable Email provider:** on
-- **Confirm email:** on
-- **Email OTP Length:** `6`
+- **Confirm email:** on. New accounts must click the link before their first sign-in; this stops anyone signing up with someone else's address. If you turn it off, accounts work immediately and the apps handle that too.
+- **Minimum password length:** `8` (the apps ask for at least 8)
+- **Secure email change:** on
 
 ### 3b. Email templates
 
-Open **Authentication → Emails → Templates**. Edit both **Confirm signup** (sent to new users) and **Magic Link** (sent to returning users). Give each this body:
+Open **Authentication → Emails → Templates**.
 
-```html
-<h2>Sign in to AnyLink</h2>
-<p>Your code: <strong style="font-size:24px;letter-spacing:4px">{{ .Token }}</strong></p>
-<p>Or tap this link on the device you're signing in on:</p>
-<p><a href="{{ .ConfirmationURL }}">Sign in to AnyLink</a></p>
-```
+**Confirm signup**
+- Subject: `Confirm your AnyLink account`
+- Body:
+  ```html
+  <h2>Welcome to AnyLink</h2>
+  <p>Tap to confirm your email, then sign in with your password:</p>
+  <p><a href="{{ .ConfirmationURL }}">Confirm my email</a></p>
+  ```
+
+**Reset Password**
+- Subject: `Reset your AnyLink password`
+- Body:
+  ```html
+  <h2>Reset your AnyLink password</h2>
+  <p>Open this on the device where you asked for it:</p>
+  <p><a href="{{ .ConfirmationURL }}">Choose a new password</a></p>
+  <p>If you didn't ask for this, ignore this email.</p>
+  ```
+
+**Magic Link** is no longer used, so you don't need to edit it.
 
 ### 3c. Sending from your own domain (required)
 
@@ -88,7 +103,11 @@ Supabase's built-in sender only allows a few emails per hour, and only to your t
    - Sender name: `AnyLink`
 6. Open **Authentication → Rate Limits** and raise the emails-per-hour limit to around `100`.
 
-**Test:** at `https://www.anylink.space/login`, enter your email. Check that the email arrives, that the code signs you in, and that the link signs you in.
+**Test:** at `https://www.anylink.space/login`, click **New here? Create an account**.
+1. Enter your email and a password. The confirmation email should arrive.
+2. Click its link. You land in `/app`, signed in.
+3. Sign out, then sign in again with the password.
+4. Click **Forgot password?** and send a reset link. Open it in the same browser, set a new password, and sign in with it.
 
 ---
 
@@ -244,9 +263,9 @@ After changing it, run `xcodegen generate` in `ios/`.
 
 | Where | What to check |
 |---|---|
-| `/login` on the website | Each method signs you in: the email code, the email link, Google and Apple. |
+| `/login` on the website | Each method signs you in: email and password, Google and Apple. Create account sends a confirmation link, and Forgot password lets you set a new password. |
 | The website, signed out | `/app` shows the demo library. After 2 saves, a sign-up prompt appears. Sign up, and your 2 saves are in your new library. |
-| iPhone (Apple needs a real device) | The Apple button, Google, the email code, and the email link opened on the phone all sign you in. |
+| iPhone (Apple needs a real device) | The Apple button, Google, and email and password all sign you in. A reset link opened on the phone asks for a new password. |
 | iPhone, "Skip for now" | After 2 saves, a sign-up sheet appears. Sign up, and your saves upload. |
 | iPhone, universal links | Tapping `https://www.anylink.space/links/<id>` in Notes opens the app. |
 | Supabase | Each test account appears under **Authentication → Users**, with a matching row in **Table Editor → users**. |
