@@ -126,22 +126,31 @@ struct MainTabs: View {
             Task { @MainActor in newLink() }
         } })) {
             Tab("Library", systemImage: "link", value: AppTab?.some(.library)) {
-                NavigationStack(path: $router.library) { LibraryView().routes(.library) }
+                NavigationStack(path: $router.library) { LibraryView().routes(.library) }.gesture(TabSwipe(skipsRows: true, onSwipe: swipe))
             }
             Tab("Collections", systemImage: "folder", value: AppTab?.some(.collections)) {
-                NavigationStack(path: $router.collections) { CollectionsView().routes(.collections) }
+                NavigationStack(path: $router.collections) { CollectionsView().routes(.collections) }.gesture(TabSwipe(onSwipe: swipe))
             }
             Tab("Search", systemImage: "magnifyingglass", value: AppTab?.some(.search)) {
-                NavigationStack(path: $router.search) { SearchView(store: store).routes(.search) }
+                NavigationStack(path: $router.search) { SearchView(store: store).routes(.search) }.gesture(TabSwipe(skipsRows: true, onSwipe: swipe))
             }
             Tab("Profile", systemImage: "person.crop.circle", value: AppTab?.some(.profile)) {
-                NavigationStack(path: $router.profile) { SettingsView().routes(.profile) }
+                NavigationStack(path: $router.profile) { SettingsView().routes(.profile) }.gesture(TabSwipe(onSwipe: swipe))
             }
             // The .search role is what gives a tab the separate circle; it's never selected, so no search UI appears.
             Tab("New link", systemImage: "plus", value: AppTab?.none, role: .search) { EmptyView() }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(item: $router.sheet) { SheetHost(sheet: $0) }
+    }
+
+    /// Sideways swipe at a tab's root steps to the neighbouring tab; New link isn't one. Pushed screens keep
+    /// the back swipe.
+    private func swipe(_ dx: CGFloat) {
+        guard router.path(router.tab).isEmpty, !router.isSelecting,
+              let i = AppTab.allCases.firstIndex(of: router.tab) else { return }
+        let next = i + (dx < 0 ? 1 : -1)
+        if AppTab.allCases.indices.contains(next) { router.select(AppTab.allCases[next]) }
     }
 
     /// Inside a collection, the new link saves straight into it. The sheet offers Paste when the clipboard has a URL.
@@ -157,6 +166,48 @@ extension View {
     func routes(_ tab: AppTab) -> some View {
         navigationDestination(for: Route.self) { RouteView(route: $0) }
             .confirmDialogs(in: tab)
+    }
+}
+
+/// UIKit pan, not a DragGesture: it runs alongside scrolling, tile buttons and context menus instead of losing
+/// to them. Goes on each tab's stack — one on the TabView never sees touches inside the tabs.
+struct TabSwipe: UIGestureRecognizerRepresentable {
+    /// Link rows have their own swipe actions; a sideways swipe there is theirs.
+    var skipsRows = false
+    let onSwipe: (CGFloat) -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.delegate = context.coordinator
+        pan.cancelsTouchesInView = false
+        return pan
+    }
+
+    func handleUIGestureRecognizerAction(_ pan: UIPanGestureRecognizer, context: Context) {
+        guard pan.state == .ended else { return }
+        let t = pan.translation(in: pan.view)
+        // Long enough and clearly sideways — otherwise it's a scroll that drifted.
+        if abs(t.x) > 70, abs(t.x) > abs(t.y) * 2 { onSwipe(t.x) }
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator(skipsRows: skipsRows) }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        let skipsRows: Bool
+        init(skipsRows: Bool) { self.skipsRows = skipsRows }
+
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+
+        /// A row that scrolls sideways (filter chips) owns that swipe.
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            var view = touch.view
+            while let v = view {
+                if let scroll = v as? UIScrollView, scroll.contentSize.width > scroll.bounds.width + 1 { return false }
+                if skipsRows, v is UICollectionViewCell, v.superview is UICollectionView { return false }
+                view = v.superview
+            }
+            return true
+        }
     }
 }
 

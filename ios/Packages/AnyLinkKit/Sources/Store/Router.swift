@@ -3,7 +3,7 @@ import Observation
 import Models
 import QueryLanguage
 
-public enum AppTab: Hashable, Sendable { case library, collections, search, profile }
+public enum AppTab: Hashable, Sendable, CaseIterable { case library, collections, search, profile }
 
 public enum Route: Hashable, Sendable {
     case link(LinkItem.ID)

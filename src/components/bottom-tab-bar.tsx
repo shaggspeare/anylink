@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { swipeDirection } from "@/lib/geometry";
 import { Icon } from "@/components/icon";
@@ -40,14 +40,23 @@ export function useListView(): [boolean, () => void] {
 
 export function BottomTabBar() {
   const pathname = usePathname();
-  const { openAddLink, openPalette, setMenuOpen, menuOpen, addLinkOpen, paletteOpen } = useLibrary();
+  const router = useRouter();
+  const { openAddLink, openPalette, closePalette, setMenuOpen, menuOpen, addLinkOpen, paletteOpen } = useLibrary();
   const [hidden, setHidden] = useState(false);
   const [list, toggleList] = useListView();
+  const inCollections = menuOpen || pathname.startsWith("/collections") || pathname === "/trash";
 
-  // Phone gestures: swipe right opens the sidebar, swipe left opens "Add a link" (or just
-  // closes the sidebar if it's out). Lives here because this bar is the phone-only chrome
+  // Phone gestures: swipe left/right steps to the next/previous tab — Links, Collections,
+  // Search; "Add a link" isn't one. Lives here because this bar is the phone-only chrome
   // every library page already renders.
   useEffect(() => {
+    const current = paletteOpen ? 2 : inCollections ? 1 : 0;
+    const goTo = (tab: number) => {
+      if (tab !== 2) closePalette();
+      setMenuOpen(tab === 1);
+      if (tab === 0 && pathname !== "/app") router.push("/app");
+      if (tab === 2) openPalette();
+    };
     if (window.matchMedia("(min-width: 1024px)").matches) return;
     let start: { x: number; y: number } | null = null;
     const onStart = (e: TouchEvent) => {
@@ -61,10 +70,9 @@ export function BottomTabBar() {
       const t = e.changedTouches[0];
       const dir = swipeDirection(t.clientX - start.x, t.clientY - start.y);
       start = null;
-      if (!dir || addLinkOpen || paletteOpen) return;
-      if (dir === "right") setMenuOpen(true);
-      else if (menuOpen) setMenuOpen(false);
-      else openAddLink();
+      if (!dir || addLinkOpen) return;
+      const next = current + (dir === "left" ? 1 : -1);
+      if (next >= 0 && next <= 2) goTo(next);
     };
     window.addEventListener("touchstart", onStart, { passive: true });
     window.addEventListener("touchend", onEnd, { passive: true });
@@ -72,7 +80,7 @@ export function BottomTabBar() {
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchend", onEnd);
     };
-  }, [menuOpen, addLinkOpen, paletteOpen, setMenuOpen, openAddLink]);
+  }, [inCollections, addLinkOpen, paletteOpen, pathname, router, setMenuOpen, openPalette, closePalette]);
 
   // Out of the way while scrolling down through cards, back the moment you scroll up.
   useEffect(() => {
@@ -94,7 +102,6 @@ export function BottomTabBar() {
       active ? "text-signal" : "text-ink/65"
     }`;
   const label = "text-[10px] font-semibold leading-none tracking-[-.01em]";
-  const inCollections = menuOpen || pathname.startsWith("/collections") || pathname === "/trash";
 
   return (
     <nav
