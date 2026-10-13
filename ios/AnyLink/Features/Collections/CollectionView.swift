@@ -12,6 +12,7 @@ struct CollectionView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
     @AppStorage("keptCollections") private var keptRaw = ""
+    @AppStorage("guest") private var guest = false
     @State private var tag: String?
 
     private var collection: LinkCollection? { store.collection(id) }
@@ -56,6 +57,12 @@ struct CollectionView: View {
                     Button("Select") { router.beginSelecting() }.disabled(shown.isEmpty)
                     if !isInbox {
                         Menu {
+                            // Sharing needs an account: the link points at the server's copy.
+                            if collection?.isShareable == true && !guest {
+                                Button(collection?.shareToken == nil ? "Share…" : "Shared — manage…", systemImage: "person.2") {
+                                    router.sheet = .share(id)
+                                }
+                            }
                             Button("Rename", systemImage: "pencil") { router.sheet = .rename(id) }
                             Button("Dissolve", systemImage: "trash", role: .destructive) { router.confirm = .dissolve(id) }
                         } label: { Image(systemName: "ellipsis") }
@@ -78,6 +85,12 @@ struct CollectionView: View {
                         .font(AL.Font.largeTitle).tracking(-1.65)
                         .foregroundStyle(AL.ink)
                         .accessibilityAddTraits(.isHeader)
+                    if collection?.shareToken != nil {
+                        Image(systemName: "person.2.fill")
+                            .font(AL.Font.meta)
+                            .foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+                            .accessibilityLabel("Shared")
+                    }
                 }
                 Text(subtitle).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
             }

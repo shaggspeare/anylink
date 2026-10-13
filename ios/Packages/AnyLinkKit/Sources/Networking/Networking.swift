@@ -27,6 +27,14 @@ public protocol AnyLinkAPI: Sendable {
     func groupInbox(_ priorities: GroupingPriorities) async throws -> [GroupedResult]
     func logSignal(_ signal: Signal) async
     func deleteAccount() async throws
+    /// Sharing on returns the share token (kept if already shared); off returns nil and kills the old link.
+    func setShared(_ id: LinkCollection.ID, _ shared: Bool) async throws -> String?
+    /// Blank clears it. Returns what was stored.
+    func setDisplayName(_ name: String) async throws -> String?
+    /// Public: no account needed. `.notFound` once sharing is off.
+    func sharedCollection(token: String) async throws -> SharedCollection
+    /// `linkIds` go to the inbox; nil copies the whole collection into a new one.
+    func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare
 }
 
 public extension AnyLinkAPI {
@@ -34,6 +42,10 @@ public extension AnyLinkAPI {
     func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem { throw AppError.server(501) }
     func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem { throw AppError.server(501) }
     func setNoteText(_ id: LinkItem.ID, _ text: String) async throws { throw AppError.server(501) }
+    func setShared(_ id: LinkCollection.ID, _ shared: Bool) async throws -> String? { throw AppError.server(501) }
+    func setDisplayName(_ name: String) async throws -> String? { throw AppError.server(501) }
+    func sharedCollection(token: String) async throws -> SharedCollection { throw AppError.server(501) }
+    func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare { throw AppError.server(501) }
 }
 
 // MARK: - NDJSON decoder

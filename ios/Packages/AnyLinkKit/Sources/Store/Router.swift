@@ -11,6 +11,8 @@ public enum Route: Hashable, Sendable {
     case filter(Query, title: String)
     case triage
     case trash
+    /// A shared collection someone sent: `https://<web>/s/<token>`.
+    case shared(token: String)
 
     /// Screens with their own bottom toolbar (or none) hide the tab bar.
     public var hidesTabBar: Bool {
@@ -27,6 +29,8 @@ public enum SheetRoute: Hashable, Identifiable, Sendable {
     case tagLinks(Set<LinkItem.ID>)
     case newCollection
     case rename(LinkCollection.ID)
+    /// Sharing on/off and the share link for a collection.
+    case share(LinkCollection.ID)
     /// A guest who has used their free saves.
     case signUp
     public var id: Self { self }
@@ -98,7 +102,8 @@ public final class Router {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
-    /// `anylink://add?url=…`, `anylink://triage` and `anylink://link/{id}`, plus universal `https://<web>/links/{id}`.
+    /// `anylink://add?url=…`, `anylink://triage` and `anylink://link/{id}`, plus universal `https://<web>/links/{id}`
+    /// and `https://<web>/s/{token}` (a shared collection).
     @discardableResult
     public func handle(_ url: URL) -> Bool {
         let parts = url.pathComponents.filter { $0 != "/" }
@@ -111,6 +116,12 @@ public final class Router {
             sheet = nil
             tab = .library
             library = [.triage]
+            return true
+        }
+        if parts.count == 2, parts[0] == "s", url.scheme == "https" {
+            sheet = nil
+            tab = .library
+            library = [.shared(token: parts[1])]
             return true
         }
         let id: String? = url.scheme == "anylink" && url.host() == "link" ? parts.first

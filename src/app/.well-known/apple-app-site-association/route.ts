@@ -1,9 +1,9 @@
-/** Universal links: `https://www.anylink.space/links/{id}` opens the link in the iOS app when it's
- * installed. Apple's CDN fetches this from the exact domain, without following redirects. */
+/** Universal links: `https://www.anylink.space/links/{id}` (a link) and `/s/{token}` (a shared
+ * collection) open in the iOS app when it's installed. Apple's CDN fetches this from the exact domain, without following redirects. */
 export function GET() {
   return Response.json({
     applinks: {
-      details: [{ appIDs: ["376HNWM383.com.shaggspeare.anylink"], components: [{ "/": "/links/*" }] }],
+      details: [{ appIDs: ["376HNWM383.com.shaggspeare.anylink"], components: [{ "/": "/links/*" }, { "/": "/s/*" }] }],
     },
   });
 }

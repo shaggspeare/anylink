@@ -31,6 +31,8 @@ struct RouteView: View {
             TrashView()
         case .triage:
             TriageView(store: store)
+        case .shared(let token):
+            SharedCollectionView(token: token)
         }
     }
 }
@@ -107,6 +109,8 @@ struct SheetHost: View {
             CollectionNameSheet()
         case .rename(let id):
             CollectionNameSheet(renaming: store.collection(id))
+        case .share(let id):
+            ShareCollectionSheet(id: id)
         default:
             standard
         }
@@ -171,7 +175,7 @@ struct SheetHost: View {
             }
             .navigationTitle("Tag \(ids.count.linkCount)")
             .navigationBarTitleDisplayMode(.inline)
-        case .newCollection, .rename, .signUp:
+        case .newCollection, .rename, .signUp, .share:
             EmptyView()
         }
     }

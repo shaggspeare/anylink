@@ -90,4 +90,17 @@ export type Collection = {
   /** Why the grouper put these links together. Only set on `createdBy: 'system'`. */
   reasoning?: string;
   createdBy?: string;
+  /** Set while the collection is shared: its public URL is `/s/<shareToken>`. */
+  shareToken?: string;
+};
+
+/** What a share link shows: a collection's live contents, cut down to the fields a viewer
+ * may see (docs/adr/0001). Links keep the LinkItem shape so cards render them as-is. */
+export type SharedCollection = {
+  name: string;
+  color: string;
+  icon?: string;
+  /** The owner's display name, if they set one. */
+  ownerName?: string;
+  links: LinkItem[];
 };

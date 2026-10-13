@@ -1,11 +1,12 @@
 "use server";
 
+import { randomBytes, randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
 import { currentUserId } from "./current-user";
-import { reuploadHeroImage, deleteHeroImage, uploadImage } from "../storage/upload-hero-image";
+import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from "../storage/upload-hero-image";
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
@@ -13,7 +14,7 @@ import { crawlUrl } from "../crawler";
 import { IMAGE_IDENTITY, NOTE_IDENTITY, identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
 import { groupByMetadata, groupLinks, type Priorities } from "../rank/group-links";
-import { ensureInbox } from "./queries";
+import { ensureInbox, sharedCollectionRows, toLinkItem } from "./queries";
 import type { ImportedLink } from "../import/parse";
 import type { CardSize, Collection, LinkItem, ProductDetails } from "../types";
 
@@ -482,6 +483,114 @@ export async function deleteCollection(id: string): Promise<{ trashedIds: string
 
   await db.delete(schema.collections).where(and(eq(schema.collections.id, id), eq(schema.collections.userId, uid)));
   return { trashedIds: [] };
+}
+
+/** Sharing on keeps an existing token (so a retried call can't break a link already sent);
+ * sharing off drops it, so the old URL is dead for good (docs/adr/0001). The inbox and
+ * filters can't be shared. */
+export async function setCollectionShared(id: string, shared: boolean): Promise<{ shareToken: string | null }> {
+  const uid = await currentUserId();
+  const fresh = randomBytes(16).toString("base64url");
+  const [row] = await db
+    .update(schema.collections)
+    .set({
+      shareToken: shared ? sql`coalesce(${schema.collections.shareToken}, ${fresh})` : null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.collections.id, id),
+        eq(schema.collections.userId, uid),
+        eq(schema.collections.isSmart, false),
+        eq(schema.collections.isInbox, false)
+      )
+    )
+    .returning({ shareToken: schema.collections.shareToken });
+  if (!row) throw new Error("Only your own collections can be shared — not Unsorted or a filter.");
+  return { shareToken: row.shareToken };
+}
+
+/** Blank clears it: shared pages then show no owner line. */
+export async function setDisplayName(name: string): Promise<string | null> {
+  const uid = await currentUserId();
+  const clean = typeof name === "string" ? name.trim().slice(0, 40) || null : null;
+  await db.update(schema.users).set({ displayName: clean }).where(eq(schema.users.id, uid));
+  return clean;
+}
+
+/** A viewer's Save from a shared collection: `linkIds` go to their inbox; no ids copies the
+ * whole collection into a new one of the same name. Copies keep the crawled data and the
+ * current price but not the owner's note, and owe the original nothing (docs/adr/0001). */
+export async function saveFromShare(
+  token: string,
+  linkIds?: string[] | null
+): Promise<{ links: LinkItem[]; collection?: Collection }> {
+  const uid = await currentUserId();
+  const shared = await sharedCollectionRows(token);
+  if (!shared) throw new Error("This collection isn't shared any more.");
+  const wanted = Array.isArray(linkIds) ? new Set(linkIds) : null;
+  const rows = wanted ? shared.rows.filter((r) => wanted.has(r.id)) : shared.rows;
+  if (wanted && rows.length === 0) throw new Error("That link isn't in this collection any more.");
+
+  let collection: Collection | undefined;
+  if (!wanted) {
+    const { name, color, icon } = shared.collection;
+    const [made] = await db.insert(schema.collections).values({ userId: uid, name, color, icon }).returning();
+    collection = { id: made.id, name: made.name, color: made.color, icon: made.icon ?? undefined };
+  }
+  const collectionId = collection?.id ?? (await ensureInbox());
+
+  // Ids up front so each copy's stored image can be copied under its new name first.
+  const copies = await Promise.all(
+    rows.map(async (r) => {
+      const id = randomUUID();
+      const image = r.heroImage ? await copyStoredImage(r.heroImage, r.id, id) : undefined;
+      return {
+        id,
+        userId: uid,
+        collectionId,
+        url: r.contentType === "image" && image ? image : r.url,
+        canonicalUrl: r.canonicalUrl,
+        domain: r.domain,
+        title: r.title,
+        excerpt: r.excerpt,
+        articleText: r.articleText,
+        heroImage: image ?? r.heroImage,
+        tint: r.tint,
+        stripe: r.stripe,
+        initial: r.initial,
+        contentType: r.contentType,
+        readingTimeMinutes: r.readingTimeMinutes,
+        size: r.size,
+        // A whole-collection copy keeps the owner's arrangement; a single save is just new.
+        position: wanted ? 0 : r.position,
+        // Nothing would ever finish a crawl started in someone else's library.
+        status: "ready" as const,
+        productData: r.productData,
+        source: "shared",
+      };
+    })
+  );
+  if (copies.length === 0) return { links: [], collection };
+
+  const inserted = await db.insert(schema.links).values(copies).returning();
+  const prices = rows.flatMap((r, i) => {
+    const p = shared.latest.get(r.id);
+    return p ? [{ linkId: copies[i].id, price: p.price, currency: p.currency, inStock: p.inStock }] : [];
+  });
+  const snapshots = prices.length ? await db.insert(schema.priceSnapshots).values(prices).returning() : [];
+  const latest = new Map(snapshots.map((p) => [p.linkId, p]));
+
+  return {
+    collection,
+    links: inserted.map((row) => {
+      const p = latest.get(row.id);
+      return toLinkItem(row, {
+        latest: p,
+        history: p ? [{ date: p.capturedAt.toISOString().slice(0, 10), price: Number(p.price) }] : [],
+      });
+    }),
+  };
 }
 
 /** Housekeeping for the collections that pile up after a reorganisation. */

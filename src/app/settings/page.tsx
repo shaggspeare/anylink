@@ -32,7 +32,7 @@ const SHORTCUTS: [string, string][] = [
 /** Web Settings, after iOS S18. iOS's "Open links in" (in-app browser vs Safari) has no
  * web counterpart. */
 export default function SettingsPage() {
-  const { links, trashed, collections, guest, email, openSignUp } = useLibrary();
+  const { links, trashed, collections, guest, email, openSignUp, displayName, setDisplayName, showToast } = useLibrary();
   const [theme, setTheme] = useLocalSetting<Theme>(THEME_KEY, "light");
   const [, setDefaultCollection] = useLocalSetting<string>(DEFAULT_COLLECTION_KEY, "");
   const defaultCollectionId = useDefaultCollection();
@@ -58,6 +58,22 @@ export default function SettingsPage() {
             ) : (
               <>
                 <p className="text-body text-ink">{email}</p>
+                <label className="flex items-center justify-between gap-4">
+                  <span className="text-body text-ink">Name on shared collections</span>
+                  <input
+                    // Remounts with the saved value, so a failed save doesn't leave stale text.
+                    key={displayName ?? ""}
+                    defaultValue={displayName ?? ""}
+                    maxLength={40}
+                    placeholder="Not shown"
+                    onBlur={(e) => {
+                      if (e.target.value.trim() !== (displayName ?? ""))
+                        setDisplayName(e.target.value).catch(() => showToast("Couldn't save your name."));
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                    className="h-10 min-w-0 rounded-full border border-rim/90 bg-surface/70 px-3.5 text-body text-ink"
+                  />
+                </label>
                 <button
                   type="button"
                   onClick={signOut}

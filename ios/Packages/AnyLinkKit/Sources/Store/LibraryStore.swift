@@ -14,6 +14,8 @@ public final class LibraryStore {
     public internal(set) var links: [LinkItem.ID: LinkItem] = [:] { didSet { cachedIndex = nil; scheduleSave() } }
     public private(set) var order: [LinkItem.ID] = []
     public private(set) var collections: [LinkCollection] = [] { didSet { scheduleSave() } }
+    /// What they appear as on shared collections; nil until they pick one.
+    public private(set) var displayName: String? { didSet { scheduleSave() } }
     /// Calls waiting for the network, oldest first. Persisted with the cache.
     public private(set) var outbox: [OutboxItem] = []
     /// Set by the app: a 401 signs the user out.
@@ -244,7 +246,7 @@ public final class LibraryStore {
     }
 
     public var snapshot: LibrarySnapshot {
-        LibrarySnapshot(links: ordered.filter { $0.deleted != true }, trashed: trash, collections: collections)
+        LibrarySnapshot(links: ordered.filter { $0.deleted != true }, trashed: trash, collections: collections, displayName: displayName)
     }
 
     @discardableResult
@@ -282,6 +284,7 @@ public final class LibraryStore {
         links = all
         order = all.values.sorted { $0.createdAt > $1.createdAt }.map(\.id)
         collections = snapshot.collections
+        displayName = snapshot.displayName
     }
 
     /// Full fetch, then merge: the server wins, except while local changes are still queued — then local stays.
@@ -588,6 +591,48 @@ public final class LibraryStore {
         collections[i] = LinkCollection(id: new, name: c.name, color: c.color, isSmart: c.isSmart, smartQuery: c.smartQuery,
                                         isInbox: c.isInbox, reasoning: c.reasoning, createdBy: c.createdBy, icon: c.icon)
         for l in ordered where l.collectionId == old { links[l.id]?.collectionId = new }
+    }
+
+    // MARK: - Sharing
+
+    /// Reads share links. Nil uses `api`; a guest's offline store gets the live backend, since the endpoint is public.
+    @ObservationIgnored public var sharedAPI: (any AnyLinkAPI)?
+
+    public func sharedCollection(token: String) async throws -> SharedCollection {
+        try await (sharedAPI ?? api).sharedCollection(token: token)
+    }
+
+    /// Online only: the server makes the token. Sharing off kills the old link for good. False if it didn't go through.
+    @discardableResult
+    public func setShared(_ id: LinkCollection.ID, _ shared: Bool) async -> Bool {
+        do {
+            let token = try await api.setShared(id, shared)
+            if let i = collections.firstIndex(where: { $0.id == id }) { collections[i].shareToken = token }
+            return true
+        } catch {
+            toasts.show(Self.message(for: error))
+            return false
+        }
+    }
+
+    public func setDisplayName(_ name: String) async {
+        do { displayName = try await api.setDisplayName(name) } catch { toasts.show(Self.message(for: error)) }
+    }
+
+    /// A viewer's Save from a shared collection: `linkIds` land in the inbox; nil saves all of it as a new collection.
+    @discardableResult
+    public func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async -> SavedFromShare? {
+        do {
+            let saved = try await api.saveFromShare(token: token, linkIds: linkIds)
+            if let c = saved.collection { collections.append(c) }
+            for l in saved.links { links[l.id] = l }
+            order.insert(contentsOf: saved.links.map(\.id), at: 0)
+            toasts.show(saved.collection.map { "Saved “\($0.name)” — \(saved.links.count.linkCount)" } ?? "Saved to \(name(of: inboxID))")
+            return saved
+        } catch {
+            toasts.show(Self.message(for: error))
+            return nil
+        }
     }
 
     /// Mock only until the backend adds `DELETE /api/account`.

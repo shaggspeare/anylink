@@ -35,3 +35,18 @@ rejected pin if another device has filled both slots before it syncs.
 
 Apply `supabase/migrations/20261004000000_link_pinning.sql` before running the updated
 backend. Existing links default to unpinned.
+
+### Shared collections
+
+A shared collection can be read by anyone holding its share link, `https://www.anylink.space/s/<token>`. See `docs/adr/0001-shared-collections-public-by-token.md`.
+
+| Call | What it does |
+|---|---|
+| `POST /api/v1/actions/setCollectionShared ["<collectionId>", true]` | Returns `{ "shareToken": "..." }`. Turning sharing on again while it's already on keeps the existing token. `false` returns `{ "shareToken": null }` and the old link stops working for good; turning sharing back on later makes a new link. The Inbox and smart collections can't be shared (400). |
+| `POST /api/v1/actions/setDisplayName ["Sam"]` | Returns the stored name, or `null` when the name is blank. The name is shown as "shared by Sam". |
+| `GET /api/v1/shared/<token>` | **No auth.** Returns `SharedCollection` (`src/lib/types.ts`): `{ name, color, icon?, ownerName?, links }`. `links` are `LinkItem`s with only the fields a viewer may see: no tags, highlights, favourite, article text or price history. They are already in the owner's order (pinned first). Returns 404 once sharing is off. |
+| `POST /api/v1/actions/saveFromShare ["<token>", ["<linkId>"]]` | Copies those links into the caller's Inbox. Pass `null` instead of the list to copy the whole collection into a new collection with the same name, colour and icon. Returns `{ links, collection? }`. Copies keep the crawled data and the current price, but not the owner's note. |
+
+`Collection.shareToken` is set while a collection is shared. `GET /api/v1/library` now also returns `displayName`.
+
+Apply `supabase/migrations/20261013000000_shared_collections.sql` before deploying.

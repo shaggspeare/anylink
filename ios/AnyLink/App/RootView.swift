@@ -19,6 +19,8 @@ struct RootView: View {
     @State private var guestEnv: AppEnvironment?
     /// A password-reset link signed them in; ask for the new password.
     @State private var choosingPassword = false
+    /// A link (e.g. a shared collection) opened on Welcome; handled once they're in.
+    @State private var pendingURL: URL?
 
     var body: some View {
         Group {
@@ -27,7 +29,10 @@ struct RootView: View {
             else { WelcomeView(onSignedIn: { signedIn = true }, onSkip: { guest = true }) }
         }
         .preferredColorScheme(appearance.scheme)
-        .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } }
+        .onOpenURL { url in
+            if AuthService.isCallback(url) { finishMagicLink(url) }
+            else if !signedIn && !guest { pendingURL = url }
+        }
         .sheet(isPresented: $choosingPassword) { NewPasswordSheet() }
         .onChange(of: signedIn, initial: true) { was, on in
             UserDefaults(suiteName: "group.com.shaggspeare.anylink")?.set(on, forKey: "signedIn")
@@ -100,6 +105,12 @@ struct RootView: View {
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }
             .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } else { env.router.handle($0) } }
+            .task {
+                if let url = pendingURL {
+                    pendingURL = nil
+                    env.router.handle(url)
+                }
+            }
             .fullScreenCover(isPresented: $router.showsOnboarding) {
                 OnboardingFlow(store: env.store) {
                     onboarded = true
