@@ -56,6 +56,13 @@ type LibraryContextValue = {
   /** Onboarding's payoff: files everything unsorted into named collections. */
   groupInbox: (priorities: Priorities) => Promise<actions.GroupedResult[]>;
   logSignal: (action: string, options?: { linkId?: string; collectionId?: string; payload?: unknown }) => void;
+  /** Turns sharing on or off; resolves to the share token while shared. */
+  setCollectionShared: (id: string, shared: boolean) => Promise<string | undefined>;
+  /** What they appear as on shared collections. */
+  displayName: string | null;
+  setDisplayName: (name: string) => Promise<void>;
+  /** A viewer's Save from a shared collection: `linkIds` to the inbox, or all of it as a new collection. */
+  saveFromShare: (token: string, linkIds?: string[]) => Promise<{ links: LinkItem[]; collection?: Collection }>;
 
   addLinkOpen: boolean;
   /** A URL opens the link form, other text the note composer, a File the image form. */
@@ -171,11 +178,13 @@ export function LibraryProvider({
   demo = false,
   guest = false,
   email = null,
+  displayName: initialDisplayName = null,
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
   initialTrashed: LinkItem[];
   initialCollections: Collection[];
+  displayName?: string | null;
   /** Landing-page demo: state changes stay local, nothing reaches the server. */
   demo?: boolean;
   guest?: boolean;
@@ -185,6 +194,7 @@ export function LibraryProvider({
   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
   const [trashed, setTrashed] = useState<LinkItem[]>(initialTrashed);
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
+  const [displayName, setDisplayName] = useState(initialDisplayName);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [addLinkPrefill, setAddLinkPrefill] = useState<string | File | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -516,6 +526,21 @@ export function LibraryProvider({
       logSignal: (action, options) => {
         api.logSignal(action, options).catch(console.error);
       },
+      setCollectionShared: async (id, shared) => {
+        const { shareToken } = await api.setCollectionShared(id, shared);
+        setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, shareToken: shareToken ?? undefined } : c)));
+        return shareToken ?? undefined;
+      },
+      displayName,
+      setDisplayName: async (name) => {
+        setDisplayName(await api.setDisplayName(name));
+      },
+      saveFromShare: async (token, linkIds) => {
+        const result = await api.saveFromShare(token, linkIds);
+        if (result.collection) setCollections((prev) => [...prev, result.collection!]);
+        setLinks((prev) => [...result.links, ...prev]);
+        return result;
+      },
       addLinkOpen,
       addLinkPrefill,
       openAddLink: (prefill) => {
@@ -543,7 +568,7 @@ export function LibraryProvider({
     }),
     // guestFull is derived from links/trashed; guestLimitHit only sets state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email]
+    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName]
   );
   function guestLimitHit() {
     setSignUpOpen(true);

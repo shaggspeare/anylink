@@ -28,6 +28,8 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   /** "free" | "pro". Recorded only, until billing decides who syncs. */
   plan: text("plan").notNull().default("free"),
+  /** Shown on their shared collections. Null = no owner line. */
+  displayName: text("display_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
 
@@ -56,6 +58,9 @@ export const collections = pgTable(
     // Sidebar drag order. Null until the list is first rearranged, and nulls sort last,
     // so a new collection lands at the bottom — where it appears the moment it's made.
     position: integer("position"),
+    // Anyone holding it can read the collection (docs/adr/0001). Null = not shared;
+    // turning sharing off drops it, so a re-share never revives an old URL.
+    shareToken: text("share_token").unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

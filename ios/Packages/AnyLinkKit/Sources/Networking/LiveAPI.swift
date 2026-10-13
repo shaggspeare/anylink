@@ -183,6 +183,27 @@ public struct LiveAPI: AnyLinkAPI {
     public func reorder(_ ids: [LinkItem.ID]) async throws { _ = try await action("reorderLinks", [ids]) }
     public func reorderCollections(_ ids: [LinkCollection.ID]) async throws { _ = try await action("reorderCollections", [ids]) }
 
+    // MARK: - Sharing
+
+    private struct ShareResult: Decodable { let shareToken: String? }
+
+    public func setShared(_ id: LinkCollection.ID, _ shared: Bool) async throws -> String? {
+        try await action("setCollectionShared", [id, shared], as: ShareResult.self).shareToken
+    }
+
+    public func setDisplayName(_ name: String) async throws -> String? {
+        try await action("setDisplayName", [name], as: String?.self)
+    }
+
+    public func sharedCollection(token: String) async throws -> SharedCollection {
+        let data = try await send(await request("api/v1/shared/\(token)", method: "GET"))
+        do { return try JSONDecoder().decode(SharedCollection.self, from: data) } catch { throw AppError.decoding }
+    }
+
+    public func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare {
+        try await action("saveFromShare", [token, linkIds], as: SavedFromShare.self)
+    }
+
     // MARK: - Collections
 
     public func createCollection(name: String, color: String, icon: String?) async throws -> LinkCollection {

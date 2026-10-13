@@ -613,6 +613,12 @@ function CollectionRow({
       >
         <RowMarker color={collection.color} icon={collection.icon} />
         <span className="flex-1 truncate">{collection.name}</span>
+        {collection.shareToken && (
+          <span title="Shared" className="text-ink/45">
+            <Icon name="link" size={12} />
+            <span className="sr-only">Shared</span>
+          </span>
+        )}
         <span className="text-meta text-ink/45 group-hover:hidden">{count}</span>
       </Link>
       {!collection.isInbox && (

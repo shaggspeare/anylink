@@ -46,9 +46,9 @@ const THEME_SCRIPT = `try{var t=localStorage.theme;if(t==="dark"||(t==="system"&
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Guests get the demo library, so the app is usable before signing up.
   const user = await currentUser();
-  const { links, trashed, collections } = user
+  const { links, trashed, collections, displayName } = user
     ? await getLibraryData()
-    : { links: DEMO_LINKS, trashed: [], collections: DEMO_COLLECTIONS };
+    : { links: DEMO_LINKS, trashed: [], collections: DEMO_COLLECTIONS, displayName: null };
 
   return (
     // The head script adds `dark` before React hydrates.
@@ -63,6 +63,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           initialCollections={collections}
           guest={!user}
           email={user?.email ?? null}
+          displayName={displayName}
         >
           {children}
           <AddLinkFlow />

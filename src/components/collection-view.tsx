@@ -17,10 +17,13 @@ import { linkCount } from "@/lib/format";
 import { useSelection } from "@/lib/use-selection";
 import { PANE_PX, useSplitView } from "@/lib/use-split-view";
 import { DetailPane } from "@/components/link-detail-view";
+import { ShareDialog } from "@/components/share-dialog";
+import { Icon } from "@/components/icon";
 
 export function CollectionView({ collectionId }: { collectionId: string }) {
-  const { links, collections, tags, moveLinks, tagLinks, archiveLinks, deleteLinks, reorderLinks } =
+  const { links, collections, tags, moveLinks, tagLinks, archiveLinks, deleteLinks, reorderLinks, guest, demo } =
     useLibrary();
+  const [sharing, setSharing] = useState(false);
   const collection = collections.find((c) => c.id === collectionId);
 
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -67,7 +70,17 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
               </span>
             )}
             <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
-            <span className="ml-auto flex-none">
+            <span className="ml-auto flex flex-none items-center gap-2">
+              {!collection.isSmart && !collection.isInbox && !guest && !demo && (
+                <button
+                  type="button"
+                  onClick={() => setSharing(true)}
+                  className="flex h-9 items-center gap-1.5 rounded-full border border-rim/90 bg-surface/70 px-3.5 text-meta font-semibold text-ink"
+                >
+                  <Icon name={collection.shareToken ? "link" : "share"} size={13} />
+                  {collection.shareToken ? "Shared" : "Share"}
+                </button>
+              )}
               <SortSelect value={sort} onChange={setSort} />
             </span>
           </div>
@@ -118,6 +131,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
         onClear={clearSelection}
       />
       <DetailPane split={split} />
+      {sharing && <ShareDialog collection={collection} onClose={() => setSharing(false)} />}
       <BottomTabBar />
     </div>
   );

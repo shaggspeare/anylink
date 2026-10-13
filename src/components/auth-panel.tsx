@@ -14,7 +14,8 @@ export function AuthPanel({ title = "Sign in to AnyLink", subtitle }: { title?: 
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const supabase = supabaseBrowser();
-  const here = () => (location.pathname === "/login" ? "/app" : location.pathname);
+  // With the query: a shared collection's pending `?save=` has to survive the round trip.
+  const here = () => (location.pathname === "/login" ? "/app" : location.pathname + location.search);
   const callback = (next = here()) => `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
   const oauth = async (provider: "google" | "apple") => {

@@ -71,6 +71,8 @@ struct AppEnvironment {
             snapshot: library, cache: cache, crawl: crawler.map { c in { @Sendable url in c.crawl(url) } }
         )
         let store = env.store, router = env.router
+        // Share links someone sent still open: reading one needs no account.
+        if !AppConfig.isUITesting { store.sharedAPI = AppConfig.apiBase.map { LiveAPI(base: $0) { nil } } }
         store.saveLimitReached = { guestSaves(in: store).count >= guestLimit }
         store.onSaveLimit = { router.sheet = .signUp }
         return env

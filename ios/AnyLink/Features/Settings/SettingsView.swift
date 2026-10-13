@@ -42,6 +42,7 @@ struct SettingsView: View {
     @AppStorage("resetTipsOnLaunch") private var resetTips = false
     @AppStorage("signedIn") private var signedIn = true
     @AppStorage("guest") private var guest = false
+    @State private var displayName = ""
 
     var body: some View {
         List {
@@ -92,6 +93,13 @@ struct SettingsView: View {
             } header: { header("Reading") }
             if !guest {
                 Section {
+                    TextField("Not shown", text: $displayName)
+                        .textContentType(.name)
+                        .onSubmit(saveDisplayName)
+                } header: {
+                    header("Name on shared collections")
+                }
+                Section {
                     Button("Sign out") { Task { await signOut(store) } }
                     Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
                 }
@@ -105,6 +113,8 @@ struct SettingsView: View {
             }
         }
         .tint(AL.ink)
+        .onAppear { displayName = store.displayName ?? "" }
+        .onDisappear(perform: saveDisplayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Same bar title as the other tab roots.
@@ -141,6 +151,11 @@ struct SettingsView: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: guest ? .contain : .combine)
+    }
+
+    private func saveDisplayName() {
+        guard !guest, displayName.trimmingCharacters(in: .whitespaces) != (store.displayName ?? "") else { return }
+        Task { await store.setDisplayName(displayName) }
     }
 
     /// Section headers at the raised secondary alpha: the system grey sits just under 4.5:1 here.

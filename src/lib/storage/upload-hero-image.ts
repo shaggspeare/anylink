@@ -85,3 +85,17 @@ export async function uploadImage(bytes: Buffer, linkId: string): Promise<string
 export async function deleteHeroImage(linkId: string) {
   await supabaseAdmin.storage.from(HERO_IMAGES_BUCKET).remove([`${linkId}.webp`]);
 }
+
+/** A copy of `fromId`'s stored image under `toId`, when `url` is that stored image — a saved
+ * copy of someone else's link must survive them purging theirs. Undefined for anything else
+ * (hotlinked images stay hotlinked) or when the copy fails. */
+export async function copyStoredImage(url: string, fromId: string, toId: string): Promise<string | undefined> {
+  const bucket = supabaseAdmin.storage.from(HERO_IMAGES_BUCKET);
+  if (url.split("?")[0] !== bucket.getPublicUrl(`${fromId}.webp`).data.publicUrl) return undefined;
+  const { error } = await bucket.copy(`${fromId}.webp`, `${toId}.webp`);
+  if (error) {
+    console.error("image copy failed:", error);
+    return undefined;
+  }
+  return bucket.getPublicUrl(`${toId}.webp`).data.publicUrl;
+}

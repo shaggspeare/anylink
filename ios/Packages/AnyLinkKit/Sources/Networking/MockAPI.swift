@@ -8,6 +8,7 @@ public actor MockAPI: AnyLinkAPI {
     private var crawlLines: [String: [String]]
     private var nextError: AppError?
     private let latency: Bool
+    private var displayName: String?
 
     public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection], crawlLines: [String: [String]] = [:], latency: Bool = true) {
         self.links = links; self.trashed = trashed; self.collections = collections; self.crawlLines = crawlLines; self.latency = latency
@@ -127,7 +128,7 @@ public actor MockAPI: AnyLinkAPI {
 
     public func library(since: Date?) async throws -> LibrarySnapshot {
         try maybeThrow()
-        return LibrarySnapshot(links: links, trashed: trashed, collections: collections)
+        return LibrarySnapshot(links: links, trashed: trashed, collections: collections, displayName: displayName)
     }
 
     public func createLink(_ draft: LinkDraft) async throws -> LinkItem {
@@ -233,6 +234,48 @@ public actor MockAPI: AnyLinkAPI {
         let c = LinkCollection(id: UUID().uuidString, name: name, color: color, createdBy: "user", icon: icon)
         collections.append(c)
         return c
+    }
+
+    public func setShared(_ id: LinkCollection.ID, _ shared: Bool) async throws -> String? {
+        try maybeThrow(); await delay()
+        guard let i = collections.firstIndex(where: { $0.id == id }), collections[i].isShareable else { throw AppError.server(400) }
+        collections[i].shareToken = shared ? collections[i].shareToken ?? UUID().uuidString : nil
+        return collections[i].shareToken
+    }
+
+    public func setDisplayName(_ name: String) async throws -> String? {
+        try maybeThrow(); await delay()
+        let clean = String(name.trimmingCharacters(in: .whitespaces).prefix(40))
+        displayName = clean.isEmpty ? nil : clean
+        return displayName
+    }
+
+    public func sharedCollection(token: String) async throws -> SharedCollection {
+        try maybeThrow(); await delay()
+        guard let c = collections.first(where: { $0.shareToken == token }) else { throw AppError.notFound }
+        let shown = links.filter { $0.collectionId == c.id && $0.archived != true && $0.deleted != true }.map {
+            var l = $0; l.tags = []; l.highlights = nil; l.favorite = nil; l.articleText = nil; return l
+        }
+        return SharedCollection(name: c.name, color: c.color, icon: c.icon, ownerName: displayName, links: shown)
+    }
+
+    public func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare {
+        let shared = try await sharedCollection(token: token)
+        var target = collections.first { $0.isInbox == true }?.id ?? "unsorted"
+        var made: LinkCollection?
+        if linkIds == nil {
+            made = LinkCollection(id: UUID().uuidString, name: shared.name, color: shared.color, createdBy: "user", icon: shared.icon)
+            collections.append(made!)
+            target = made!.id
+        }
+        let copies = shared.links.filter { linkIds?.contains($0.id) ?? true }.map { l in
+            LinkItem(id: UUID().uuidString, url: l.url, domain: l.domain, title: l.title, excerpt: l.excerpt,
+                     heroImage: l.heroImage, tint: l.tint, stripe: l.stripe, initial: l.initial, contentType: l.contentType,
+                     readingTimeMinutes: l.readingTimeMinutes, collectionId: target, tags: [], size: l.size,
+                     status: .ready, createdAt: ISO8601DateFormatter().string(from: .now), source: "shared", product: l.product)
+        }
+        links.insert(contentsOf: copies, at: 0)
+        return SavedFromShare(links: copies, collection: made)
     }
 
     public func createFilter(name: String, query: String) async throws -> LinkCollection {

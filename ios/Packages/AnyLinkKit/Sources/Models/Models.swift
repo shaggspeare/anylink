@@ -154,9 +154,39 @@ public struct LinkCollection: Codable, Identifiable, Hashable, Sendable {
     public var createdBy: String?
     /// An emoji shown in place of the colour dot.
     public var icon: String?
+    /// Set while the collection is shared: anyone with `/s/<shareToken>` can view it.
+    public var shareToken: String?
 
-    public init(id: String, name: String, color: String, isSmart: Bool? = nil, smartQuery: String? = nil, isInbox: Bool? = nil, reasoning: String? = nil, createdBy: String? = nil, icon: String? = nil) {
-        self.id = id; self.name = name; self.color = color; self.isSmart = isSmart; self.smartQuery = smartQuery; self.isInbox = isInbox; self.reasoning = reasoning; self.createdBy = createdBy; self.icon = icon
+    public init(id: String, name: String, color: String, isSmart: Bool? = nil, smartQuery: String? = nil, isInbox: Bool? = nil, reasoning: String? = nil, createdBy: String? = nil, icon: String? = nil, shareToken: String? = nil) {
+        self.id = id; self.name = name; self.color = color; self.isSmart = isSmart; self.smartQuery = smartQuery; self.isInbox = isInbox; self.reasoning = reasoning; self.createdBy = createdBy; self.icon = icon; self.shareToken = shareToken
+    }
+
+    /// The inbox and filters can't be shared.
+    public var isShareable: Bool { isSmart != true && isInbox != true }
+}
+
+/// What a share link shows (`GET /api/v1/shared/<token>`): the collection's live links, cut down to what a
+/// viewer may see — no tags, highlights or price history.
+public struct SharedCollection: Codable, Hashable, Sendable {
+    public let name: String
+    public let color: String
+    public let icon: String?
+    /// The owner's display name, if they set one.
+    public let ownerName: String?
+    public let links: [LinkItem]
+
+    public init(name: String, color: String, icon: String? = nil, ownerName: String? = nil, links: [LinkItem]) {
+        self.name = name; self.color = color; self.icon = icon; self.ownerName = ownerName; self.links = links
+    }
+}
+
+/// `saveFromShare`'s answer: the copies, plus the new collection when the whole thing was saved.
+public struct SavedFromShare: Codable, Sendable {
+    public let links: [LinkItem]
+    public let collection: LinkCollection?
+
+    public init(links: [LinkItem], collection: LinkCollection? = nil) {
+        self.links = links; self.collection = collection
     }
 }
 
@@ -237,9 +267,11 @@ public struct LibrarySnapshot: Sendable, Codable, Equatable {
     public let links: [LinkItem]
     public let trashed: [LinkItem]
     public let collections: [LinkCollection]
+    /// What they appear as on shared collections; nil until they pick one.
+    public var displayName: String?
 
-    public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection]) {
-        self.links = links; self.trashed = trashed; self.collections = collections
+    public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection], displayName: String? = nil) {
+        self.links = links; self.trashed = trashed; self.collections = collections; self.displayName = displayName
     }
 }
 

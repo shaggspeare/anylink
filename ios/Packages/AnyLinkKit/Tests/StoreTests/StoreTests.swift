@@ -23,6 +23,31 @@ import Fixtures
     var state: State { State(links: store.links, order: store.order, collections: store.collections) }
     let generic = "That didn't go through. Try again."
 
+    @Test func sharingRoundTrip() async throws {
+        #expect(await store.setShared("rust", true))
+        let token = try #require(store.collection("rust")?.shareToken)
+        #expect(await store.setShared("rust", true))
+        #expect(store.collection("rust")?.shareToken == token, "re-sharing keeps the link already sent")
+
+        await store.setDisplayName("  Sam ")
+        #expect(store.displayName == "Sam")
+        let shared = try await store.sharedCollection(token: token)
+        #expect(shared.ownerName == "Sam" && shared.links.allSatisfy { $0.tags.isEmpty && $0.highlights == nil })
+
+        let before = store.collections.count
+        let one = try #require(shared.links.first)
+        let single = try #require(await store.saveFromShare(token: token, linkIds: [one.id]))
+        #expect(single.collection == nil && store.link(single.links[0].id)?.collectionId == store.inboxID)
+        let all = try #require(await store.saveFromShare(token: token, linkIds: nil))
+        #expect(all.links.count == shared.links.count && store.collections.count == before + 1)
+        #expect(all.links.allSatisfy { $0.note == nil && store.link($0.id)?.collectionId == all.collection?.id })
+
+        #expect(await store.setShared("rust", false))
+        #expect(store.collection("rust")?.shareToken == nil)
+        await #expect(throws: AppError.notFound) { try await store.sharedCollection(token: token) }
+        #expect(!(await store.setShared(store.inboxID, true)), "the inbox can't be shared")
+    }
+
     @Test func pinsAreLimitedPersistedAndSortedFirst() async throws {
         store.setPinned("iph", true)
         store.setPinned("nasa", true)
@@ -325,6 +350,9 @@ import Fixtures
         #expect(r.handle(URL(string: "https://anylink.app/links/ytrt")!))
         #expect(r.tab == .library && r.library == [.link("ytrt")])
         #expect(!r.handle(URL(string: "https://anylink.app/about")!))
+        #expect(r.handle(URL(string: "https://www.anylink.space/s/k3Jd9xQ2pLm4Nq7RtVw8Yz")!))
+        #expect(r.tab == .library && r.library == [.shared(token: "k3Jd9xQ2pLm4Nq7RtVw8Yz")])
+        #expect(!r.handle(URL(string: "anylink://s/x")!))
         r.sheet = .newCollection
         #expect(r.handle(URL(string: "anylink://triage")!))
         #expect(r.tab == .library && r.library == [.triage] && r.sheet == nil)

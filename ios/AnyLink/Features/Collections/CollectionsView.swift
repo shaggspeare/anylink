@@ -29,7 +29,7 @@ struct CollectionsView: View {
                                 CollectionCard(collection: c, linkCount: store.count(in: c.id), topLinks: Array(store.links(in: c.id).prefix(3)))
                             }
                             .buttonStyle(TilePressStyle())
-                            .accessibilityLabel("\(c.name), \(store.count(in: c.id).linkCount)")
+                            .accessibilityLabel("\(c.name), \(store.count(in: c.id).linkCount)\(c.shareToken == nil ? "" : ", shared")")
                             .accessibilityIdentifier("collection-\(c.id)")
                         }
                     }

@@ -24,6 +24,12 @@ public struct CollectionCard: View {
                         .font(AL.Font.brand(14, .semibold, relativeTo: .subheadline))
                         .foregroundStyle(AL.ink)
                         .lineLimit(1)
+                    if collection.shareToken != nil {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+                            .accessibilityHidden(true)
+                    }
                 }
                 Text(linkCount.linkCount)
                     .font(AL.Font.meta)
