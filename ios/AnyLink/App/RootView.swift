@@ -21,12 +21,17 @@ struct RootView: View {
     @State private var choosingPassword = false
     /// A link (e.g. a shared collection) opened on Welcome; handled once they're in.
     @State private var pendingURL: URL?
+    /// Once per cold launch. The clip is all motion, so Reduce Motion skips it.
+    @State private var splashing = !UIAccessibility.isReduceMotionEnabled && !AppConfig.isUITesting
 
     var body: some View {
         Group {
             if signedIn { main(env) }
             else if guest, let guestEnv { main(guestEnv) }
             else { WelcomeView(onSignedIn: { signedIn = true }, onSkip: { guest = true }) }
+        }
+        .overlay {
+            if splashing { SplashView { withAnimation(AL.Motion.sheet) { splashing = false } }.transition(.opacity) }
         }
         .preferredColorScheme(appearance.scheme)
         .onOpenURL { url in
