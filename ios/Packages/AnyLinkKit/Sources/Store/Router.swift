@@ -118,10 +118,13 @@ public final class Router {
             library = [.triage]
             return true
         }
-        if parts.count == 2, parts[0] == "s", url.scheme == "https" {
+        // `anylink://s/{token}` too: the shared web page's "Open in app", for browsers that won't hand over the https link.
+        let token: String? = url.scheme == "anylink" && url.host() == "s" ? parts.first
+            : (url.scheme == "https" && parts.count == 2 && parts[0] == "s" ? parts[1] : nil)
+        if let token {
             sheet = nil
             tab = .library
-            library = [.shared(token: parts[1])]
+            library = [.shared(token: token)]
             return true
         }
         let id: String? = url.scheme == "anylink" && url.host() == "link" ? parts.first

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getSharedCollection } from "@/lib/db/queries";
 import { linkCount } from "@/lib/format";
@@ -9,7 +10,10 @@ export default async function SharedPage(props: PageProps<"/s/[token]">) {
   const { token } = await props.params;
   const shared = await getSharedCollection(token);
   if (!shared) notFound();
-  return <SharedCollectionView token={token} shared={shared} />;
+  // In-app browsers (Telegram, Instagram…) and Safari's address bar never hand a universal link to the app,
+  // so iPhones also get an "Open in app" button on the app's own scheme.
+  const iOS = /iPhone|iPad|iPod/.test((await headers()).get("user-agent") ?? "");
+  return <SharedCollectionView token={token} shared={shared} iOS={iOS} />;
 }
 
 export async function generateMetadata(props: PageProps<"/s/[token]">): Promise<Metadata> {

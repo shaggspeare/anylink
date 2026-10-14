@@ -15,7 +15,7 @@ const ALL = "all";
 
 /** What a viewer sees at /s/<token>: read-only cards, each with Save, and Save all. Signed-out
  * viewers sign in first and come back to a `?save=` that finishes the job. */
-export function SharedCollectionView({ token, shared }: { token: string; shared: SharedCollection }) {
+export function SharedCollectionView({ token, shared, iOS }: { token: string; shared: SharedCollection; iOS: boolean }) {
   const { guest, demo, inbox, saveFromShare, showToast, openSignUp } = useLibrary();
   const signedIn = !guest && !demo;
   const [saved, setSaved] = useState<Set<string>>(new Set());
@@ -66,6 +66,14 @@ export function SharedCollectionView({ token, shared }: { token: string; shared:
             {linkCount(shared.links.length)}
             {shared.ownerName && ` · shared by ${shared.ownerName}`}
           </span>
+          {iOS && (
+            <a
+              href={`anylink://s/${token}`}
+              className="flex h-10 items-center rounded-full border border-rim/90 bg-surface/70 px-5 text-body font-semibold text-ink sm:ml-auto"
+            >
+              Open in app
+            </a>
+          )}
           {shared.links.length > 0 && (
             <button
               type="button"

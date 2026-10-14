@@ -352,7 +352,8 @@ import Fixtures
         #expect(!r.handle(URL(string: "https://anylink.app/about")!))
         #expect(r.handle(URL(string: "https://www.anylink.space/s/k3Jd9xQ2pLm4Nq7RtVw8Yz")!))
         #expect(r.tab == .library && r.library == [.shared(token: "k3Jd9xQ2pLm4Nq7RtVw8Yz")])
-        #expect(!r.handle(URL(string: "anylink://s/x")!))
+        #expect(r.handle(URL(string: "anylink://s/abc123")!))
+        #expect(r.library == [.shared(token: "abc123")])
         r.sheet = .newCollection
         #expect(r.handle(URL(string: "anylink://triage")!))
         #expect(r.tab == .library && r.library == [.triage] && r.sheet == nil)
