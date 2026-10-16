@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app-store-screens",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4319", "--directory", "/Users/slava/Projects/anylink"],
+      "port": 4319
+    }
+  ]
+}
