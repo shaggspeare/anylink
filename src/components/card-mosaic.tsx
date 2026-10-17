@@ -1,6 +1,6 @@
 "use client";
 
-import { useColumnCount } from "@/lib/geometry";
+import { useColumnCount, type Breakpoints } from "@/lib/geometry";
 import { useDragReorder } from "@/lib/use-drag-reorder";
 import { Card } from "./card";
 import type { LinkItem } from "@/lib/types";
@@ -18,6 +18,7 @@ export function CardMosaic({
   onOpen,
   openId,
   reservedPx = 0,
+  breakpoints,
 }: {
   links: LinkItem[];
   selectable?: boolean;
@@ -33,8 +34,10 @@ export function CardMosaic({
   openId?: string | null;
   /** Width the side pane takes from the grid. */
   reservedPx?: number;
+  /** Viewport width → columns, for a mosaic narrower than the page (the landing demo). */
+  breakpoints?: Breakpoints;
 }) {
-  const columnCount = useColumnCount(reservedPx);
+  const columnCount = useColumnCount(reservedPx, breakpoints);
   // Phones get a two-up grid of small uniform tiles instead of one full-width card per row.
   const tile = columnCount === 1;
   const row = tile && list;

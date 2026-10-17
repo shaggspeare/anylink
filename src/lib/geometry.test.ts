@@ -17,6 +17,7 @@ test("columnsForWidth follows the mosaic breakpoints", () => {
   assert.equal(columnsForWidth(1000), 3);
   assert.equal(columnsForWidth(700), 2);
   assert.equal(columnsForWidth(400), 1);
+  assert.equal(columnsForWidth(900, [[1181, 3], [761, 2], [0, 1]]), 2);
 });
 
 test("swipeDirection only counts long, clearly sideways swipes", () => {

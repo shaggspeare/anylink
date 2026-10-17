@@ -17,30 +17,33 @@ export const CARD_TITLE_SIZE: Record<CardSize, number> = { S: 17, M: 19, L: 27 }
 
 export const GRID_ROW_UNIT = 4;
 
-const BREAKPOINTS: [number, number][] = [
+/** [min width, columns], widest first. */
+export type Breakpoints = [number, number][];
+
+const BREAKPOINTS: Breakpoints = [
   [1280, 4],
   [900, 3],
   [640, 2],
   [0, 1],
 ];
 
-export function columnsForWidth(width: number) {
-  for (const [min, cols] of BREAKPOINTS) {
+export function columnsForWidth(width: number, breakpoints = BREAKPOINTS) {
+  for (const [min, cols] of breakpoints) {
     if (width >= min) return cols;
   }
   return 1;
 }
 
 /** Tracks how many mosaic columns are active at the current viewport width, less
- * `reservedPx` taken by a side pane. */
-export function useColumnCount(reservedPx = 0) {
+ * `reservedPx` taken by a side pane. `breakpoints` must be a stable reference. */
+export function useColumnCount(reservedPx = 0, breakpoints = BREAKPOINTS) {
   const [cols, setCols] = useState(4);
   useEffect(() => {
-    const update = () => setCols(columnsForWidth(window.innerWidth - reservedPx));
+    const update = () => setCols(columnsForWidth(window.innerWidth - reservedPx, breakpoints));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [reservedPx]);
+  }, [reservedPx, breakpoints]);
   return cols;
 }
 

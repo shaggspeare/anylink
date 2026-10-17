@@ -1,16 +1,41 @@
+import { Fragment } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { AmbientOrbs } from "@/components/ambient-orbs";
+import { Caveat, Instrument_Serif } from "next/font/google";
+import "./landing.css";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { MessPile, Scribble } from "@/components/mess-pile";
 import { AppDemo } from "@/components/app-demo";
 import { UrlPreview } from "@/components/url-preview";
 import { SearchDemo } from "@/components/search-demo";
-import { PlayOnView } from "@/components/play-on-view";
-import { Icon } from "@/components/icon";
+import { PhoneArc } from "@/components/landing-phones";
+import { TiltSection } from "@/components/tilt-section";
 import { TourButton } from "@/components/tour";
+import appIcon from "../../public/images/landing/app-icon.webp";
+import chain from "../../public/images/landing/chain.webp";
+import plant from "../../public/images/hero/plant.webp";
+import house from "../../public/images/hero/house.webp";
+import heroVilla from "../../public/images/hero/villa.webp";
+import heroBook from "../../public/images/hero/book.webp";
+import heroSneaker from "../../public/images/hero/sneaker.webp";
+import heroCamera from "../../public/images/hero/camera.webp";
+import maps from "../../public/images/hero/maps.webp";
+import pasta from "../../public/images/hero/pasta.webp";
+import heroBarcelona from "../../public/images/hero/barcelona.webp";
+import apartamento from "../../public/images/hero/apartamento.webp";
+import coffee from "../../public/images/demo/coffee.webp";
+import book from "../../public/images/demo/book.webp";
+import office from "../../public/images/demo/office.webp";
+import tokyo from "../../public/images/demo/tokyo.webp";
+import sneakers from "../../public/images/demo/sneakers.webp";
+import kyoto from "../../public/images/demo/kyoto.webp";
+import bcnGuell from "../../public/images/demo/bcn-guell.webp";
+import colReading from "../../public/images/collections/reading.webp";
+import colInspiration from "../../public/images/collections/inspiration.webp";
+import colShopping from "../../public/images/collections/shopping.webp";
+import colEverything from "../../public/images/collections/everything.webp";
 
-/** Public landing page. Static on purpose — no library data, nothing to log in for. */
+/** Public landing page. Static on purpose — no library data, nothing to log in for.
+ *  Styles: ./landing.css, ported from design/AnyLink — landing-html. */
 
 export const metadata = {
   title: "AnyLink — paste anything, we read the rest",
@@ -18,40 +43,64 @@ export const metadata = {
     "A personal library for saved links: crawled, tagged, and filed into collections you actually browse.",
 };
 
+const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument-serif" });
+const hand = Caveat({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-caveat" });
+
 const NAV = [
   { label: "Features", href: "#features" },
   { label: "Collections", href: "#collections" },
   { label: "Search", href: "#search" },
+  { label: "iPhone", href: "#iphone" },
   { label: "How it works", href: "#how-it-works" },
 ];
 
-// Photos: Unsplash.
-const COLLECTIONS = [
-  { name: "Reading", count: 12, color: "var(--signal-orange)", image: "/images/collections/reading.webp" },
-  { name: "Inspiration", count: 24, color: "var(--lime)", image: "/images/collections/inspiration.webp" },
-  { name: "Shopping", count: 16, color: "var(--periwinkle)", image: "/images/collections/shopping.webp" },
-  { name: "Everything else", count: 20, color: "var(--slate)", image: "/images/collections/everything.webp" },
+// Back to front. z/rotations place each tile in the 3D pile; --sx/--sy is where the
+// scroll-driven "suck" animation pulls it (down into the app window).
+const TILES = [
+  { img: plant, far: true, left: 36, top: 73, width: 24, t: "translateZ(-300px) rotateZ(12deg) rotateY(-20deg)", f: "7.4s", dl: "-1s", sx: -120, sy: 520 },
+  { img: house, far: true, left: 62, top: 27, width: 32, t: "translateZ(-220px) rotateZ(7deg) rotateY(24deg) rotateX(8deg)", f: "6.6s", dl: "-3s", sx: -420, sy: 700 },
+  { img: heroVilla, left: 11, top: 0, width: 27, t: "translateZ(-140px) rotateZ(-9deg) rotateY(-16deg)", f: "8s", dl: "-2s", sx: -160, sy: 820 },
+  { img: heroBook, left: 22, top: 14, width: 35, t: "translateZ(-60px) rotateZ(10deg) rotateY(14deg) rotateX(-6deg)", f: "6.2s", dl: "-4s", sx: -240, sy: 760 },
+  { img: heroSneaker, left: 40, top: 4, width: 41, t: "translateZ(30px) rotateZ(-8deg) rotateY(-12deg)", f: "7s", dl: "-1.5s", sx: -320, sy: 800 },
+  { img: heroCamera, left: 0, top: 43, width: 34, t: "translateZ(90px) rotateZ(-10deg) rotateY(18deg)", f: "5.6s", dl: "-2.6s", sx: -60, sy: 640 },
+  { img: maps, left: 60, top: 68, width: 38, t: "translateZ(60px) rotateZ(-7deg) rotateX(14deg) rotateY(-10deg)", f: "6.8s", dl: "-5s", sx: -440, sy: 520 },
+  { img: pasta, left: 0, top: 61, width: 35, t: "translateZ(150px) rotateZ(-5deg) rotateY(16deg) rotateX(6deg)", f: "6s", dl: "-3.4s", sx: -40, sy: 560 },
+  { img: heroBarcelona, left: 34, top: 45, width: 30, t: "translateZ(200px) rotateZ(4deg) rotateY(-14deg) rotateX(-8deg)", f: "7.8s", dl: "-.8s", sx: -260, sy: 600 },
+  { img: apartamento, left: 63, top: 42, width: 36, t: "translateZ(250px) rotateZ(-4deg) rotateY(-22deg)", f: "6.4s", dl: "-2.2s", sx: -500, sy: 640 },
+];
+
+const MARQUEE: [string, "" | "s" | "f"][] = [
+  ["Articles", ""], ["videos", "s"], ["Products", "f"], ["Places", ""],
+  ["recipes", "s"], ["Posts", "f"], ["Notes", ""], ["images", "s"],
+];
+
+// Photos: Unsplash. `back` is the two cards fanned out behind, farthest first.
+const DECKS = [
+  { name: "Reading", count: 12, color: "#ff5a1f", img: colReading, alt: "A stack of books under a cup", back: [coffee, book] },
+  { name: "Inspiration", count: 24, color: "#d6f24b", img: colInspiration, alt: "Palm leaves against a warm wall", back: [office, tokyo] },
+  { name: "Shopping", count: 16, color: "#7c8cff", img: colShopping, alt: "Sneakers on a chair", back: [heroCamera, sneakers], cutout: true },
+  { name: "Everything else", count: 20, color: "#9aa3ad", img: colEverything, alt: "A film camera on a map", back: [kyoto, bcnGuell] },
 ];
 
 const STEPS = [
   {
     n: "01",
     title: "Save",
-    accent: "var(--signal-orange)",
+    color: "#ff5a1f",
     body: "Paste any link, or import your browser bookmarks and Telegram saved messages in one go.",
     details: ["Title, image, price and read time pulled for you", "Blocked pages get a fallback read, not a dead row"],
   },
   {
     n: "02",
     title: "Organise",
-    accent: "var(--lime)",
+    color: "#d6f24b",
     body: "Links land in collections by what they actually are — things to buy, to read, to try.",
     details: ["Dead links flagged before they pile up", "Trash keeps your mistakes recoverable"],
   },
   {
     n: "03",
     title: "Find",
-    accent: "var(--periwinkle)",
+    color: "#7c8cff",
     body: "One query language behind search, filters and saved views. Learn it once, use it everywhere.",
     details: ["Searches the page text, not just titles", "Save the searches you repeat as smart collections"],
   },
@@ -64,189 +113,314 @@ const STATS = [
   { value: "100%", label: "private by default" },
 ];
 
+const ARROW = (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+const STAR = (
+  <svg className="mq-star ic fill" viewBox="0 0 24 24">
+    <path d="M12 2.5l2 6.5 6.5 2-6.5 2-2 6.5-2-6.5-6.5-2 6.5-2z" />
+  </svg>
+);
+
+function Brand(props: React.ComponentProps<"a">) {
+  return (
+    <a className="brand" href="#top" {...props}>
+      <Image src={appIcon} alt="" sizes="32px" />
+      AnyLink
+    </a>
+  );
+}
+
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-canvas">
-      <AmbientOrbs variant="library" />
-
-      <div className="relative mx-auto w-full max-w-[1240px] px-4 sm:px-6">
-        <header className="relative z-[110] flex items-center justify-between gap-6 py-6">
-          <div className="flex items-center gap-10">
-            <span className="text-wordmark">AnyLink</span>
-            <nav className="hidden items-center gap-7 text-body text-ink/60 md:flex">
-              {NAV.map((n) => (
-                <a key={n.href} href={n.href} className="hover:text-ink">
-                  {n.label}
-                </a>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-1.5">
+    <div className={`al ${serif.variable} ${hand.variable}`}>
+      <header className="nav">
+        <div className="nav-in">
+          <Brand aria-label="AnyLink home" />
+          <nav className="nav-links" aria-label="Sections">
+            {NAV.map((n) => (
+              <a key={n.href} href={n.href}>
+                {n.label}
+              </a>
+            ))}
+          </nav>
+          <div className="nav-cta">
             <ThemeToggle />
-            <Link href="/login" className="flex h-9 items-center rounded-full px-3 text-body font-semibold text-ink/75 hover:text-ink">
+            <Link className="signin" href="/login">
               Sign in
             </Link>
-            <Link
-              href="/app"
-              className="flex h-9 items-center rounded-full bg-ink px-4 text-body font-semibold text-on-ink"
-            >
+            <Link className="btn btn-acc" href="/start">
               Get started
             </Link>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Hero */}
-        <section className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-6 pt-8 pb-12 md:grid-cols-[0.9fr_minmax(0,1.1fr)] md:gap-10 md:pt-12 md:pb-24">
-          <div className="relative z-10 flex flex-col items-center gap-6 text-center md:items-start md:text-left">
-            <span className="rounded-full bg-surface/70 px-4 py-2 text-eyebrow text-ink/50">
-              Your saved links, finally readable
-            </span>
-            <h1 className="text-display max-w-[560px] text-[46px] leading-[0.95] sm:text-[64px] lg:text-[84px]">
-              The internet <br className="hidden sm:block" />is a beautiful mess.
-            </h1>
-            <p className="max-w-[440px] text-[17px] leading-[1.5] text-ink/55">
-              Save anything — articles, products, videos, places. AnyLink turns chaotic bookmarks
-              into a clean, visual library you’ll actually browse.
-            </p>
-            <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row">
-              <Link
-                href="/start"
-                className="flex h-12 items-center justify-center rounded-full bg-ink px-7 text-body font-semibold text-on-ink shadow-card"
-              >
-                Get started
-              </Link>
-              {/* Starts the app's guided tour; it navigates to /app itself. */}
-              <TourButton className="flex h-12 items-center justify-center rounded-full bg-surface/80 px-7 text-body font-semibold shadow-card">
-                See how it works
-              </TourButton>
+      <TiltSection className="hero" id="top">
+        <div className="scene">
+          <div className="flare flare-glow hero-glow" aria-hidden />
+          <div className="flare flare-body hero-flare" aria-hidden />
+          <div className="wrap hero-grid">
+            <div className="hero-copy">
+              <span className="eyebrow">
+                <span className="dot" />
+                Your saved links, finally readable
+              </span>
+              <h1 className="h1">
+                The internet
+                <br />
+                is a <span className="it">beautiful</span>
+                <br />
+                <span className="it">mess.</span>
+              </h1>
+              <p className="lead">
+                Save anything — articles, products, videos, places. AnyLink turns chaotic bookmarks into a clean,
+                visual library you’ll actually browse.
+              </p>
+              <div className="btns">
+                <Link className="btn btn-acc" href="/start">
+                  Get started {ARROW}
+                </Link>
+                {/* Starts the app's guided tour; it navigates to /app itself. */}
+                <TourButton className="btn btn-glass">See how it works</TourButton>
+              </div>
+            </div>
+            <div className="pile-wrap" aria-hidden>
+              {TILES.map((t) => (
+                <div
+                  key={t.img.src}
+                  className={t.far ? "tile far" : "tile"}
+                  style={{
+                    left: `${t.left}%`,
+                    top: `${t.top}%`,
+                    width: `${t.width}%`,
+                    transform: t.t,
+                    ...({ "--f": t.f, "--dl": t.dl, "--sx": `${t.sx}px`, "--sy": `${t.sy}px` } as React.CSSProperties),
+                  }}
+                >
+                  <Image src={t.img} alt="" loading="eager" sizes="(max-width: 760px) 40vw, 300px" />
+                </div>
+              ))}
+              <div className="scribble sc-from">
+                FROM
+                <br />
+                THIS…
+                <svg viewBox="0 0 80 70" style={{ width: 80, height: 64, marginLeft: -56 }} aria-hidden>
+                  <path d="M60 4C66 30 44 52 14 58M14 58l10-8M14 58l11 6" />
+                </svg>
+              </div>
             </div>
           </div>
-
-          <MessPile />
-
-          <Scribble className="absolute bottom-0 left-0 hidden -rotate-6 md:flex">
+          <div className="scribble sc-to" aria-hidden>
             …TO THIS
-            <svg viewBox="0 0 80 60" className="-mt-1 ml-24 h-14 w-20" aria-hidden>
+            <svg viewBox="0 0 80 60" style={{ width: 80, height: 56, margin: "-4px 0 0 96px" }} aria-hidden>
               <path d="M4 8c30-6 48 8 44 44M48 52l-10-8M48 52l6-11" />
             </svg>
-          </Scribble>
-        </section>
+          </div>
+        </div>
+      </TiltSection>
 
-        {/* Product demo — the real mosaic on local-only data */}
-        <section>
-          <AppDemo />
-        </section>
+      <section className="app" id="app" aria-label="Your library, live">
+        <div className="horizon" aria-hidden />
+        <div className="wrap">
+          <div className="win-stage">
+            <div className="scribble sc-try" aria-hidden>
+              HOVER A CARD —<br />
+              RESIZE, PIN, BIN IT
+            </div>
+            <div className="win-fly">
+              <div className="win-rig">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <i key={i} className="win-edge" />
+                ))}
+                <AppDemo />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <UrlPreview />
+      <div className="marq" aria-hidden>
+        <div className="marq-track">
+          {[0, 1].map((set) => (
+            <div key={set} className="marq-set">
+              {MARQUEE.map(([word, style]) => (
+                <Fragment key={word}>
+                  <span className={`mq ${style}`}>{word}</span>
+                  {STAR}
+                </Fragment>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
 
-        {/* Collections */}
-        <section id="collections" className="pt-16 md:pt-24">
-          <h2 className="text-display text-[40px] leading-[0.98] sm:text-[56px]">
-            A place for every rabbit hole.
-          </h2>
-          <p className="mt-4 max-w-[480px] text-[17px] leading-[1.5] text-ink/55">
-            Keep your links in collections by what they actually are — not just another folder.
-          </p>
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            {COLLECTIONS.map((c) => (
-              <div key={c.name} className="group flex flex-col gap-4 rounded-panel bg-paper p-3 shadow-card sm:p-4">
-                <div className="flex items-start gap-3 px-1 pt-1">
-                  <span className="mt-0.5 h-7 w-7 flex-none rounded-[9px]" style={{ background: c.color }} />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-[16px] leading-tight font-semibold tracking-[-0.02em]">{c.name}</span>
-                    <span className="text-meta text-ink/45">{c.count} links</span>
+      <UrlPreview />
+
+      <section className="sec" id="collections">
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot" />
+              Collections
+            </span>
+            <h2 className="h2">
+              A place for every
+              <br />
+              <span className="it">rabbit hole.</span>
+            </h2>
+            <p className="lead">Keep your links in collections by what they actually are — not just another folder.</p>
+          </div>
+          <div className="decks">
+            {DECKS.map((d) => (
+              <div key={d.name} className="deck">
+                <div className="deck-3d" style={{ "--c": d.color } as React.CSSProperties}>
+                  {d.back.map((img, i) => (
+                    <div key={i} className={`dk dk-b ${i === 0 ? "dk-b2" : "dk-b1"} ${i === 0 && d.cutout ? "dk-cut" : ""}`}>
+                      <Image src={img} alt="" sizes="(max-width: 760px) 50vw, 300px" />
+                    </div>
+                  ))}
+                  <div className="dk dk-f">
+                    <div className="dk-head">
+                      <span className="dk-mark" style={{ background: d.color }} />
+                      <div className="dk-name">
+                        <b>{d.name}</b>
+                        <span>{d.count} links</span>
+                      </div>
+                    </div>
+                    <div className="dk-img">
+                      <Image src={d.img} alt={d.alt} sizes="(max-width: 760px) 50vw, 300px" />
+                    </div>
                   </div>
                 </div>
-                <div className="relative aspect-[5/4] overflow-hidden rounded-card">
-                  <Image
-                    src={c.image}
-                    alt=""
-                    fill
-                    sizes="(min-width: 1024px) 280px, 45vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <SearchDemo />
+      <SearchDemo />
 
-        {/* How it works */}
-        <section id="how-it-works" className="pt-16 md:pt-24">
-          <h2 className="text-display text-[40px] leading-[0.98] sm:text-[56px]">
-            From a pile
-            <br />
-            to a library.
-          </h2>
-          <p className="mt-4 max-w-[480px] text-[17px] leading-[1.5] text-ink/55">
-            Three steps, no filing required. AnyLink does the sorting so you can get back to the good stuff.
-          </p>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="flex flex-col gap-3 rounded-panel bg-paper p-6 shadow-card sm:p-7">
-                <div className="flex items-center justify-between">
-                  <span className="h-8 w-8 rounded-[10px]" style={{ background: s.accent }} />
-                  <span className="text-eyebrow text-ink/35">{s.n}</span>
-                </div>
-                <h3 className="mt-2 text-title">{s.title}</h3>
-                <p className="text-lead text-ink/60">{s.body}</p>
-                <ul className="mt-auto flex flex-col gap-2 border-t border-ink/8 pt-4">
-                  {s.details.map((d) => (
-                    <li key={d} className="flex items-start gap-2 text-body text-ink/65">
-                      <Icon name="check" size={12} className="mt-1 text-ink/40" />
-                      {d}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+      <section className="iph" id="iphone">
+        <div className="flare flare-glow iph-glow" aria-hidden />
+        <div className="wrap iph-head">
+          <div className="sec-head">
+            <span className="eyebrow">
+              <span className="dot" />
+              AnyLink for iPhone
+            </span>
+            <h2 className="h2">
+              Save from any app
+              <br />
+              <span className="it">in one tap.</span>
+            </h2>
           </div>
-        </section>
+          <div className="sec-head" style={{ gap: 26 }}>
+            <p className="lead">
+              Share to AnyLink from anywhere and it’s filed before the sheet closes. Clear Unsorted with a swipe, read
+              without the clutter, and share a whole collection with one link.
+            </p>
+            <div className="btns">
+              {/* ponytail: no App Store listing yet — point this at it once the app is live. */}
+              <a className="btn btn-glass" href="#iphone">
+                <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+                  <rect x="6.5" y="2.5" width="11" height="19" rx="3" />
+                  <path d="M10.5 18.5h3" />
+                </svg>
+                Get the iPhone app
+              </a>
+            </div>
+          </div>
+        </div>
+        <PhoneArc />
+      </section>
 
-        {/* Closing CTA */}
-        <footer className="relative grid grid-cols-[minmax(0,1fr)] items-center gap-6 pt-20 pb-12 md:grid-cols-[1.1fr_minmax(0,1fr)] md:pt-32 md:pb-16">
-          <div className="relative z-10 flex flex-col gap-6">
-            <h2 className="text-display text-[40px] leading-[0.98] sm:text-[56px]">
+      <section className="how" id="how-it-works">
+        <div className="band">
+          <div className="wrap">
+            <div className="sec-head">
+              <span className="eyebrow">
+                <span className="dot" />
+                How it works
+              </span>
+              <h2 className="h2">
+                From a pile
+                <br />
+                to a library.
+              </h2>
+              <p className="lead">
+                Three steps, no filing required. AnyLink does the sorting so you can get back to the good stuff.
+              </p>
+            </div>
+            <div className="steps">
+              {STEPS.map((s, i) => (
+                <article key={s.n} className={`step step-${"abc"[i]}`} style={{ "--c": s.color } as React.CSSProperties}>
+                  <div className="step-top">
+                    <div className="cube-wrap" aria-hidden>
+                      <div className="cube" style={{ animationDelay: `${-6 * i}s` }}>
+                        {Array.from({ length: 6 }, (_, f) => (
+                          <i key={f} />
+                        ))}
+                      </div>
+                    </div>
+                    <span className="step-n">{s.n}</span>
+                  </div>
+                  <h3>{s.title}</h3>
+                  <p>{s.body}</p>
+                  <ul>
+                    {s.details.map((d) => (
+                      <li key={d}>
+                        <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+                          <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </svg>
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <TiltSection className="cta">
+        <div className="wrap cta-grid">
+          <div className="cta-copy">
+            <h2 className="h2">
               Everything worth
               <br />
-              keeping. In one place.
+              keeping. <span className="it">In one place.</span>
             </h2>
-            <p className="max-w-[440px] text-[17px] leading-[1.5] text-ink/55">
-              Save, organise and rediscover your favourite links — whenever inspiration strikes.
-            </p>
-            <div className="flex flex-col gap-2.5 sm:flex-row">
-              <Link
-                href="/start"
-                className="flex h-12 items-center justify-center rounded-full bg-ink px-7 text-body font-semibold text-on-ink shadow-card"
-              >
-                Get started for free
+            <p className="lead">Save, organise and rediscover your favourite links — whenever inspiration strikes.</p>
+            <div className="btns">
+              <Link className="btn btn-acc" href="/start">
+                Get started for free {ARROW}
               </Link>
-              <Link
-                href="/app"
-                className="flex h-12 items-center justify-center rounded-full bg-surface/80 px-7 text-body font-semibold shadow-card"
-              >
+              <Link className="btn btn-glass" href="/app">
                 Open my library
               </Link>
             </div>
-            <dl className="mt-6 grid max-w-[520px] grid-cols-3 gap-6">
+            <dl className="stats">
               {STATS.map((s) => (
-                <div key={s.label} className="flex flex-col gap-1">
-                  <dt className="text-[26px] font-semibold tracking-[-0.03em]">{s.value}</dt>
-                  <dd className="text-meta text-ink/50">{s.label}</dd>
+                <div key={s.label}>
+                  <dt>{s.label}</dt>
+                  <dd>{s.value}</dd>
                 </div>
               ))}
             </dl>
           </div>
-          <div className="relative">
-            <PlayOnView
-              src="/videos/chain_transparent.webm"
-              poster="/videos/chain_last.webp"
-              aria-hidden
-              className="pointer-events-none -mx-[15%] w-[130%] max-w-none -rotate-10 md:mx-0 md:-ml-[12%] md:w-[135%]"
-            />
-            <Scribble className="absolute right-0 bottom-[8%] hidden rotate-6 lg:flex">
+          <div className="chain-stage" aria-hidden>
+            <div className="flare flare-glow chain-glow" />
+            <div className="flare chain-glow2" />
+            <div className="chain-ring" />
+            <div className="chain-floor" />
+            <div className="chain">
+              <Image src={chain} alt="" sizes="(max-width: 760px) 300px, 560px" />
+            </div>
+            <div className="scribble sc-same">
               SAME
               <br />
               IDEAS.
@@ -254,19 +428,31 @@ export default function LandingPage() {
               LESS
               <br />
               CHAOS.
-              <svg viewBox="0 0 80 40" className="-mt-2 -ml-24 h-10 w-20" aria-hidden>
+              <svg viewBox="0 0 80 40" style={{ width: 80, height: 40, margin: "-8px 0 0 -96px" }} aria-hidden>
                 <path d="M76 16C58 30 30 32 6 22M6 22l11-7M6 22l9 9" />
               </svg>
-            </Scribble>
+            </div>
           </div>
-          <nav className="relative z-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-meta text-ink/50 md:col-span-2">
-            <span>© {new Date().getFullYear()} AnyLink</span>
-            <Link href="/privacy-policy" className="hover:text-ink hover:underline">
-              Privacy Policy
-            </Link>
+        </div>
+      </TiltSection>
+
+      <footer className="foot">
+        <div className="wrap foot-row">
+          <Brand />
+          <nav className="foot-links" aria-label="Footer">
+            {NAV.map((n) => (
+              <a key={n.href} href={n.href}>
+                {n.label}
+              </a>
+            ))}
+            <Link href="/privacy-policy">Privacy Policy</Link>
           </nav>
-        </footer>
-      </div>
+          <span>© {new Date().getFullYear()} AnyLink</span>
+        </div>
+        <div className="foot-word" aria-hidden>
+          AnyLink
+        </div>
+      </footer>
     </div>
   );
 }

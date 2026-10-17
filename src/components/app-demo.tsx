@@ -4,15 +4,18 @@ import { useState } from "react";
 import { LibraryProvider, useLibrary } from "@/lib/store";
 import { searchLinks } from "@/lib/search";
 import { sortLinks } from "@/lib/organize";
+import { linkCount } from "@/lib/format";
 import { CardMosaic } from "@/components/card-mosaic";
 import { CollectionMarker } from "@/components/collection-marker";
 import { FILTERS } from "@/components/sidebar";
 import { Logo } from "@/components/logo";
+import type { Breakpoints } from "@/lib/geometry";
 import { DEMO_COLLECTIONS, DEMO_LINKS } from "@/lib/demo-library";
 
 /** Landing-page copy of the library: the real mosaic on a demo store, so drag, resize
  *  and favorite all work but nothing leaves the browser. A guest sees their own guest
- *  library here (the same one /app shows); a signed-in visitor gets a throwaway copy. */
+ *  library here (the same one /app shows); a signed-in visitor gets a throwaway copy.
+ *  Styled by app/landing.css; `light` keeps the window in daylight in either theme. */
 
 export function AppDemo() {
   const { guest } = useLibrary();
@@ -23,6 +26,20 @@ export function AppDemo() {
     </LibraryProvider>
   );
 }
+
+// The window's own breakpoints (landing.css): 3 columns beside the sidebar, 2 once it narrows,
+// the phone tiles once the sidebar's gone.
+const COLUMNS: Breakpoints = [
+  [1181, 3],
+  [761, 2],
+  [0, 1],
+];
+
+const ORBS = [
+  { left: -120, top: -140, width: 520, height: 520, background: "#ff5a1f", opacity: 0.3 },
+  { right: -140, top: 220, width: 560, height: 560, background: "#7c8cff", opacity: 0.28 },
+  { left: "38%", bottom: -260, width: 420, height: 420, background: "#d6f24b", opacity: 0.24 },
+];
 
 function DemoWindow() {
   const { links, collections, reorderLinks } = useLibrary();
@@ -40,79 +57,114 @@ function DemoWindow() {
   const filters = FILTERS.map((f) => ({ ...f, count: searchLinks(links, f.query).length })).filter((f) => f.count > 0);
   const title =
     collections.find((c) => c.id === view)?.name ?? FILTERS.find((f) => f.query === view)?.label ?? "All links";
+  // A guest's Unsorted shows up once they've saved something into it.
+  const views = [
+    { id: "all", name: "All links", color: "var(--ink)", icon: undefined, count: links.length },
+    ...collections.map((c) => ({ ...c, count: links.filter((l) => l.collectionId === c.id).length })),
+  ].filter((c) => !("isInbox" in c && c.isInbox && c.count === 0));
 
-  const row = (id: string, label: string, count: number, color?: string) => (
+  const row = (id: string, label: string, count: number, marker?: React.ReactNode) => (
     <button
       key={id}
       type="button"
       onClick={() => setView(id)}
-      className={`flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2 text-body transition-colors hover:bg-ink/6 ${
-        view === id ? "bg-ink/6" : "text-ink/65"
-      }`}
+      aria-pressed={view === id}
+      className={view === id ? "sb-row on" : "sb-row"}
     >
-      {color && <CollectionMarker color={color} />}
-      <span className="flex-1 truncate text-left">{label}</span>
-      <span className="text-meta text-ink/45">{count}</span>
+      {marker}
+      <span className="lbl">{label}</span>
+      <span className="n">{count}</span>
     </button>
   );
 
   return (
-    <div className="glass-42 flex overflow-hidden rounded-panel shadow-window">
-      <aside className="hidden w-[230px] flex-none flex-col border-r border-rim/80 bg-surface/55 p-4 md:flex">
-        <div className="flex items-center gap-2 px-2 py-1">
-          <Logo className="h-9 w-9" />
-          <span className="text-wordmark">AnyLink</span>
+    <div className="win light">
+      <div className="win-bar">
+        <div className="win-dots" aria-hidden>
+          <i style={{ background: "#ff5a1f" }} />
+          <i style={{ background: "#d6f24b" }} />
+          <i style={{ background: "#7c8cff" }} />
         </div>
-        <nav className="mt-4 flex flex-col gap-0.5">
-          {row("all", "All links", links.length, "var(--ink)")}
-          {collections.map((c) => {
-            const count = links.filter((l) => l.collectionId === c.id).length;
-            // A guest's Unsorted shows up once they've saved something into it.
-            return c.isInbox && count === 0 ? null : row(c.id, c.name, count, c.color);
-          })}
-        </nav>
-        <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Filters</div>
-        {filters.map((f) => row(f.query, f.label, f.count))}
-      </aside>
-
-      <div className="min-w-0 flex-1">
-        <header className="flex items-end gap-3 px-4 pt-5 pb-4 sm:px-6">
-          <h3 className="text-hero text-[26px] whitespace-nowrap">{title}</h3>
-          <span className="pb-1 text-meta whitespace-nowrap text-ink/50">{visible.length} links</span>
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search anything…"
-            aria-label="Search the demo library"
-            className="ml-auto hidden h-10 w-[220px] rounded-full border border-rim/80 bg-surface/70 px-4 text-body outline-none placeholder:text-ink/40 sm:block"
-          />
-          <a
-            href="/app"
-            className="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 text-body font-semibold text-on-ink max-sm:ml-auto"
-          >
-            + Add
-          </a>
-        </header>
-        {/* Phones get no sidebar — the same views as a swipeable chip row. */}
-        <div className="flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] md:hidden">
-          {[{ id: "all", name: "All links", color: "var(--ink)" }, ...collections].map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setView(c.id)}
-              aria-pressed={view === c.id}
-              className={`flex h-9 flex-none items-center gap-2 rounded-full px-3.5 text-body transition-colors ${
-                view === c.id ? "bg-ink text-on-ink" : "bg-ink/6 text-ink/70"
-              }`}
-            >
-              <CollectionMarker color={c.color} />
-              {c.name}
-            </button>
-          ))}
+        <div className="win-url">
+          <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+            <rect x="5.5" y="10.5" width="13" height="9.5" rx="2.5" />
+            <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+          </svg>
+          anylink.space/app
         </div>
-        <div className="sm:h-[620px] sm:overflow-y-auto">
-          <CardMosaic links={visible} onReorder={reorderLinks} />
+        <span className="win-live">
+          <i aria-hidden />
+          Live demo — try it
+        </span>
+      </div>
+      <div className="ui">
+        {ORBS.map((o, i) => (
+          <span key={i} className="ui-orb" style={o} aria-hidden />
+        ))}
+        <aside className="sb" aria-label="Collections">
+          <div className="sb-brand">
+            <Logo className="h-9 w-9" />
+            AnyLink
+          </div>
+          <nav className="sb-nav" aria-label="Library">
+            {views.map((c) => row(c.id, c.name, c.count, <CollectionMarker color={c.color} icon={c.icon} />))}
+          </nav>
+          <div className="sb-eb">Filters</div>
+          <div className="sb-nav" style={{ marginTop: 0 }}>
+            {filters.map((f) => row(f.query, f.label, f.count))}
+          </div>
+          <div className="sb-hint">
+            <span className="kbd">⌘</span>
+            <span className="kbd">V</span>
+            <span>pastes a link, anywhere</span>
+          </div>
+        </aside>
+        <div className="main">
+          <div className="mh">
+            <h3>{title}</h3>
+            <span className="cnt">{linkCount(visible.length)}</span>
+            <label className="mh-search">
+              <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="M20 20l-4.2-4.2" />
+              </svg>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search anything…"
+                aria-label="Search the demo library"
+              />
+              {search && (
+                <button type="button" className="s-x" aria-label="Clear search" onClick={() => setSearch("")}>
+                  <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+                    <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+                  </svg>
+                </button>
+              )}
+            </label>
+            <a className="mh-add" href="/app">
+              + Add
+            </a>
+          </div>
+          {/* Phones get no sidebar — the same views as a swipeable chip row. */}
+          <div className="chiprow">
+            {views.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setView(c.id)}
+                aria-pressed={view === c.id}
+                className={view === c.id ? "on" : ""}
+              >
+                <CollectionMarker color={c.color} icon={c.icon} />
+                {c.name}
+              </button>
+            ))}
+          </div>
+          <div className="mosaic">
+            <CardMosaic links={visible} onReorder={reorderLinks} breakpoints={COLUMNS} />
+          </div>
         </div>
       </div>
     </div>

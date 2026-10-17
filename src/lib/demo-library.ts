@@ -23,13 +23,13 @@ export type DemoRow = [
 ];
 
 const DEMO: DemoRow[] = [
-  ["The dreamiest hotels in Portugal", "https://www.cntraveler.com/gallery/best-hotels-in-portugal", "villa", "article", "travel"],
+  ["The dreamiest hotels in Portugal", "https://www.cntraveler.com/gallery/best-hotels-in-portugal", "villa", "article", "travel", { size: "L" }],
   ["New Balance 1906R", "https://www.newbalance.com/pd/1906r/M1906R.html", "sneakers", "product", "shopping"],
   ["A visual guide to Barcelona", "https://www.notboring.co/barcelona", "barcelona", "article", "travel"],
-  ["Dieter Rams: a legendary minimalist", "https://www.youtube.com/watch?v=dieter-rams", "book", "video", "watch"],
+  ["Dieter Rams: a legendary minimalist", "https://www.youtube.com/watch?v=dieter-rams", "book", "video", "watch", { size: "S" }],
   ["Good coffee at home", "https://sprudge.com/good-coffee-at-home", "coffee", "article", "reading"],
   ["Tokyo street photography", "https://petapixel.com/tokyo-street-photography", "tokyo", "article", "inspiration"],
-  ["Home office inspirations", "https://www.pinterest.com/ideas/home-office", "office", "article", "inspiration"],
+  ["Home office inspirations", "https://www.pinterest.com/ideas/home-office", "office", "article", "inspiration", { size: "S" }],
   ["Ultimate Japan travel guide", "https://www.notion.so/japan-travel-guide", "kyoto", "article", "travel"],
 ];
 

@@ -3,7 +3,9 @@
 /* Theme lives in a `dark` class on <html> (set before paint by the script in layout.tsx). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
+/* `.light` pins a subtree to the light tokens in either theme (the landing's app window). */
+:root,
+.light {
   /* Palette */
   --canvas: #eceef0;
   --ink: #17181b;
@@ -349,45 +351,6 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .card-enter {
-    animation: none;
-  }
-}
-
-/* Landing hero pile: tiles fly in from outside, then drift on their own clocks.
-   Entrance animates translate/rotate on the wrapper, drift animates translate on the
-   image, hover animates scale — separate properties, so none of them fight. */
-@keyframes pile-in {
-  from {
-    opacity: 0;
-    translate: var(--from);
-    rotate: var(--spin);
-    scale: 0.85;
-  }
-}
-
-@keyframes pile-float {
-  50% {
-    translate: 0 -8px;
-  }
-}
-
-.pile-tile {
-  animation: pile-in 1s cubic-bezier(0.22, 1.2, 0.36, 1) var(--delay) backwards;
-}
-.pile-tile > img {
-  animation: pile-float var(--float) ease-in-out calc(var(--delay) + 1s) infinite;
-  transition: scale 0.35s cubic-bezier(0.22, 1.35, 0.36, 1);
-}
-.pile-tile:hover {
-  z-index: 20 !important;
-}
-.pile-tile:hover > img {
-  scale: 1.06;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pile-tile,
-  .pile-tile > img {
     animation: none;
   }
 }
