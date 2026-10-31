@@ -14,6 +14,17 @@ only the user can do.
 - [ ] Two iOS UI tests, `testAccessibilityAuditTopLevelScreens` and `testAccessibilityAuditSecondaryScreens`, fail on
       iOS 26.5 with contrast warnings on Trash, Profile and Search. They fail before the Pro work too (Phase 1).
 
+## Deploys and database changes
+
+| When (UTC) | What | Notes |
+| --- | --- | --- |
+| 2026-10-31 night | Migration `20261102000000_grandfather_pro.sql` applied | All 6 accounts are now `pro` |
+| 2026-10-31 night | Production deploy of Phases 1 and 8 (`main` fast-forwarded to `pro` at `a478877`) | Smoke test passed: `/`, `/app` and `/privacy-policy` return 200, `/api/v1/library` returns 401, and a signed-out crawl gets no AI tags |
+
+Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
+An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
+page has already started streaming.
+
 ## Phase 8 · Chrome extension
 
 **Status:** built, and the automated checks pass. Real sign-in and a real save are waiting on the Supabase redirect
