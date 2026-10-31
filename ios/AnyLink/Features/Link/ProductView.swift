@@ -100,17 +100,26 @@ struct ProductView: View {
     }
 
     private var priceRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let current = summary.current {
-                Text(PriceSummary.format(current, product.currency))
-                    .font(AL.Font.price).tracking(-1.4).monospacedDigit()
-                    .foregroundStyle(AL.ink)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if let current = summary.current {
+                    Text(PriceSummary.format(current, product.currency))
+                        .font(AL.Font.price).tracking(-1.4).monospacedDigit()
+                        .foregroundStyle(AL.ink)
+                }
+                if let pct = summary.percentSinceSaved {
+                    Text("−\(pct)% since saved")
+                        .font(AL.Font.chip).foregroundStyle(AL.onAccent)
+                        .padding(.horizontal, 10).frame(height: 26)
+                        .background(AL.lime, in: Capsule())
+                }
             }
-            if let pct = summary.percentSinceSaved {
-                Text("−\(pct)% since saved")
+            // Its own line, so the price row doesn't overflow at large text sizes.
+            if summary.isUnderAlert {
+                Text("Under your price")
                     .font(AL.Font.chip).foregroundStyle(AL.onAccent)
-                    .padding(.horizontal, 10).frame(height: 26)
-                    .background(AL.lime, in: Capsule())
+                    .padding(.horizontal, 10).frame(minHeight: 26)
+                    .background(AL.signal, in: Capsule())
             }
         }
         .accessibilityElement(children: .combine)
@@ -162,10 +171,6 @@ struct ProductView: View {
                     .padding(.horizontal, 12).frame(height: 40)
                     .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .accessibilityLabel("Alert price in \(product.currency)")
-            }
-            if FeatureFlags.pricePush {
-                // BACKEND: price push notifications (APNs) aren't built yet; flag stays off until they ship.
-                Toggle("Push notification", isOn: .constant(false)).tint(AL.inStock)
             }
             if let last = summary.latest?.day {
                 Text("Checked twice a day · last check \(last.formatted(.relative(presentation: .named)))")

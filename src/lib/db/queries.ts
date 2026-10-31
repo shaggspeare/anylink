@@ -143,6 +143,8 @@ export function toLinkItem(
 ): LinkItem {
   const product = row.productData as ProductJson | null;
   const { latest, alert } = extra;
+  // What it cost when saved: the first snapshot, once a later one differs from it.
+  const saved = extra.history && extra.history.length > 1 ? extra.history[0].price : undefined;
   return {
     id: row.id,
     url: row.url,
@@ -176,6 +178,7 @@ export function toLinkItem(
           ...product,
           currency: latest?.currency ?? "$",
           price: latest ? Number(latest.price) : undefined,
+          previousPrice: latest && saved !== undefined && saved !== Number(latest.price) ? saved : undefined,
           inStock: latest?.inStock ?? undefined,
           priceHistory: extra.history ?? [],
           alertThreshold: alert ? Number(alert.thresholdPrice) : undefined,

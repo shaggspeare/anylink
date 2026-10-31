@@ -584,6 +584,15 @@ import Fixtures
         #expect(PriceSummary(up).percentSinceSaved == 25)
     }
 
+    @Test func underYourPrice() {
+        var p = product   // ₴54,999 against an alert at ₴50,000
+        #expect(!PriceSummary(p).isUnderAlert)
+        p.alertThreshold = 54999
+        #expect(PriceSummary(p).isUnderAlert, "at the threshold counts")
+        p.alertThreshold = nil
+        #expect(!PriceSummary(p).isUnderAlert)
+    }
+
     @Test func chartHidesWithFewerThanTwoSnapshots() {
         var p = product
         #expect(PriceSummary(p).showsChart)

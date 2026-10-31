@@ -415,7 +415,8 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
 - Retailer row: a 20 pt retailer badge (`retailerColor`, initial), the domain, and on the right an In stock chip
   (green .14 + dot) or "Out of stock" (ink .06).
 - Title `productTitle`. Price `price`, with a lime pill "−{n}% since saved" computed from `priceHistory.first`
-  vs the latest snapshot (hidden when ≤ 0).
+  vs the latest snapshot (hidden when ≤ 0). Under it, a signal pill "Under your price" while the latest price is at or
+  under the alert threshold.
 - Meta (SF 13): "Was {first} when you saved it on {date} · {rating} ★ ({reviews})", omitting parts that are missing.
 - **Price** card:
   - Range picker 1M · 3M · All.
@@ -423,7 +424,6 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
     alert threshold (signal) labelled "Alert ₴50,000", x labels at the start and end.
   - With fewer than 2 snapshots, show "Checked twice daily — history will show up after the next check." instead.
   - "Tell me under": a currency prefix and a decimal-pad field, saved on submit or blur (`PUT /api/links/{id}/price-alert`).
-  - "Push notification" toggle. **BACKEND:** hidden until price push ships; feature-flagged `FeatureFlags.pricePush`.
   - "Checked twice a day · last check {relative}".
 - "Specs AnyLink pulled · {n}": up to 3 rows, then "Show all {total}" when there are more. Hidden when there are none.
 - Bottom: a glass capsule with ★ and Share, then a signal **Open on {retailer}**.

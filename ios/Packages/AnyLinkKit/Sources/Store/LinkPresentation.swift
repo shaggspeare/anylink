@@ -33,6 +33,12 @@ public struct PriceSummary: Sendable {
         return pct > 0 ? pct : nil
     }
 
+    /// The latest price is at or under the alert threshold: "Under your price".
+    public var isUnderAlert: Bool {
+        guard let threshold = product.alertThreshold, let now = current else { return false }
+        return now <= threshold
+    }
+
     /// The chart needs at least two snapshots.
     public var showsChart: Bool { history.count >= 2 }
 
