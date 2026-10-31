@@ -121,6 +121,7 @@ public struct LiveAPI: AnyLinkAPI {
         let size: CardSize
         let note: String?
         let product: ProductDetails?
+        let templateData: TemplateData?
         let source: String
     }
 
@@ -136,7 +137,7 @@ public struct LiveAPI: AnyLinkAPI {
             collectionId: d.collectionId ?? "",   // empty: the server files it in the inbox
             articleText: cr?.articleText, heroImage: cr?.heroImage,
             contentType: cr?.contentType ?? .article, readingTimeMinutes: cr?.readingTimeMinutes,
-            tags: d.tags, size: d.size, note: d.note, product: cr?.product, source: "ios"
+            tags: d.tags, size: d.size, note: d.note, product: cr?.product, templateData: cr?.templateData, source: "ios"
         )
     }
 

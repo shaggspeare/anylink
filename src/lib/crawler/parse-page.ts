@@ -2,8 +2,8 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 // explicit extensions so `node --test` can load this without a bundler
 import { identityForDomain } from "../card-identity.ts";
-import { cleanUrl } from "./url.ts";
-import type { ContentType, ProductDetails } from "../types";
+import { cleanUrl, videoFromUrl } from "./url.ts";
+import type { ContentType, ProductDetails, TemplateData } from "../types";
 import type { CrawlResult } from "./types";
 
 const VIDEO_DOMAINS = ["youtube.com", "youtu.be", "vimeo.com"];
@@ -80,6 +80,8 @@ function extractFavicon(doc: Document, baseUrl: string): string | undefined {
 function detectContentType(domain: string, jsonLd: Record<string, unknown>[], ogType?: string): ContentType {
   if (VIDEO_DOMAINS.some((d) => domain.includes(d))) return "video";
   if (findByType(jsonLd, ["Product"])) return "product";
+  // Ahead of VideoObject: recipe pages often carry one for the recipe's own video.
+  if (findByType(jsonLd, ["Recipe"])) return "recipe";
   if (findByType(jsonLd, ["VideoObject"])) return "video";
   if (ogType?.startsWith("video")) return "video";
   if (ogType === "product") return "product";
@@ -131,7 +133,7 @@ function extractProduct(domain: string, jsonLd: Record<string, unknown>[]): Prod
 function extractJsonLdImage(jsonLd: Record<string, unknown>[]): string | undefined {
   const node =
     findByType(jsonLd, ["Product"]) ??
-    findByType(jsonLd, ["Article", "NewsArticle", "BlogPosting"]) ??
+    findByType(jsonLd, ["Article", "NewsArticle", "BlogPosting", "Recipe"]) ??
     findByType(jsonLd, ["VideoObject"]);
   const image = (node as Record<string, unknown> | undefined)?.image;
   if (typeof image === "string") return image;
@@ -164,6 +166,89 @@ function extractTags(doc: Document, jsonLd: Record<string, unknown>[]): string[]
     .slice(0, 3);
 }
 
+const ISO_DURATION = /^P(?:([\d.]+)Y)?(?:([\d.]+)M)?(?:([\d.]+)W)?(?:([\d.]+)D)?(?:T(?:([\d.]+)H)?(?:([\d.]+)M)?(?:([\d.]+)S)?)?$/i;
+const UNIT_SECONDS = [365 * 86_400, 30 * 86_400, 7 * 86_400, 86_400, 3_600, 60, 1];
+
+/** "PT1H30M" → 5400, "P0DT0H35M" → 2100. Undefined for anything else. Whole seconds: iOS decodes Int. */
+export function isoDurationSeconds(value: unknown): number | undefined {
+  const parts = typeof value === "string" ? value.trim().replace(/,/g, ".").match(ISO_DURATION)?.slice(1) : undefined;
+  if (!parts || parts.every((p) => p === undefined)) return undefined;
+  const seconds = parts.reduce((sum, p, i) => sum + Number(p ?? 0) * UNIT_SECONDS[i], 0);
+  return Number.isFinite(seconds) ? Math.round(seconds) : undefined;
+}
+
+/** Whole minutes; zero reads as unknown. */
+function minutes(value: unknown): number | undefined {
+  const seconds = isoDurationSeconds(value);
+  return seconds ? Math.round(seconds / 60) : undefined;
+}
+
+/** A JSON-LD person or organisation: "Ann", { name: "Ann" } or a list of either. */
+function nameOf(value: unknown): string | undefined {
+  const first = Array.isArray(value) ? value[0] : value;
+  const name = typeof first === "string" ? first : (first as Record<string, unknown> | undefined)?.name;
+  return typeof name === "string" && name.trim() ? name.trim() : undefined;
+}
+
+/** Page-supplied text, entities decoded and tags dropped, capped: it's stored and sent to every client. */
+function plainText(doc: Document, html: unknown): string {
+  const el = doc.createElement("div");
+  el.innerHTML = typeof html === "string" ? html : "";
+  return (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 1_000);
+}
+
+const MAX_RECIPE_LINES = 100;
+
+/** HowToStep and HowToSection lists, plain strings, or one blob with a step per line. Section names are dropped. */
+function recipeSteps(doc: Document, value: unknown): string[] {
+  if (typeof value === "string") return value.split(/\n+/).map((s) => plainText(doc, s)).filter(Boolean);
+  if (!Array.isArray(value)) return value && typeof value === "object" ? recipeSteps(doc, [value]) : [];
+  return value.flatMap((item) => {
+    if (typeof item === "string") return [plainText(doc, item)];
+    const node = (item ?? {}) as Record<string, unknown>;
+    if (Array.isArray(node.itemListElement)) return recipeSteps(doc, node.itemListElement);
+    return [plainText(doc, node.text ?? node.name)];
+  }).filter(Boolean);
+}
+
+/** `recipeYield` is "4", 4, or ["4", "4 servings"]: the longest says the most. */
+function recipeYield(value: unknown): string | undefined {
+  return (Array.isArray(value) ? value : [value])
+    .map((v) => (typeof v === "number" ? String(v) : typeof v === "string" ? v.trim().slice(0, 100) : ""))
+    .sort((a, b) => b.length - a.length)[0] || undefined;
+}
+
+/** What the templates need from the page itself (no AI), read before Readability changes the document.
+ * Video fields come from the URL, the VideoObject or og:video, and YouTube's microdata; no oEmbed call. */
+function templateData(doc: Document, url: string, domain: string, jsonLd: Record<string, unknown>[], type: ContentType): TemplateData {
+  const video = findByType(jsonLd, ["VideoObject"]);
+  const recipe = findByType(jsonLd, ["Recipe"]);
+  const player = [url, video?.embedUrl, getMeta(doc, "property", "og:video:url", "og:video")].map(videoFromUrl).find(Boolean);
+  const isVideo = type === "video" || Boolean(player);
+  const itemprop = (selector: string) => doc.querySelector(selector)?.getAttribute("content") ?? undefined;
+  return {
+    ...(player ?? (isVideo ? { provider: domain } : {})),
+    ...(isVideo && {
+      channel: nameOf(video?.author ?? video?.creator) ?? itemprop('[itemprop="author"] [itemprop="name"]'),
+      durationSeconds: isoDurationSeconds(video?.duration ?? itemprop('meta[itemprop="duration"]')),
+    }),
+    ...(recipe && {
+      ingredients: [recipe.recipeIngredient ?? recipe.ingredients].flat().map((i) => plainText(doc, i)).filter(Boolean).slice(0, MAX_RECIPE_LINES),
+      steps: recipeSteps(doc, recipe.recipeInstructions).slice(0, MAX_RECIPE_LINES),
+      prepMinutes: minutes(recipe.prepTime),
+      cookMinutes: minutes(recipe.cookTime),
+      totalMinutes: minutes(recipe.totalTime),
+      yield: recipeYield(recipe.recipeYield),
+    }),
+  };
+}
+
+/** Undefined and empty lists dropped; nothing left is undefined, so the column stays null. */
+function compact(data: TemplateData): TemplateData | undefined {
+  const kept = Object.entries(data).filter(([, v]) => v !== undefined && !(Array.isArray(v) && v.length === 0));
+  return kept.length ? Object.fromEntries(kept) : undefined;
+}
+
 export function parseHtml(html: string, url: string): CrawlResult {
   const dom = new JSDOM(html, { url });
   const doc = dom.window.document;
@@ -183,9 +268,12 @@ export function parseHtml(html: string, url: string): CrawlResult {
     getMeta(doc, "name", "twitter:image") ??
     extractJsonLdImage(jsonLd);
 
+  const fromPage = templateData(doc, url, domain, jsonLd, contentType);
+
   // Readability mutates the document, so it runs last.
   const article = new Readability(doc).parse();
   const paragraphs = article?.content ? bodyBlocks(doc, article.content) : [];
+  const published = new Date(article?.publishedTime ?? "");
 
   const title = ogTitle || article?.title || doc.title || domain;
   const textLength = (article?.textContent ?? "").trim().length;
@@ -213,5 +301,11 @@ export function parseHtml(html: string, url: string): CrawlResult {
     readingTimeMinutes,
     excerptOnly,
     product: contentType === "product" ? extractProduct(domain, jsonLd) : undefined,
+    // Every type keeps the byline and date: the model may still call this page an article.
+    templateData: compact({
+      ...fromPage,
+      author: article?.byline?.replace(/^\s*by\s+/i, "").trim() || undefined,
+      publishedAt: Number.isNaN(published.getTime()) ? undefined : published.toISOString(),
+    }),
   };
 }

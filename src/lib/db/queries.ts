@@ -6,6 +6,7 @@ import { legibleStripe } from "../card-identity";
 import { sortLinks } from "../organize";
 import { isPro, type Plan } from "../plan";
 import { currentUserId } from "./current-user";
+import { videoFromUrl } from "../crawler/url";
 import type {
   Collection,
   Highlight,
@@ -14,6 +15,7 @@ import type {
   PriceSnapshot,
   ProductDetails,
   SharedCollection,
+  TemplateData,
 } from "../types";
 
 type ProductJson = Pick<
@@ -179,6 +181,9 @@ export function toLinkItem(
           alertThreshold: alert ? Number(alert.thresholdPrice) : undefined,
         }
       : undefined,
+    // Videos saved before template_data existed still get their player.
+    templateData:
+      (row.templateData as TemplateData | null) ?? (row.contentType === "video" ? videoFromUrl(row.url) : undefined),
   };
 }
 

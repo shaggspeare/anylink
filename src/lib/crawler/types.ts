@@ -1,4 +1,4 @@
-import type { ContentType, ProductDetails } from "../types";
+import type { ContentType, ProductDetails, TemplateData } from "../types";
 
 export type CrawlResult = {
   domain: string;
@@ -16,6 +16,7 @@ export type CrawlResult = {
   readingTimeMinutes?: number;
   excerptOnly?: boolean;
   product?: ProductDetails;
+  templateData?: TemplateData;
 };
 
 export type CrawlStep = "fetch" | "parse" | "tags";

@@ -120,6 +120,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       size: input.size,
       status: input.status ?? (unread ? "crawling" : "ready"),
       productData: productJson(input.product),
+      templateData: input.templateData ?? null,
       source: input.source || undefined,
       note: input.note?.trim() || null,
     })
@@ -180,6 +181,7 @@ async function fillFromPage(uid: string, id: string, url: string, sentTitle: str
       contentType: r.contentType,
       readingTimeMinutes: r.readingTimeMinutes ?? null,
       productData: productJson(r.product),
+      templateData: r.templateData ?? null,
     };
     await savePrice(id, r.product);
     await addTags(uid, id, r.suggestedTags);
@@ -576,6 +578,7 @@ export async function saveFromShare(
         // Nothing would ever finish a crawl started in someone else's library.
         status: "ready" as const,
         productData: r.productData,
+        templateData: r.templateData,
         source: "shared",
       };
     })
