@@ -183,7 +183,8 @@ export function toLinkItem(
 }
 
 /** The live, non-archived links of the collection `token` shares, with each one's latest price.
- * No session: the token is the credential (docs/adr/0001). Null once sharing is off. */
+ * No session: the token is the credential (docs/adr/0001). Null once sharing is off, and while
+ * the owner is on Free: the link is paused, not gone, so going Pro brings the same link back. */
 export async function sharedCollectionRows(token: unknown) {
   // Tokens are 22 base64url chars; anything else can't match, so skip the query.
   if (typeof token !== "string" || !/^[\w-]{16,64}$/.test(token)) return null;
@@ -194,11 +195,12 @@ export async function sharedCollectionRows(token: unknown) {
       color: schema.collections.color,
       icon: schema.collections.icon,
       ownerName: schema.users.displayName,
+      ownerPlan: schema.users.plan,
     })
     .from(schema.collections)
     .innerJoin(schema.users, eq(schema.users.id, schema.collections.userId))
     .where(eq(schema.collections.shareToken, token));
-  if (!collection) return null;
+  if (!collection || !isPro(collection.ownerPlan)) return null;
 
   const rows = await db
     .select()

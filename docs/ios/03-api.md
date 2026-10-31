@@ -63,3 +63,6 @@ works) and `setAlertThreshold`. iOS maps it to `AppError.proRequired`.
 `POST /api/crawl` and a save without content (`createLink` with no excerpt) run a free crawl for a free account or a
 signed-out caller: no AI summary or tags, and no headless-browser retry. A page that refuses the plain fetch falls
 back to microlink, then to its own metadata, then to the URL.
+
+While its owner is on Free, a shared collection reads as not shared: `GET /api/v1/shared/<token>` and `/s/<token>`
+answer 404, and `saveFromShare` refuses. The token is kept, so the same link works again once the owner is Pro.

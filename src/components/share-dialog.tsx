@@ -91,8 +91,9 @@ export function ShareDialog({ collection, onClose }: { collection: Collection; o
               </button>
             </div>
             <p className="text-meta text-ink/60">
-              Viewers see each link, its price, and your notes on it — not your tags or highlights. They can save
-              copies to their own AnyLink. Turning sharing off breaks this link for good.
+              {pro
+                ? "Viewers see each link, its price, and your notes on it — not your tags or highlights. They can save copies to their own AnyLink. Turning sharing off breaks this link for good."
+                : "Paused while you're on Free: viewers get “not found”. Go Pro and this same link works again. Turning sharing off breaks it for good."}
             </p>
             <label className="flex flex-col gap-1.5">
               <span className="text-meta text-ink/60">Your name on it (optional)</span>
