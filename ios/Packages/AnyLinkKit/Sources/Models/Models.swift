@@ -5,7 +5,14 @@ import Foundation
 public enum CardSize: String, Codable, CaseIterable, Sendable { case S, M, L }
 /// `note` and `image` aren't pages: `url` is empty (note) or the stored file (image), `domain` is empty,
 /// and a note's text lives in `excerpt`.
-public enum ContentType: String, Codable, Sendable { case article, video, product, note, image }
+public enum ContentType: String, Codable, Sendable {
+    case article, video, product, note, image
+
+    /// A type this build doesn't know yet reads as an article, so one new type can't fail the whole library.
+    public init(from decoder: Decoder) throws {
+        self = ContentType(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .article
+    }
+}
 public enum LinkStatus: String, Codable, Sendable { case crawling, ready, failed }
 
 // MARK: - Supporting types
