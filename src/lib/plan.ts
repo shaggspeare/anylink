@@ -13,6 +13,37 @@ export function isPro(plan: PlanRow | string | null | undefined, now = new Date(
   return plan.plan === "pro" && (!plan.planExpiresAt || plan.planExpiresAt > now);
 }
 
+/** What a verified purchase or App Store notification means for an account (src/lib/billing/apple.ts). */
+export type PlanEvent =
+  /** Pro from `product` until `until` (null: lifetime), bought at `purchasedAt`. */
+  | { kind: "grant"; product: string; until: Date | null; purchasedAt: Date }
+  /** Pro from `product` ended at `at`. The transaction behind it covered Pro until `covered` (null: lifetime). */
+  | { kind: "end"; product: string; covered: Date | null; at: Date };
+
+/** The plan columns a purchase writes. */
+export type StoredPlan = { plan: string; planProduct: string | null; planExpiresAt: Date | null };
+
+/** The plan after `event`, or null to leave it alone. Apple resends and reorders notifications, and the app reposts
+ * old transactions, so a stale event must never undo a newer one. */
+export function planAfter(row: StoredPlan, event: PlanEvent): StoredPlan | null {
+  const pro = row.plan === "pro";
+  const { product } = event;
+  if (event.kind === "grant") {
+    // Lifetime and grandfathered accounts already have everything; a subscription on top changes nothing.
+    if (pro && !row.planExpiresAt) return null;
+    // Never shortens Pro: an older renewal arriving after a newer one.
+    if (pro && event.until && row.planExpiresAt && row.planExpiresAt >= event.until) return null;
+    // Bought before Pro from this product ended: a transaction from before a refund, sent again.
+    if (!pro && row.planProduct === product && row.planExpiresAt && event.purchasedAt <= row.planExpiresAt) return null;
+    return { plan: "pro", planProduct: product, planExpiresAt: event.until };
+  }
+  // Pro comes from something else: another product, or a grandfathered account.
+  if (row.planProduct !== product) return null;
+  // A newer transaction for this product already took Pro past what this one covered.
+  if (event.covered && row.planExpiresAt && row.planExpiresAt > event.covered) return null;
+  return { plan: "free", planProduct: product, planExpiresAt: event.at };
+}
+
 /** What a gated action returns to a free account, the way `setPinned` reports the pin limit. Never thrown:
  * production builds hide a Server Action's error text, and iOS signs out on a 401. */
 export const PRO_REQUIRED = { ok: false, reason: "pro" } as const;

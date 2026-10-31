@@ -1,0 +1,21 @@
+import { purchaseEvent } from "@/lib/billing/apple";
+import { currentUser } from "@/lib/db/current-user";
+import { applyPlanEvent } from "@/lib/db/plan";
+
+/** `{ jws }`: a StoreKit transaction from the iOS app, after a purchase, for a renewal it saw, or on Restore. Answers
+ * `{ ok: true }` once it's on the account. A refusal is a 403 with `{ ok: false, reason }`, never a 401, which signs
+ * iOS out: `signed-out`, `environment` (not accepted here), `invalid` (didn't verify), `account` (bought by another
+ * account) or `product` (not Pro). */
+export async function POST(request: Request) {
+  const user = await currentUser();
+  if (!user) return refuse("signed-out");
+  const body = await request.json().catch(() => null);
+  const result = await purchaseEvent(typeof body?.jws === "string" ? body.jws : "", user.id);
+  if (typeof result === "string") return refuse(result);
+  await applyPlanEvent(user.id, result);
+  return Response.json({ ok: true });
+}
+
+function refuse(reason: string) {
+  return Response.json({ ok: false, reason }, { status: 403 });
+}
