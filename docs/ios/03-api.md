@@ -69,3 +69,35 @@ answer 404, and `saveFromShare` refuses. The token is kept, so the same link wor
 
 Apply `supabase/migrations/20261102000000_grandfather_pro.sql` right before deploying: it makes every existing
 account Pro.
+
+### Installs without an account
+
+A free iOS install keeps a local library and has no account (ADR 0002). The server calls it still needs take Apple's
+App Attest instead of a session, and the server stores nothing for them but the key. The checks are in
+`src/lib/app-attest.ts`; the iOS side is `AppAttestClient` and `LocalServices` in AnyLinkKit Networking.
+
+| Call | What it does |
+|---|---|
+| `GET /api/attest/challenge` | `{ challenge }`, good for five minutes. |
+| `POST /api/attest/register` | `{ keyId, attestation, challenge }`: the key id from `DCAppAttestService.generateKey()` and, in base64, `attestKey(keyId, clientDataHash: SHA-256(challenge))`. Stores the key once the attestation checks out for `376HNWM383.com.shaggspeare.anylink`, in either environment. Answers `{ "ok": true }`. |
+| `POST /api/crawl` | Without a session, a call that carries an assertion runs a free crawl on its key's daily cap instead of the per-IP limit. |
+| `POST /api/v1/local/check` | No session. `{ links: [{ id, url, title }] }` → the `/api/import/check` NDJSON, for up to 600 links a call. Links are checked in order, and `remaining` counts the ones at the end that the call didn't reach. |
+| `POST /api/v1/local/group` | No session. `{ priorities, links: [{ id, title, domain, note? }] }` → `groupInbox`'s `GroupedResult[]`, with new collection ids for the caller to create. Leave dead links out. |
+
+A signed call sends `X-AnyLink-Key: <key id>` and `X-AnyLink-Assertion: <base64 of generateAssertion(keyId,
+clientDataHash: SHA-256(body))>`. The assertion's counter has to go up on every call.
+
+Refusals are never a 401:
+- `403 { "reason": ... }`: `attestation-required` (no assertion), `unknown-key` (register a new key), `replay` (the
+  counter didn't go up, usually two calls arriving out of order: sign again and retry once), `invalid`, or, at
+  registration, `challenge`.
+- `429 { "reason": "daily-cap" }`: per key and UTC day, 200 crawls, 5,000 checked links and 10 groupings
+  (`DAILY_CAPS`).
+- `503`: the server has no `APP_ATTEST_SECRET`.
+
+The simulator can't attest, so DEBUG builds there send `X-AnyLink-Dev: <APP_ATTEST_DEV_SECRET from Config.xcconfig>`
+instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is set and matches. Never set that in
+production.
+
+The server reads `APP_ATTEST_SECRET` (a long random string that signs the challenges) and, in development only,
+`APP_ATTEST_DEV_SECRET`. Apply `supabase/migrations/20261103000000_app_attest_keys.sql` before deploying.
