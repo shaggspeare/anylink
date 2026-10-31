@@ -1,6 +1,7 @@
 import SwiftUI
 import DesignSystem
 import Models
+import Fixtures
 import Store
 
 /// The owner's side of a shared collection (docs/adr/0001): on/off, the link, and the name shown on it.
@@ -19,6 +20,13 @@ struct ShareCollectionSheet: View {
         return AppConfig.apiBase?.appending(path: "s/\(token)")
     }
 
+    private var footer: LocalizedStringKey {
+        if url == nil { return "Turn it on to get a link — handy for wishlists and reading lists." }
+        // A free owner's link answers "not found" but keeps its token (the server pauses it).
+        if !store.isPro { return "Paused while you're on Free: viewers get “not found”. Go Pro and this same link works again. Turning sharing off breaks it for good." }
+        return "Viewers see each link, its price, and your notes on it — not your tags or highlights. They can save copies to their own AnyLink. Turning sharing off breaks this link for good."
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -27,9 +35,7 @@ struct ShareCollectionSheet: View {
                         .disabled(busy)
                         .tint(AL.inStock)
                 } footer: {
-                    Text(url == nil
-                         ? "Turn it on to get a link — handy for wishlists and reading lists."
-                         : "Viewers see each link, its price, and your notes on it — not your tags or highlights. They can save copies to their own AnyLink. Turning sharing off breaks this link for good.")
+                    Text(footer)
                 }
                 if let url {
                     Section {
@@ -82,4 +88,13 @@ struct ShareCollectionSheet: View {
     let env = AppEnvironment.mock(latency: false)
     Color.clear.sheet(isPresented: .constant(true)) { ShareCollectionSheet(id: "rust") }
         .environment(env.store).environment(env.router).preferredColorScheme(.dark)
+}
+
+#Preview("Share — Paused (Free)") {
+    let env = AppEnvironment.mock(latency: false)
+    let lib = Fixtures.library
+    let shared = lib.collections.map { c in var c = c; if c.id == "rust" { c.shareToken = "preview-token" }; return c }
+    let _ = env.store.apply(LibrarySnapshot(links: lib.links, trashed: lib.trashed, collections: shared, plan: "free"))
+    Color.clear.sheet(isPresented: .constant(true)) { ShareCollectionSheet(id: "rust") }
+        .environment(env.store).environment(env.router)
 }

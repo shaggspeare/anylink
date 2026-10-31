@@ -11,11 +11,14 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Price tracking is Pro. Same rule as isPro (src/lib/plan.ts).
   const products = await db
     .select({ id: schema.links.id, url: schema.links.url })
     .from(schema.links)
+    .innerJoin(schema.users, eq(schema.users.id, schema.links.userId))
     .where(
       and(
+        eq(schema.users.plan, "pro"),
         eq(schema.links.contentType, "product"),
         isNull(schema.links.archivedAt),
         isNull(schema.links.deletedAt)

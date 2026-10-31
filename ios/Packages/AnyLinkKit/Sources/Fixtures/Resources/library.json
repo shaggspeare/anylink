@@ -1,5 +1,6 @@
 {
  "_comment": "Sample library for previews, tests and MockAPI. Shape = GET /api/library (LibrarySnapshot). Not real user data.",
+ "plan": "pro",
  "links": [
   {
    "id": "nasa",

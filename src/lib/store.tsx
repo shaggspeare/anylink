@@ -10,6 +10,7 @@ import type { CardSize, Collection, LinkItem } from "./types";
 import { linkCount } from "./format";
 import { noteTitle } from "./linkify";
 import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
+import type { Plan } from "./plan";
 import { AuthDialog } from "@/components/auth-panel";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
@@ -61,6 +62,8 @@ type LibraryContextValue = {
   /** What they appear as on shared collections. */
   displayName: string | null;
   setDisplayName: (name: string) => Promise<void>;
+  /** From the server; guests are free. */
+  plan: Plan;
   /** A viewer's Save from a shared collection: `linkIds` to the inbox, or all of it as a new collection. */
   saveFromShare: (token: string, linkIds?: string[]) => Promise<{ links: LinkItem[]; collection?: Collection }>;
 
@@ -179,12 +182,14 @@ export function LibraryProvider({
   guest = false,
   email = null,
   displayName: initialDisplayName = null,
+  plan = "free",
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
   initialTrashed: LinkItem[];
   initialCollections: Collection[];
   displayName?: string | null;
+  plan?: Plan;
   /** Landing-page demo: state changes stay local, nothing reaches the server. */
   demo?: boolean;
   guest?: boolean;
@@ -497,6 +502,7 @@ export function LibraryProvider({
         api.addHighlight(linkId, quote).catch(console.error);
       },
       setAlertThreshold: (linkId, threshold) => {
+        const before = links.find((l) => l.id === linkId)?.product?.alertThreshold;
         let currency = "$";
         setLinks((prev) =>
           prev.map((l) => {
@@ -505,7 +511,16 @@ export function LibraryProvider({
             return { ...l, product: { ...l.product, alertThreshold: threshold } };
           })
         );
-        api.setAlertThreshold(linkId, threshold, currency).catch(console.error);
+        api
+          .setAlertThreshold(linkId, threshold, currency)
+          .then((result) => {
+            if (result?.reason !== "pro") return;
+            setLinks((prev) =>
+              prev.map((l) => (l.id === linkId && l.product ? { ...l, product: { ...l.product, alertThreshold: before } } : l))
+            );
+            setToast({ message: "Price alerts are a Pro feature.", key: Date.now() });
+          })
+          .catch(console.error);
       },
       importLinks: async (items) => {
         const result = await api.importLinks(items);
@@ -527,7 +542,12 @@ export function LibraryProvider({
         api.logSignal(action, options).catch(console.error);
       },
       setCollectionShared: async (id, shared) => {
-        const { shareToken } = await api.setCollectionShared(id, shared);
+        const result = await api.setCollectionShared(id, shared);
+        if ("reason" in result) {
+          setToast({ message: "Share links are a Pro feature.", key: Date.now() });
+          return collections.find((c) => c.id === id)?.shareToken;
+        }
+        const { shareToken } = result;
         setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, shareToken: shareToken ?? undefined } : c)));
         return shareToken ?? undefined;
       },
@@ -535,6 +555,7 @@ export function LibraryProvider({
       setDisplayName: async (name) => {
         setDisplayName(await api.setDisplayName(name));
       },
+      plan,
       saveFromShare: async (token, linkIds) => {
         const result = await api.saveFromShare(token, linkIds);
         if (result.collection) setCollections((prev) => [...prev, result.collection!]);
@@ -568,7 +589,7 @@ export function LibraryProvider({
     }),
     // guestFull is derived from links/trashed; guestLimitHit only sets state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName]
+    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName, plan]
   );
   function guestLimitHit() {
     setSignUpOpen(true);

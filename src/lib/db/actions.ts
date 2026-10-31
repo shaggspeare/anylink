@@ -5,7 +5,8 @@ import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
-import { currentUserId } from "./current-user";
+import { currentPlan, currentUserId } from "./current-user";
+import { isPro, PRO_REQUIRED } from "../plan";
 import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from "../storage/upload-hero-image";
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
@@ -126,7 +127,11 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
   await savePrice(row.id, input.product);
   await addTags(uid, row.id, input.tags);
-  if (unread) after(() => fillFromPage(uid, row.id, url, input.title));
+  if (unread) {
+    // Read now: after() runs outside the request.
+    const pro = isPro(await currentPlan());
+    after(() => fillFromPage(uid, row.id, url, input.title, pro));
+  }
 
   // Download/resize/upload runs after the response: the card shows the hotlinked
   // image now and picks up the re-hosted copy on the next load.
@@ -156,11 +161,11 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
 /** Reads a link saved unread and fills in its card after the response — the same crawl the add-link
  * form runs first. A title the client sent stays, unless it's only the URL or domain. Ends "ready"
- * either way: a page that can't be read keeps what it was saved with. */
-async function fillFromPage(uid: string, id: string, url: string, sentTitle: string) {
+ * either way: a page that can't be read keeps what it was saved with. A free account gets a free crawl. */
+async function fillFromPage(uid: string, id: string, url: string, sentTitle: string, pro: boolean) {
   let patch: Partial<typeof schema.links.$inferInsert> = {};
   try {
-    const r = await crawlUrl(url, () => {});
+    const r = await crawlUrl(url, { ai: pro, browser: pro }, () => {});
     if ("failed" in r) return;
     const placeholder = !sentTitle || [url, r.domain, domainFromUrl(url)].includes(sentTitle);
     patch = {
@@ -487,9 +492,13 @@ export async function deleteCollection(id: string): Promise<{ trashedIds: string
 
 /** Sharing on keeps an existing token (so a retried call can't break a link already sent);
  * sharing off drops it, so the old URL is dead for good (docs/adr/0001). The inbox and
- * filters can't be shared. */
-export async function setCollectionShared(id: string, shared: boolean): Promise<{ shareToken: string | null }> {
+ * filters can't be shared. Turning it on is Pro; anyone can turn it off. */
+export async function setCollectionShared(
+  id: string,
+  shared: boolean
+): Promise<{ shareToken: string | null } | typeof PRO_REQUIRED> {
   const uid = await currentUserId();
+  if (shared && !isPro(await currentPlan())) return PRO_REQUIRED;
   const fresh = randomBytes(16).toString("base64url");
   const [row] = await db
     .update(schema.collections)
@@ -623,7 +632,9 @@ export async function addHighlight(linkId: string, quote: string) {
 }
 
 export async function setAlertThreshold(linkId: string, threshold: number, currency: string) {
-  if ((await ownedLinkIds(await currentUserId(), [linkId])).length === 0) return;
+  const uid = await currentUserId();
+  if (!isPro(await currentPlan())) return PRO_REQUIRED;
+  if ((await ownedLinkIds(uid, [linkId])).length === 0) return;
   await db
     .insert(schema.priceAlerts)
     .values({ linkId, thresholdPrice: String(threshold), currency })
@@ -729,7 +740,8 @@ export type GroupedResult = { collection: Collection; linkIds: string[]; reasoni
 
 /** The onboarding payoff: everything sitting unsorted gets read against what the user
  * said matters and comes back as a few named collections. Dead links are left out —
- * they've already been checked by this point and nobody wants them ranked. */
+ * they've already been checked by this point and nobody wants them ranked. Free and Pro
+ * alike: import grouping keeps its AI pass for everyone, and GROUP_LIMIT caps the cost. */
 export async function groupInbox(priorities: Priorities): Promise<GroupedResult[]> {
   const uid = await currentUserId();
   const inboxId = await ensureInbox();

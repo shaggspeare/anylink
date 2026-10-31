@@ -1,0 +1,12 @@
+/** An account's plan (docs/adr/0002). `users.plan` on the server is the only source of truth; both apps read it
+ * from the library (`getLibraryData`). */
+export type Plan = "free" | "pro";
+
+/** The one rule for who gets Pro. Anything but "pro" (no account, no row, an unknown value) is free. */
+export function isPro(plan: string | null | undefined): boolean {
+  return plan === "pro";
+}
+
+/** What a gated action returns to a free account, the way `setPinned` reports the pin limit. Never thrown:
+ * production builds hide a Server Action's error text, and iOS signs out on a 401. */
+export const PRO_REQUIRED = { ok: false, reason: "pro" } as const;

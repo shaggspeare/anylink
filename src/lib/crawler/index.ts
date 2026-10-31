@@ -20,10 +20,15 @@ const REFUSED = new Set(["blocked", "not-html", "not-found"]);
  * without AI polish beats a stream cut off mid-crawl. */
 const LLM_CUTOFF_MS = 45_000;
 
+/** The parts of a crawl that cost money, both Pro: the model pass and the headless-browser retry.
+ * Without them a page that refuses us goes straight to the fallback chain below. */
+export type CrawlOptions = { ai: boolean; browser: boolean };
+
 /** Runs the full crawl pipeline, invoking onStep as each phase completes. onPreview
  * gets the parsed card before the LLM pass so the form can open on it right away. */
 export async function crawlUrl(
   url: string,
+  { ai, browser }: CrawlOptions,
   onStep: (step: CrawlStep) => void,
   onPreview?: (result: CrawlResult) => void
 ): Promise<CrawlResult | CrawlFailure> {
@@ -36,7 +41,7 @@ export async function crawlUrl(
   let microlink: Promise<CrawlResult | null> | undefined;
 
   try {
-    result = await fetchAndParse(url, onStep, () => {
+    result = await fetchAndParse(url, browser, onStep, () => {
       microlink ??= fetchMetadataFallback(url);
     });
   } catch (err) {
@@ -69,7 +74,7 @@ export async function crawlUrl(
 
   // Hero image download/resize/re-host happens later, at save time (createLink) —
   // not here, so an abandoned crawl never uploads anything.
-  if (Date.now() - started < LLM_CUTOFF_MS) await enrichWithLLM(result);
+  if (ai && Date.now() - started < LLM_CUTOFF_MS) await enrichWithLLM(result);
   onStep("tags");
   return result;
 }
@@ -78,9 +83,11 @@ export async function crawlUrl(
  * — either with a block status or by serving a 200 that parses out to nothing
  * (JS-only shells and interstitials both look like that). Anything else (DNS
  * failure, timeout, non-HTML) a browser won't fix either, so it throws through.
- * onRefused fires as the browser gets involved. */
+ * onRefused fires as the page refuses us. Without `browser` the refusal throws
+ * through as well, for the fallback chain to handle. */
 async function fetchAndParse(
   url: string,
+  browser: boolean,
   onStep: (step: CrawlStep) => void,
   onRefused: () => void
 ): Promise<CrawlResult> {
@@ -92,12 +99,14 @@ async function fetchAndParse(
     if (!(err instanceof CrawlError)) throw err;
     if (err.reason === "blocked") {
       onRefused();
+      if (!browser) throw err;
       return await parseWithBrowser(url);
     }
     // Amazon and friends answer bots with a 404 rather than a 403, so one browser
     // attempt before believing it. Still 404 there? Then the page really is gone.
     if (err.reason === "not-found") {
       onRefused();
+      if (!browser) throw err;
       return await parseWithBrowser(url).catch(() => {
         throw err;
       });
@@ -112,8 +121,10 @@ async function fetchAndParse(
   // shell goes up as salvage material rather than being served as a card. Kept
   // outside the try above: a browser failure caught there relaunched the browser.
   onRefused();
+  const shell = new CrawlError("Nothing extractable in the response", "blocked", page.html);
+  if (!browser) throw shell;
   return await parseWithBrowser(url).catch(() => {
-    throw new CrawlError("Nothing extractable in the response", "blocked", page.html);
+    throw shell;
   });
 }
 

@@ -479,4 +479,6 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
 | toast.emptyRemoved | Removed {n} empty collections |
 | error.offline | You're offline. Changes are saved and will sync when you're back. |
 | error.generic | That didn't go through. Try again. |
+| error.proRequired | That's a Pro feature. (A free account turned on sharing or set a price alert. The change is undone; the paywall replaces this toast later.) |
+| share.paused | Paused while you're on Free: viewers get “not found”. Go Pro and this same link works again. Turning sharing off breaks it for good. (Share sheet footer when a free owner's collection still has its link.) |
 | error.invalidURL | That doesn't look like a link — it should start with https:// |

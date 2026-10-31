@@ -128,7 +128,8 @@ public actor MockAPI: AnyLinkAPI {
 
     public func library(since: Date?) async throws -> LibrarySnapshot {
         try maybeThrow()
-        return LibrarySnapshot(links: links, trashed: trashed, collections: collections, displayName: displayName)
+        // A Pro account: the mock shares and sets price alerts without asking.
+        return LibrarySnapshot(links: links, trashed: trashed, collections: collections, displayName: displayName, plan: "pro")
     }
 
     public func createLink(_ draft: LinkDraft) async throws -> LinkItem {

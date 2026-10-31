@@ -16,6 +16,9 @@ public final class LibraryStore {
     public private(set) var collections: [LinkCollection] = [] { didSet { scheduleSave() } }
     /// What they appear as on shared collections; nil until they pick one.
     public private(set) var displayName: String? { didSet { scheduleSave() } }
+    /// "pro" or "free", from the server's last library. Nil reads as free.
+    public private(set) var plan: String? { didSet { scheduleSave() } }
+    public var isPro: Bool { plan == "pro" }
     /// Calls waiting for the network, oldest first. Persisted with the cache.
     public private(set) var outbox: [OutboxItem] = []
     /// Set by the app: a 401 signs the user out.
@@ -127,6 +130,7 @@ public final class LibraryStore {
 
     public static func message(for error: Error) -> String {
         if (error as? AppError) == .pinLimit { return "You can pin up to 2 links. Unpin one first." }
+        if (error as? AppError) == .proRequired { return "That's a Pro feature." }
         return (error as? AppError) == .offline
             ? "You're offline. Changes are saved and will sync when you're back."
             : "That didn't go through. Try again."
@@ -221,6 +225,11 @@ public final class LibraryStore {
                 outbox.removeFirst()
                 persistOutbox()
                 toasts.show(Self.message(for: AppError.pinLimit))
+            } catch AppError.proRequired {
+                // Asking again won't change the answer. The next refresh shows what the server kept.
+                outbox.removeFirst()
+                persistOutbox()
+                toasts.show(Self.message(for: AppError.proRequired))
             } catch {
                 outbox[0].attempts += 1
                 if outbox[0].attempts >= 5 {
@@ -246,7 +255,7 @@ public final class LibraryStore {
     }
 
     public var snapshot: LibrarySnapshot {
-        LibrarySnapshot(links: ordered.filter { $0.deleted != true }, trashed: trash, collections: collections, displayName: displayName)
+        LibrarySnapshot(links: ordered.filter { $0.deleted != true }, trashed: trash, collections: collections, displayName: displayName, plan: plan)
     }
 
     @discardableResult
@@ -285,6 +294,7 @@ public final class LibraryStore {
         order = all.values.sorted { $0.createdAt > $1.createdAt }.map(\.id)
         collections = snapshot.collections
         displayName = snapshot.displayName
+        plan = snapshot.plan
     }
 
     /// Full fetch, then merge: the server wins, except while local changes are still queued — then local stays.

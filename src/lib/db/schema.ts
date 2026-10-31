@@ -26,7 +26,8 @@ export const crawlJobStatusEnum = pgEnum("crawl_job_status", [
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull(),
-  /** "free" | "pro". Recorded only, until billing decides who syncs. */
+  /** "free" | "pro": what the account may use (src/lib/plan.ts). Accounts from before plans were grandfathered
+   * to "pro" (supabase/migrations/20261102000000_grandfather_pro.sql). */
   plan: text("plan").notNull().default("free"),
   /** Shown on their shared collections. Null = no owner line. */
   displayName: text("display_name"),
