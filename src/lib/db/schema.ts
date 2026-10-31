@@ -29,6 +29,10 @@ export const users = pgTable("users", {
   /** "free" | "pro": what the account may use (src/lib/plan.ts). Accounts from before plans were grandfathered
    * to "pro" (supabase/migrations/20261102000000_grandfather_pro.sql). */
   plan: text("plan").notNull().default("free"),
+  /** The App Store product Pro came from (src/lib/billing/apple.ts). Null for grandfathered accounts. */
+  planProduct: text("plan_product"),
+  /** When Pro ends; null with plan "pro" is lifetime. On a free account, when Pro last ended. */
+  planExpiresAt: timestamp("plan_expires_at", { withTimezone: true }),
   /** Shown on their shared collections. Null = no owner line. */
   displayName: text("display_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -1,6 +1,7 @@
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
+import { proAccounts } from "@/lib/db/plan";
 import { checkProductPrice } from "@/lib/crawler/check-price";
 
 export const maxDuration = 60;
@@ -11,14 +12,14 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  // Price tracking is Pro. Same rule as isPro (src/lib/plan.ts).
+  // Price tracking is Pro.
   const products = await db
     .select({ id: schema.links.id, url: schema.links.url })
     .from(schema.links)
     .innerJoin(schema.users, eq(schema.users.id, schema.links.userId))
     .where(
       and(
-        eq(schema.users.plan, "pro"),
+        proAccounts,
         eq(schema.links.contentType, "product"),
         isNull(schema.links.archivedAt),
         isNull(schema.links.deletedAt)

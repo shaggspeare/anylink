@@ -6,6 +6,7 @@ import { legibleStripe } from "../card-identity";
 import { sortLinks } from "../organize";
 import { isPro, type Plan } from "../plan";
 import { currentUserId } from "./current-user";
+import { proAccounts } from "./plan";
 import type {
   Collection,
   Highlight,
@@ -50,11 +51,11 @@ export async function getLibraryData(): Promise<{
   const uid = await currentUserId();
   await ensureInbox();
   const [user] = await db
-    .select({ displayName: schema.users.displayName, plan: schema.users.plan })
+    .select({ displayName: schema.users.displayName, plan: schema.users.plan, planExpiresAt: schema.users.planExpiresAt })
     .from(schema.users)
     .where(eq(schema.users.id, uid));
   const displayName = user?.displayName ?? null;
-  const plan: Plan = isPro(user?.plan) ? "pro" : "free";
+  const plan: Plan = isPro(user) ? "pro" : "free";
 
   const collectionRows = await db
     .select()
@@ -195,12 +196,11 @@ export async function sharedCollectionRows(token: unknown) {
       color: schema.collections.color,
       icon: schema.collections.icon,
       ownerName: schema.users.displayName,
-      ownerPlan: schema.users.plan,
     })
     .from(schema.collections)
     .innerJoin(schema.users, eq(schema.users.id, schema.collections.userId))
-    .where(eq(schema.collections.shareToken, token));
-  if (!collection || !isPro(collection.ownerPlan)) return null;
+    .where(and(eq(schema.collections.shareToken, token), proAccounts));
+  if (!collection) return null;
 
   const rows = await db
     .select()
