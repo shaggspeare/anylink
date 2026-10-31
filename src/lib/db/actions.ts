@@ -127,7 +127,11 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
   await savePrice(row.id, input.product);
   await addTags(uid, row.id, input.tags);
-  if (unread) after(() => fillFromPage(uid, row.id, url, input.title));
+  if (unread) {
+    // Read now: after() runs outside the request.
+    const pro = isPro(await currentPlan());
+    after(() => fillFromPage(uid, row.id, url, input.title, pro));
+  }
 
   // Download/resize/upload runs after the response: the card shows the hotlinked
   // image now and picks up the re-hosted copy on the next load.
@@ -157,11 +161,11 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
 /** Reads a link saved unread and fills in its card after the response — the same crawl the add-link
  * form runs first. A title the client sent stays, unless it's only the URL or domain. Ends "ready"
- * either way: a page that can't be read keeps what it was saved with. */
-async function fillFromPage(uid: string, id: string, url: string, sentTitle: string) {
+ * either way: a page that can't be read keeps what it was saved with. A free account gets a free crawl. */
+async function fillFromPage(uid: string, id: string, url: string, sentTitle: string, pro: boolean) {
   let patch: Partial<typeof schema.links.$inferInsert> = {};
   try {
-    const r = await crawlUrl(url, () => {});
+    const r = await crawlUrl(url, { ai: pro, browser: pro }, () => {});
     if ("failed" in r) return;
     const placeholder = !sentTitle || [url, r.domain, domainFromUrl(url)].includes(sentTitle);
     patch = {

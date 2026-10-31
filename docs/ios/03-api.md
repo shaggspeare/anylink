@@ -59,3 +59,7 @@ Apply `supabase/migrations/20261013000000_shared_collections.sql` before deployi
 A Pro-only action called by a free account does nothing and answers `200` with `{ "ok": false, "reason": "pro" }`,
 never a 401, so nobody is signed out. Today that's `setCollectionShared` with `true` (turning sharing off always
 works) and `setAlertThreshold`. iOS maps it to `AppError.proRequired`.
+
+`POST /api/crawl` and a save without content (`createLink` with no excerpt) run a free crawl for a free account or a
+signed-out caller: no AI summary or tags, and no headless-browser retry. A page that refuses the plain fetch falls
+back to microlink, then to its own metadata, then to the URL.

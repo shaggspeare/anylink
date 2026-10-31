@@ -1,5 +1,6 @@
 import { crawlUrl, type CrawlStep } from "@/lib/crawler";
-import { currentUser } from "@/lib/db/current-user";
+import { currentPlan, currentUser } from "@/lib/db/current-user";
+import { isPro } from "@/lib/plan";
 
 export const maxDuration = 60;
 
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid URL" }, { status: 400 });
   }
 
+  // Signed-out visitors and free accounts get a free crawl: no model pass, no headless browser.
+  const pro = isPro(await currentPlan());
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
       try {
         const result = await crawlUrl(
           url,
+          { ai: pro, browser: pro },
           (step: CrawlStep) => send({ type: "step", step }),
           (preview) => send({ type: "preview", result: preview })
         );
