@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { TourButton } from "@/components/tour";
+import { ExportLibrary } from "@/components/export-library";
 import { linkCount } from "@/lib/format";
 import { useLocalSetting } from "@/lib/use-local-setting";
 import { DEFAULT_COLLECTION_KEY, useDefaultCollection } from "@/lib/use-default-collection";
@@ -107,6 +108,7 @@ export default function SettingsPage() {
             <a href="/start" className="text-body font-semibold text-ink underline-offset-2 hover:underline">
               Import links from bookmarks or Telegram
             </a>
+            <ExportLibrary />
           </Section>
 
           <Section title="Capture">
