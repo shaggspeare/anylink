@@ -454,8 +454,9 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
   - New links go to — Unsorted (picker)
 - **Appearance**: three thumbnails (System / Light / Dark) → `.preferredColorScheme`, stored in `@AppStorage`.
 - **Reading**: "Open links in" (AnyLink | Safari) · Show tips again (`Tips.resetDatastore()`).
-- **Your library** (signed in only): **Export library** (`square.and.arrow.up`) opens a menu of formats: "Bookmarks
-  (HTML)", "Everything (JSON)" and "Spreadsheet (CSV)". Picking one downloads the file (`GET /api/v1/export`).
+- **Your library** (signed in only): **Export library** (`square.and.arrow.up`) asks for a format in a confirmation
+  dialog: "Bookmarks (HTML)", "Everything (JSON)" or "Spreadsheet (CSV)". Not a `Menu`: in a List, a Menu cuts its
+  label to two lines at the largest text sizes. Picking one downloads the file (`GET /api/v1/export`).
   - States: ready; preparing (the row reads "Preparing your file…" with a spinner and can't be tapped); free.
   - When the file is ready, the Files save sheet opens with `anylink-{date}.{ext}`.
   - Pro only. On a free account the footer reads "Export is a Pro feature.", and picking a format shows
