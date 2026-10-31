@@ -31,4 +31,11 @@ import Models
         #expect(library.links.map(\.contentType) == [.article])
         #expect(try JSONDecoder().decode([ContentType].self, from: Data(#"["video","product"]"#.utf8)) == [.video, .product])
     }
+
+    @Test func templateDataKeepsWhatDecodesAndDropsTheRest() throws {
+        let json = #"{"provider":"youtube","videoId":"abc","durationSeconds":12.5,"ingredients":["salt",1],"yield":"2"}"#
+        let t = try JSONDecoder().decode(TemplateData.self, from: Data(json.utf8))
+        #expect(t.provider == "youtube" && t.videoId == "abc" && t.yield == "2")
+        #expect(t.durationSeconds == nil && t.ingredients == nil)
+    }
 }

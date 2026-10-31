@@ -22,6 +22,7 @@ public struct LiveAPI: AnyLinkAPI {
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         if let t = await token() { r.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
+        r.setValue(ContentType.header, forHTTPHeaderField: "X-AnyLink-Types")
         return r
     }
 

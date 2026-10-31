@@ -5,13 +5,16 @@ import Foundation
 public enum CardSize: String, Codable, CaseIterable, Sendable { case S, M, L }
 /// `note` and `image` aren't pages: `url` is empty (note) or the stored file (image), `domain` is empty,
 /// and a note's text lives in `excerpt`.
-public enum ContentType: String, Codable, Sendable {
-    case article, video, product, note, image
+public enum ContentType: String, Codable, CaseIterable, Sendable {
+    case article, video, product, note, image, recipe
 
     /// A type this build doesn't know yet reads as an article, so one new type can't fail the whole library.
     public init(from decoder: Decoder) throws {
         self = ContentType(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .article
     }
+
+    /// Sent as `X-AnyLink-Types`. The server gives builds that don't list a type `article` instead.
+    public static let header = allCases.map(\.rawValue).joined(separator: ",")
 }
 public enum LinkStatus: String, Codable, Sendable { case crawling, ready, failed }
 
@@ -64,6 +67,40 @@ public struct ProductDetails: Codable, Hashable, Sendable {
     public var alertThreshold: Double?
 }
 
+/// What a template shows beyond the card (`links.template_data`), read from the page, never from AI. Which fields
+/// are set depends on the content type.
+public struct TemplateData: Codable, Hashable, Sendable {
+    // article
+    public var author: String?
+    /// ISO 8601.
+    public var publishedAt: String?
+    // video
+    /// "youtube", "vimeo" or the site's domain.
+    public var provider: String?
+    public var videoId: String?
+    public var channel: String?
+    public var durationSeconds: Int?
+    // recipe
+    public var ingredients: [String]?
+    public var steps: [String]?
+    public var prepMinutes: Int?
+    public var cookMinutes: Int?
+    public var totalMinutes: Int?
+    public var yield: String?
+}
+
+extension TemplateData {
+    /// Field by field, so one odd value from a web page can't fail the whole library.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func get<T: Decodable>(_ key: CodingKeys) -> T? { try? c.decodeIfPresent(T.self, forKey: key) }
+        self.init(author: get(.author), publishedAt: get(.publishedAt), provider: get(.provider), videoId: get(.videoId),
+                  channel: get(.channel), durationSeconds: get(.durationSeconds), ingredients: get(.ingredients),
+                  steps: get(.steps), prepMinutes: get(.prepMinutes), cookMinutes: get(.cookMinutes),
+                  totalMinutes: get(.totalMinutes), yield: get(.yield))
+    }
+}
+
 public struct ImportMeta: Codable, Hashable, Sendable {
     public var folder: String?
     public var savedAt: String?
@@ -104,9 +141,10 @@ public struct LinkItem: Codable, Identifiable, Hashable, Sendable {
     public var deleted: Bool?
     public var highlights: [Highlight]?
     public var product: ProductDetails?
+    public var templateData: TemplateData?
 
-    public init(id: String, url: String, domain: String, title: String, excerpt: String, articleText: [String]? = nil, heroImage: String? = nil, tint: String, stripe: String, initial: String, contentType: ContentType, readingTimeMinutes: Int? = nil, collectionId: String, tags: [String], size: CardSize, position: Int? = nil, status: LinkStatus, createdAt: String, source: String? = nil, importMeta: ImportMeta? = nil, note: String? = nil, favorite: Bool? = nil, pinned: Bool? = nil, httpStatus: Int? = nil, archived: Bool? = nil, deleted: Bool? = nil, highlights: [Highlight]? = nil, product: ProductDetails? = nil) {
-        self.id = id; self.url = url; self.domain = domain; self.title = title; self.excerpt = excerpt; self.articleText = articleText; self.heroImage = heroImage; self.tint = tint; self.stripe = stripe; self.initial = initial; self.contentType = contentType; self.readingTimeMinutes = readingTimeMinutes; self.collectionId = collectionId; self.tags = tags; self.size = size; self.position = position; self.status = status; self.createdAt = createdAt; self.source = source; self.importMeta = importMeta; self.note = note; self.favorite = favorite; self.pinned = pinned; self.httpStatus = httpStatus; self.archived = archived; self.deleted = deleted; self.highlights = highlights; self.product = product
+    public init(id: String, url: String, domain: String, title: String, excerpt: String, articleText: [String]? = nil, heroImage: String? = nil, tint: String, stripe: String, initial: String, contentType: ContentType, readingTimeMinutes: Int? = nil, collectionId: String, tags: [String], size: CardSize, position: Int? = nil, status: LinkStatus, createdAt: String, source: String? = nil, importMeta: ImportMeta? = nil, note: String? = nil, favorite: Bool? = nil, pinned: Bool? = nil, httpStatus: Int? = nil, archived: Bool? = nil, deleted: Bool? = nil, highlights: [Highlight]? = nil, product: ProductDetails? = nil, templateData: TemplateData? = nil) {
+        self.id = id; self.url = url; self.domain = domain; self.title = title; self.excerpt = excerpt; self.articleText = articleText; self.heroImage = heroImage; self.tint = tint; self.stripe = stripe; self.initial = initial; self.contentType = contentType; self.readingTimeMinutes = readingTimeMinutes; self.collectionId = collectionId; self.tags = tags; self.size = size; self.position = position; self.status = status; self.createdAt = createdAt; self.source = source; self.importMeta = importMeta; self.note = note; self.favorite = favorite; self.pinned = pinned; self.httpStatus = httpStatus; self.archived = archived; self.deleted = deleted; self.highlights = highlights; self.product = product; self.templateData = templateData
     }
 }
 
@@ -127,6 +165,7 @@ public extension LinkItem {
         case .article:
             guard let m = readingTimeMinutes else { return nil }
             return "\(m) min read"
+        case .recipe: return "Recipe"
         case .note, .image: return nil
         }
     }
@@ -215,6 +254,7 @@ public struct CrawlResult: Codable, Sendable, Hashable {
     public let readingTimeMinutes: Int?
     public let excerptOnly: Bool?
     public let product: ProductDetails?
+    public let templateData: TemplateData?
 }
 
 public struct CrawlFailure: Codable, Sendable, Hashable {

@@ -1,5 +1,6 @@
 import { crawlUrl, type CrawlStep } from "@/lib/crawler";
 import { currentPlan, currentUser } from "@/lib/db/current-user";
+import { contentTypesFor } from "@/lib/ios-types";
 import { isPro } from "@/lib/plan";
 
 export const maxDuration = 60;
@@ -42,10 +43,11 @@ export async function POST(request: Request) {
   // Signed-out visitors and free accounts get a free crawl: no model pass, no headless browser.
   const pro = isPro(await currentPlan());
   const encoder = new TextEncoder();
+  const types = contentTypesFor(request);
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (line: object) => controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+      const send = (line: object) => controller.enqueue(encoder.encode(JSON.stringify(line, types) + "\n"));
 
       try {
         const result = await crawlUrl(

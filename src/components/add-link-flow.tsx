@@ -104,7 +104,8 @@ export function AddLinkFlow() {
     try {
       const res = await fetch("/api/crawl", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // The web app ships with the server, so it reads every content type (src/lib/ios-types.ts).
+        headers: { "Content-Type": "application/json", "X-AnyLink-Types": "recipe" },
         body: JSON.stringify({ url: targetUrl }),
         signal: controller.signal,
       });

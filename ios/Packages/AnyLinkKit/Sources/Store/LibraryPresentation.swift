@@ -2,7 +2,7 @@ import Foundation
 import Models
 
 public enum LibraryScope: String, CaseIterable, Identifiable, Sendable {
-    case all, unsorted, favorites, videos, products, articles, notes, images
+    case all, unsorted, favorites, videos, products, recipes, articles, notes, images
     public var id: Self { self }
 
     public var title: String {
@@ -12,6 +12,7 @@ public enum LibraryScope: String, CaseIterable, Identifiable, Sendable {
         case .favorites: "Favorites"
         case .videos: "Videos"
         case .products: "Products"
+        case .recipes: "Recipes"
         case .articles: "Articles"
         case .notes: "Notes"
         case .images: "Images"
@@ -25,6 +26,7 @@ public enum LibraryScope: String, CaseIterable, Identifiable, Sendable {
         case .favorites: l.favorite == true
         case .videos: l.contentType == .video
         case .products: l.contentType == .product
+        case .recipes: l.contentType == .recipe
         case .articles: l.contentType == .article
         case .notes: l.contentType == .note
         case .images: l.contentType == .image
