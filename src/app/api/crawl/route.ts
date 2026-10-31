@@ -1,5 +1,6 @@
 import { crawlUrl, type CrawlStep } from "@/lib/crawler";
 import { currentPlan, currentUser } from "@/lib/db/current-user";
+import { claimsAttestation, verifyAssertion } from "@/lib/db/attest-keys";
 import { isPro } from "@/lib/plan";
 
 export const maxDuration = 60;
@@ -27,12 +28,27 @@ function guestLimited(ip: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
-  if (!(await currentUser()) && guestLimited(ip)) {
-    return Response.json({ error: "Too many previews. Sign in to keep going." }, { status: 429 });
+  // As text: an attested call signs these exact bytes.
+  const raw = await request.text();
+  if (!(await currentUser())) {
+    if (claimsAttestation(request)) {
+      // An iOS install without an account: a daily cap per App Attest key instead of the per-IP one.
+      const denied = await verifyAssertion(request, raw, "crawl");
+      if (denied) return denied;
+    } else {
+      const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+      if (guestLimited(ip)) {
+        return Response.json({ error: "Too many previews. Sign in to keep going." }, { status: 429 });
+      }
+    }
   }
 
-  const body = await request.json().catch(() => null);
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    body = null;
+  }
   const url = typeof body?.url === "string" ? body.url.trim() : "";
 
   if (!isValidHttpUrl(url)) {
