@@ -740,7 +740,8 @@ export type GroupedResult = { collection: Collection; linkIds: string[]; reasoni
 
 /** The onboarding payoff: everything sitting unsorted gets read against what the user
  * said matters and comes back as a few named collections. Dead links are left out —
- * they've already been checked by this point and nobody wants them ranked. */
+ * they've already been checked by this point and nobody wants them ranked. Free and Pro
+ * alike: import grouping keeps its AI pass for everyone, and GROUP_LIMIT caps the cost. */
 export async function groupInbox(priorities: Priorities): Promise<GroupedResult[]> {
   const uid = await currentUserId();
   const inboxId = await ensureInbox();
