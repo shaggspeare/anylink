@@ -269,10 +269,14 @@ public struct LibrarySnapshot: Sendable, Codable, Equatable {
     public let collections: [LinkCollection]
     /// What they appear as on shared collections; nil until they pick one.
     public var displayName: String?
+    /// "pro" or "free", decided by the server. Missing (an older server or cache) reads as free.
+    public var plan: String?
 
-    public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection], displayName: String? = nil) {
-        self.links = links; self.trashed = trashed; self.collections = collections; self.displayName = displayName
+    public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection], displayName: String? = nil, plan: String? = nil) {
+        self.links = links; self.trashed = trashed; self.collections = collections; self.displayName = displayName; self.plan = plan
     }
+
+    public var isPro: Bool { plan == "pro" }
 }
 
 public struct LinkPatch: Sendable {

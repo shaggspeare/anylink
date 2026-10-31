@@ -205,6 +205,20 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         #expect(s.lastSynced != nil)
     }
 
+    @Test func planComesWithTheLibraryAndSurvivesRelaunch() async throws {
+        let cache = try LocalCache(inMemory: true)
+        var free = Fixtures.library
+        free.plan = "free"
+        let json = String(decoding: try JSONEncoder().encode(free), as: UTF8.self)
+        APIStub.reset { _, _ in (200, json) }
+        let s = store(cache: cache)
+        #expect(s.isPro)
+        await s.refresh()
+        #expect(!s.isPro)
+        cache.save(s.snapshot)
+        #expect(LibraryStore(api: APIStub.api(), cache: cache).plan == "free")
+    }
+
     @Test func createLinkSendsBackendShape() async throws {
         let saved = String(decoding: try JSONEncoder().encode(Fixtures.links[0]), as: UTF8.self)
         APIStub.reset { _, _ in (200, saved) }

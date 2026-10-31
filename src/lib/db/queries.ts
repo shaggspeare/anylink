@@ -4,6 +4,7 @@ import { db } from "./client";
 import * as schema from "./schema";
 import { legibleStripe } from "../card-identity";
 import { sortLinks } from "../organize";
+import { isPro, type Plan } from "../plan";
 import { currentUserId } from "./current-user";
 import type {
   Collection,
@@ -43,14 +44,17 @@ export async function getLibraryData(): Promise<{
   collections: Collection[];
   /** What they appear as on shared collections; null until they pick one. */
   displayName: string | null;
+  /** What this account may use. Both apps learn it here. */
+  plan: Plan;
 }> {
   const uid = await currentUserId();
   await ensureInbox();
   const [user] = await db
-    .select({ displayName: schema.users.displayName })
+    .select({ displayName: schema.users.displayName, plan: schema.users.plan })
     .from(schema.users)
     .where(eq(schema.users.id, uid));
   const displayName = user?.displayName ?? null;
+  const plan: Plan = isPro(user?.plan) ? "pro" : "free";
 
   const collectionRows = await db
     .select()
@@ -71,7 +75,7 @@ export async function getLibraryData(): Promise<{
 
   const linkIds = linkRows.map((l) => l.id);
   if (linkIds.length === 0) {
-    return { links: [], trashed: [], collections: collectionRows.map(toCollection), displayName };
+    return { links: [], trashed: [], collections: collectionRows.map(toCollection), displayName, plan };
   }
 
   const [tagRows, highlightRows, snapshotRows, alertRows] = await Promise.all([
@@ -116,6 +120,7 @@ export async function getLibraryData(): Promise<{
   // Trashed links travel separately so no existing view has to learn to skip them.
   return {
     displayName,
+    plan,
     collections: collectionRows.map(toCollection),
     links: allLinks.filter((l) => !l.deleted),
     trashed: allLinks.filter((l) => l.deleted),

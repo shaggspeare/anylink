@@ -10,6 +10,7 @@ import type { CardSize, Collection, LinkItem } from "./types";
 import { linkCount } from "./format";
 import { noteTitle } from "./linkify";
 import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
+import type { Plan } from "./plan";
 import { AuthDialog } from "@/components/auth-panel";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
@@ -61,6 +62,8 @@ type LibraryContextValue = {
   /** What they appear as on shared collections. */
   displayName: string | null;
   setDisplayName: (name: string) => Promise<void>;
+  /** From the server; guests are free. */
+  plan: Plan;
   /** A viewer's Save from a shared collection: `linkIds` to the inbox, or all of it as a new collection. */
   saveFromShare: (token: string, linkIds?: string[]) => Promise<{ links: LinkItem[]; collection?: Collection }>;
 
@@ -179,12 +182,14 @@ export function LibraryProvider({
   guest = false,
   email = null,
   displayName: initialDisplayName = null,
+  plan = "free",
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
   initialTrashed: LinkItem[];
   initialCollections: Collection[];
   displayName?: string | null;
+  plan?: Plan;
   /** Landing-page demo: state changes stay local, nothing reaches the server. */
   demo?: boolean;
   guest?: boolean;
@@ -535,6 +540,7 @@ export function LibraryProvider({
       setDisplayName: async (name) => {
         setDisplayName(await api.setDisplayName(name));
       },
+      plan,
       saveFromShare: async (token, linkIds) => {
         const result = await api.saveFromShare(token, linkIds);
         if (result.collection) setCollections((prev) => [...prev, result.collection!]);
@@ -568,7 +574,7 @@ export function LibraryProvider({
     }),
     // guestFull is derived from links/trashed; guestLimitHit only sets state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName]
+    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName, plan]
   );
   function guestLimitHit() {
     setSignUpOpen(true);
