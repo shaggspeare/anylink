@@ -167,6 +167,33 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         #expect(s.link("iph")?.favorite == false)           // rolled back
     }
 
+    @Test func proRefusalRollsBackWithAToastAndKeepsYouSignedIn() async {
+        APIStub.reset { _, _ in (200, #"{"ok":false,"reason":"pro"}"#) }
+        let s = store()
+        var signedOut = false
+        s.onUnauthorized = { signedOut = true }
+        s.setPriceAlert("iph", threshold: 1)
+        await s.settle()
+        #expect(s.link("iph")?.product?.alertThreshold == 50000)
+        #expect(s.toasts.current?.message == "That's a Pro feature.")
+        #expect(await s.setShared("rust", true) == false)
+        #expect(s.collection("rust")?.shareToken == nil)
+        #expect(!signedOut)
+    }
+
+    @Test func queuedProRefusalIsDroppedNotRetried() async {
+        APIStub.reset { _, _ in nil }
+        let s = store()
+        s.setPriceAlert("iph", threshold: 1)
+        await s.settle()
+        APIStub.reset { _, _ in (200, #"{"ok":false,"reason":"pro"}"#) }
+        s.drainOutbox()
+        await s.settle()
+        #expect(s.outbox.isEmpty)
+        #expect(APIStub.log.count == 1)
+        #expect(s.toasts.current?.message == "That's a Pro feature.")
+    }
+
     @Test func outboxSurvivesRelaunch() async throws {
         let cache = try LocalCache(inMemory: true)
         APIStub.reset { _, _ in nil }

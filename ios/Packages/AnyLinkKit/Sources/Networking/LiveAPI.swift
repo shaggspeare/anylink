@@ -59,11 +59,16 @@ public struct LiveAPI: AnyLinkAPI {
         }
     }
 
-    /// `POST /api/v1/actions/<name>` with `args` as a JSON array.
+    private struct Refusal: Decodable { let reason: String }
+
+    /// `POST /api/v1/actions/<name>` with `args` as a JSON array. A Pro-only action answers a free account with
+    /// `{ "ok": false, "reason": "pro" }` (a 200, so nobody is signed out), which throws `.proRequired`.
     func action(_ name: String, _ args: [any Encodable]) async throws -> Data {
         let enc = JSONEncoder()
         let parts = try args.map { String(decoding: try enc.encode($0), as: UTF8.self) }
-        return try await send(await request("api/v1/actions/\(name)", body: Data("[\(parts.joined(separator: ","))]".utf8)))
+        let data = try await send(await request("api/v1/actions/\(name)", body: Data("[\(parts.joined(separator: ","))]".utf8)))
+        if (try? JSONDecoder().decode(Refusal.self, from: data))?.reason == "pro" { throw AppError.proRequired }
+        return data
     }
 
     func action<T: Decodable>(_ name: String, _ args: [any Encodable], as: T.Type) async throws -> T {

@@ -6,3 +6,7 @@ export type Plan = "free" | "pro";
 export function isPro(plan: string | null | undefined): boolean {
   return plan === "pro";
 }
+
+/** What a gated action returns to a free account, the way `setPinned` reports the pin limit. Never thrown:
+ * production builds hide a Server Action's error text, and iOS signs out on a 401. */
+export const PRO_REQUIRED = { ok: false, reason: "pro" } as const;

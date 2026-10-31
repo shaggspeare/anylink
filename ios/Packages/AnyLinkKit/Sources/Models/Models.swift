@@ -389,7 +389,8 @@ public struct Signal: Codable, Sendable {
 // MARK: - Errors
 
 public enum AppError: Error, Equatable, Sendable {
-    case offline, unauthorized, notFound, server(Int), invalidURL, decoding, unknown, pinLimit
+    /// `proRequired`: the server answered `{ "ok": false, "reason": "pro" }`; a free account can't do that.
+    case offline, unauthorized, notFound, server(Int), invalidURL, decoding, unknown, pinLimit, proRequired
 }
 
 public extension Int {

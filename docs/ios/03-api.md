@@ -50,3 +50,12 @@ A shared collection can be read by anyone holding its share link, `https://www.a
 `Collection.shareToken` is set while a collection is shared. `GET /api/v1/library` now also returns `displayName`.
 
 Apply `supabase/migrations/20261013000000_shared_collections.sql` before deploying.
+
+### Plans
+
+`GET /api/v1/library` also returns `plan`: `"pro"` or `"free"`. A missing `plan` (an older server) means free. See
+`docs/adr/0002-free-libraries-stay-on-their-platform.md` and `src/lib/plan.ts`.
+
+A Pro-only action called by a free account does nothing and answers `200` with `{ "ok": false, "reason": "pro" }`,
+never a 401, so nobody is signed out. Today that's `setCollectionShared` with `true` (turning sharing off always
+works) and `setAlertThreshold`. iOS maps it to `AppError.proRequired`.

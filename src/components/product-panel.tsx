@@ -4,11 +4,12 @@ import { Icon } from "@/components/icon";
 import { useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/lib/store";
+import { isPro } from "@/lib/plan";
 import type { LinkItem } from "@/lib/types";
 
 export function ProductPanel({ link }: { link: LinkItem }) {
   const product = link.product!;
-  const { setAlertThreshold } = useLibrary();
+  const { setAlertThreshold, plan } = useLibrary();
   const [showAllSpecs, setShowAllSpecs] = useState(false);
   const [threshold, setThreshold] = useState(product.alertThreshold ?? product.price ?? 0);
 
@@ -138,16 +139,20 @@ export function ProductPanel({ link }: { link: LinkItem }) {
           )}
           <div data-tour="price-alert" className="flex flex-col gap-1.5 border-t border-ink/6 pt-3">
             <span className="text-[12px] font-medium text-ink/60">Alert me under</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-ink/50">{product.currency}</span>
-              <input
-                type="number"
-                value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value))}
-                onBlur={() => setAlertThreshold(link.id, threshold)}
-                className="h-9 w-full rounded-[10px] border border-ink/10 bg-surface/70 px-2.5 text-[13px] text-ink outline-none"
-              />
-            </div>
+            {isPro(plan) ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] text-ink/50">{product.currency}</span>
+                <input
+                  type="number"
+                  value={threshold}
+                  onChange={(e) => setThreshold(Number(e.target.value))}
+                  onBlur={() => setAlertThreshold(link.id, threshold)}
+                  className="h-9 w-full rounded-[10px] border border-ink/10 bg-surface/70 px-2.5 text-[13px] text-ink outline-none"
+                />
+              </div>
+            ) : (
+              <p className="text-[13px] text-ink/50">Price alerts are a Pro feature.</p>
+            )}
           </div>
         </div>
       </aside>

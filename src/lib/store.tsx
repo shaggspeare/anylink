@@ -502,6 +502,7 @@ export function LibraryProvider({
         api.addHighlight(linkId, quote).catch(console.error);
       },
       setAlertThreshold: (linkId, threshold) => {
+        const before = links.find((l) => l.id === linkId)?.product?.alertThreshold;
         let currency = "$";
         setLinks((prev) =>
           prev.map((l) => {
@@ -510,7 +511,16 @@ export function LibraryProvider({
             return { ...l, product: { ...l.product, alertThreshold: threshold } };
           })
         );
-        api.setAlertThreshold(linkId, threshold, currency).catch(console.error);
+        api
+          .setAlertThreshold(linkId, threshold, currency)
+          .then((result) => {
+            if (result?.reason !== "pro") return;
+            setLinks((prev) =>
+              prev.map((l) => (l.id === linkId && l.product ? { ...l, product: { ...l.product, alertThreshold: before } } : l))
+            );
+            setToast({ message: "Price alerts are a Pro feature.", key: Date.now() });
+          })
+          .catch(console.error);
       },
       importLinks: async (items) => {
         const result = await api.importLinks(items);
@@ -532,7 +542,12 @@ export function LibraryProvider({
         api.logSignal(action, options).catch(console.error);
       },
       setCollectionShared: async (id, shared) => {
-        const { shareToken } = await api.setCollectionShared(id, shared);
+        const result = await api.setCollectionShared(id, shared);
+        if ("reason" in result) {
+          setToast({ message: "Share links are a Pro feature.", key: Date.now() });
+          return collections.find((c) => c.id === id)?.shareToken;
+        }
+        const { shareToken } = result;
         setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, shareToken: shareToken ?? undefined } : c)));
         return shareToken ?? undefined;
       },

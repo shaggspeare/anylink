@@ -130,6 +130,7 @@ public final class LibraryStore {
 
     public static func message(for error: Error) -> String {
         if (error as? AppError) == .pinLimit { return "You can pin up to 2 links. Unpin one first." }
+        if (error as? AppError) == .proRequired { return "That's a Pro feature." }
         return (error as? AppError) == .offline
             ? "You're offline. Changes are saved and will sync when you're back."
             : "That didn't go through. Try again."
@@ -224,6 +225,11 @@ public final class LibraryStore {
                 outbox.removeFirst()
                 persistOutbox()
                 toasts.show(Self.message(for: AppError.pinLimit))
+            } catch AppError.proRequired {
+                // Asking again won't change the answer. The next refresh shows what the server kept.
+                outbox.removeFirst()
+                persistOutbox()
+                toasts.show(Self.message(for: AppError.proRequired))
             } catch {
                 outbox[0].attempts += 1
                 if outbox[0].attempts >= 5 {

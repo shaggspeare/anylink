@@ -5,7 +5,8 @@ import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
-import { currentUserId } from "./current-user";
+import { currentPlan, currentUserId } from "./current-user";
+import { isPro, PRO_REQUIRED } from "../plan";
 import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from "../storage/upload-hero-image";
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
@@ -487,9 +488,13 @@ export async function deleteCollection(id: string): Promise<{ trashedIds: string
 
 /** Sharing on keeps an existing token (so a retried call can't break a link already sent);
  * sharing off drops it, so the old URL is dead for good (docs/adr/0001). The inbox and
- * filters can't be shared. */
-export async function setCollectionShared(id: string, shared: boolean): Promise<{ shareToken: string | null }> {
+ * filters can't be shared. Turning it on is Pro; anyone can turn it off. */
+export async function setCollectionShared(
+  id: string,
+  shared: boolean
+): Promise<{ shareToken: string | null } | typeof PRO_REQUIRED> {
   const uid = await currentUserId();
+  if (shared && !isPro(await currentPlan())) return PRO_REQUIRED;
   const fresh = randomBytes(16).toString("base64url");
   const [row] = await db
     .update(schema.collections)
@@ -623,7 +628,9 @@ export async function addHighlight(linkId: string, quote: string) {
 }
 
 export async function setAlertThreshold(linkId: string, threshold: number, currency: string) {
-  if ((await ownedLinkIds(await currentUserId(), [linkId])).length === 0) return;
+  const uid = await currentUserId();
+  if (!isPro(await currentPlan())) return PRO_REQUIRED;
+  if ((await ownedLinkIds(uid, [linkId])).length === 0) return;
   await db
     .insert(schema.priceAlerts)
     .values({ linkId, thresholdPrice: String(threshold), currency })
