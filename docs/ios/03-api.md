@@ -66,3 +66,6 @@ back to microlink, then to its own metadata, then to the URL.
 
 While its owner is on Free, a shared collection reads as not shared: `GET /api/v1/shared/<token>` and `/s/<token>`
 answer 404, and `saveFromShare` refuses. The token is kept, so the same link works again once the owner is Pro.
+
+Apply `supabase/migrations/20261102000000_grandfather_pro.sql` right before deploying: it makes every existing
+account Pro.
