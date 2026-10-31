@@ -42,3 +42,6 @@ next-env.d.ts
 
 # scratch output from research scrapes
 .firecrawl
+
+# agent worktrees
+/.claude/worktrees/
