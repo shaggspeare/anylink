@@ -5,7 +5,7 @@ import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "./client";
 import * as schema from "./schema";
-import { currentPlan, currentUserId } from "./current-user";
+import { currentPlan, currentUserId, fullCrawls } from "./current-user";
 import { isPro, PRO_REQUIRED } from "../plan";
 import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from "../storage/upload-hero-image";
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
@@ -129,8 +129,8 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
   await addTags(uid, row.id, input.tags);
   if (unread) {
     // Read now: after() runs outside the request.
-    const pro = isPro(await currentPlan());
-    after(() => fillFromPage(uid, row.id, url, input.title, pro));
+    const full = await fullCrawls();
+    after(() => fillFromPage(uid, row.id, url, input.title, full));
   }
 
   // Download/resize/upload runs after the response: the card shows the hotlinked
@@ -161,11 +161,11 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
 
 /** Reads a link saved unread and fills in its card after the response — the same crawl the add-link
  * form runs first. A title the client sent stays, unless it's only the URL or domain. Ends "ready"
- * either way: a page that can't be read keeps what it was saved with. A free account gets a free crawl. */
-async function fillFromPage(uid: string, id: string, url: string, sentTitle: string, pro: boolean) {
+ * either way: a page that can't be read keeps what it was saved with. Without `full` (`fullCrawls`) it's a free crawl. */
+async function fillFromPage(uid: string, id: string, url: string, sentTitle: string, full: boolean) {
   let patch: Partial<typeof schema.links.$inferInsert> = {};
   try {
-    const r = await crawlUrl(url, { ai: pro, browser: pro }, () => {});
+    const r = await crawlUrl(url, { ai: full, browser: full }, () => {});
     if ("failed" in r) return;
     const placeholder = !sentTitle || [url, r.domain, domainFromUrl(url)].includes(sentTitle);
     patch = {

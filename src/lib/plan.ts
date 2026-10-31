@@ -13,6 +13,16 @@ export function isPro(plan: PlanRow | string | null | undefined, now = new Date(
   return plan.plan === "pro" && (!plan.planExpiresAt || plan.planExpiresAt > now);
 }
 
+/** Lifetime Pro's fair use: once it has saved this many links in a calendar month, its crawls are free crawls until
+ * the month turns. */
+export const LIFETIME_FAIR_USE = 1000;
+
+/** Whether a crawl may use the model and the headless browser: Pro, except a lifetime account (no expiry, so a
+ * lifetime purchase or a grandfathered account) that has saved `LIFETIME_FAIR_USE` links this month. */
+export function fullCrawl(row: PlanRow | null | undefined, linksThisMonth: number, now = new Date()): boolean {
+  return isPro(row, now) && (Boolean(row?.planExpiresAt) || linksThisMonth < LIFETIME_FAIR_USE);
+}
+
 /** What a verified purchase or App Store notification means for an account (src/lib/billing/apple.ts). */
 export type PlanEvent =
   /** Pro from `product` until `until` (null: lifetime), bought at `purchasedAt`. */

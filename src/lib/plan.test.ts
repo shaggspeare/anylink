@@ -1,7 +1,7 @@
 // Run: node --test src/lib/plan.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isPro, planAfter, type PlanEvent, type PlanRow, type StoredPlan } from "./plan.ts";
+import { fullCrawl, isPro, LIFETIME_FAIR_USE, planAfter, type PlanEvent, type PlanRow, type StoredPlan } from "./plan.ts";
 
 const now = new Date("2026-11-15T12:00:00Z");
 const later = new Date("2026-12-15T12:00:00Z");
@@ -26,6 +26,19 @@ test("isPro: plan 'pro' with no expiry or one still ahead", () => {
     ["team", false, "unknown string"],
   ];
   for (const [plan, expected, why] of table) assert.equal(isPro(plan, now), expected, why);
+});
+
+test("fullCrawl: Pro gets AI and the browser, except lifetime past its fair use this month", () => {
+  const table: [PlanRow | null, number, boolean, string][] = [
+    [null, 0, false, "signed out"],
+    [{ plan: "free" }, 0, false, "free"],
+    [{ plan: "pro", planExpiresAt: later }, 5000, true, "subscriptions have no cap"],
+    [{ plan: "pro", planExpiresAt: earlier }, 0, false, "lapsed subscription"],
+    [{ plan: "pro", planExpiresAt: null }, LIFETIME_FAIR_USE - 1, true, "lifetime under the cap"],
+    [{ plan: "pro", planExpiresAt: null }, LIFETIME_FAIR_USE, false, "lifetime at the cap"],
+    [{ plan: "pro" }, LIFETIME_FAIR_USE + 1, false, "grandfathered past the cap"],
+  ];
+  for (const [row, links, expected, why] of table) assert.equal(fullCrawl(row, links, now), expected, why);
 });
 
 test("planAfter: purchases and App Store events, stale ones changing nothing", () => {
