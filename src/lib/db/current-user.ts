@@ -1,5 +1,8 @@
 import { cache } from "react";
 import { headers } from "next/headers";
+import { eq } from "drizzle-orm";
+import { db } from "./client";
+import { users } from "./schema";
 import { supabaseServer } from "../supabase/server";
 import { supabaseAdmin } from "../storage/client";
 
@@ -14,6 +17,14 @@ export const currentUser = cache(async (): Promise<CurrentUser | null> => {
   const { data } = await supabase.auth.getClaims(bearer);
   const claims = data?.claims;
   return claims?.sub ? { id: claims.sub, email: (claims.email as string | undefined) ?? null } : null;
+});
+
+/** The caller's `users.plan`, read once per request; gate on it with `isPro` (../plan). Signed-out callers are free. */
+export const currentPlan = cache(async (): Promise<string> => {
+  const user = await currentUser();
+  if (!user) return "free";
+  const [row] = await db.select({ plan: users.plan }).from(users).where(eq(users.id, user.id));
+  return row?.plan ?? "free";
 });
 
 /** For everything that reads or writes a library: no session, no access. */
