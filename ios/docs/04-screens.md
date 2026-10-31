@@ -149,7 +149,7 @@ step.
   Newest first · Oldest first · Title A–Z · Site A–Z · My order.
 - Large title "Library".
 - Scope chips, built-in filters with counts (hide a chip when its count is 0, except All):
-  All · Unsorted · Favorites · Videos · Products · Articles.
+  All · Unsorted · Favorites · Videos · Products · Recipes · Articles · Notes · Images.
 - `UnsortedBanner`, shown when Unsorted > 0 and scope = All.
 - Content: the `LinkTile` grid, or `LinkRow` list grouped by save date (Today · Yesterday · Earlier this week ·
   month names) when sort = Newest.
@@ -291,7 +291,7 @@ Activation: a web URL (max 1), or text that contains a URL.
 **Layout:**
 - Top-right: a glass **+** (New collection) and an avatar circle (initial on periwinkle) → Settings.
 - Large title "Collections".
-- Filter chips: Favorites (★) · Videos · Products · With a note · Untagged · Broken · Duplicates, each with its count
+- Filter chips: Favorites (★) · Videos · Products · Recipes · Notes · Images · With a note · Untagged · Broken · Duplicates, each with its count
   and hidden when 0. Each opens `Route.filter`.
 - Suggested filter banner (periwinkle .16 fill, .35 border):
   - "Make “{Tag}” a filter?" / "{n} links tagged #{tag}"
@@ -383,11 +383,20 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
 
 ---
 
-## S15 · Reader (`Route.link` for articles and videos)
+## S15 · Reader (`Route.link` for articles, videos and recipes)
+
+**Which layout** (CONTEXT.md § Link detail) depends on the plan, `store.isPro`:
+- **Pro:** a template per content type. A product with product data opens S16. Articles, videos and recipes open this
+  screen with their template block (below).
+- **Free:** the generic layout for every type, products included: this screen without the template blocks, plus the
+  upsell line.
+
+Notes and images keep their own screens on both plans.
 
 **Layout:**
 - A full-bleed stretchy hero, h400, that scales on overscroll. Image, or HeroFallback, under the black reader scrim.
-- Bottom-left on the hero: the eyebrow "{domain} · {n} min read", then the title `readerTitle` in white.
+- Bottom-left on the hero: the eyebrow "{domain} · {n} min read" ("{domain} · Video", "{domain} · Recipe"), then the
+  title `readerTitle` in white.
 - Floating at y=62: a back button (glass on dark), and a capsule with ★ (favourite toggle, signal when on) and ⋯
   (the S7 menu items + Add to collection).
 - Body, padding 20/24:
@@ -407,7 +416,46 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
 
 **Broken link:** a slate "Gone" chip in the chip row. Open still works.
 
-## S16 · Product (`Route.link` with `contentType == .product`)
+**Article template (Pro):** between the note card and the article text:
+- A byline (SF 13, ink .55): "By {author} · {date}", either part alone when only one is known, hidden when neither is.
+  The date is abbreviated: "29 Sep 2026".
+- A summary card (ink .06, r16, padding 14) when the article text shows in full: the eyebrow "SUMMARY", then the
+  excerpt (15 pt, ink .85). With less text the excerpt already is the body, so the card is hidden.
+
+**Video template (Pro):** for a YouTube or Vimeo video it replaces the video variant:
+- A 16:9 card (r19) with the thumbnail and a 56 pt play disc. Tapping it loads the privacy-enhanced player in its
+  place (`youtube-nocookie.com`, or Vimeo with `dnt=1`) in a `WKWebView` that keeps no cookies, and the video starts.
+  Nothing loads from the video site before the tap.
+- "{channel} · {duration}" (SF 13, ink .55), either part alone, then the description.
+- A video from any other site keeps the video variant, with the channel line when it's known.
+- VoiceOver: the disc is "Play video", the loaded player is "Video player".
+
+**Recipe template (Pro):** in place of the article text, when the page had a recipe card:
+- Time chips (ink .06 capsules, `chip`): "Prep {t}" · "Cook {t}" · "Total {t}" · "Makes {yield}", only what the page
+  gave. {t} reads "45 min", "1 h" or "1 h 15 min".
+- "Ingredients" (`rowTitle`), then a checklist. Each row is a button at least 44 pt high: a circle (ink .25 stroke)
+  that becomes a lime disc with a check, then the ingredient (17 pt). A ticked row dims to ink .45 and is struck
+  through. Ticks last while the screen is open and aren't saved.
+  - VoiceOver: each row reads the ingredient, with the Selected trait once ticked, and the hint "Ticks it off".
+- "Steps" (`rowTitle`), then numbered rows: a 26 pt ink disc with the number in `onInk`, then the step (17 pt, ink .85).
+- No ingredients and no steps (the page had no recipe card): the article text, as for an article.
+
+**Generic layout (Free):** this screen without the template blocks.
+- Articles, recipes and products: the article text, or the excerpt plus the notice.
+- Videos: the video variant.
+- The last thing in the body is a `Notice` with the upsell line for the type:
+  - article: "Pro adds the summary, the author and the date here."
+  - video: "Pro plays the video right here."
+  - recipe: "Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."
+  - product: "Pro tracks this price for you and charts its history."
+- The line doesn't open anything yet. Phase 4 points it at the paywall.
+
+**States (previews, light and dark):** Article, Video, Recipe and Product, each for Pro and for Free; Summary only;
+Large type.
+
+## S16 · Product (`Route.link` with `contentType == .product`, Pro)
+
+Free accounts see the generic layout (S15) instead.
 
 **Layout:**
 - Floating back and ⋯ buttons.
