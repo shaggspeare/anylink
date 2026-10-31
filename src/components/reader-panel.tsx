@@ -5,8 +5,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { useLibrary } from "@/lib/store";
 import { Chip } from "./chip";
-import type { LinkItem } from "@/lib/types";
-import { readableParagraphs } from "@/lib/reader";
+import type { ContentType, LinkItem, TemplateData } from "@/lib/types";
+import { clockLabel, hasProse, minutesLabel, readableParagraphs } from "@/lib/reader";
+import { videoEmbedUrl } from "@/lib/crawler/url";
+import { isPro } from "@/lib/plan";
+
+/** The generic layout's last line: what Pro shows for this type (ios/docs/04-screens.md S15).
+ * Phase 4: make it open the Pro dialog. */
+const UPSELL: Partial<Record<ContentType, string>> = {
+  article: "Pro adds the summary, the author and the date here.",
+  video: "Pro plays the video right here.",
+  recipe: "Pro turns this into a recipe: ingredients to tick off, numbered steps and the times.",
+  product: "Pro tracks this price for you and charts its history.",
+};
 
 function withHighlights(paragraph: string, quotes: string[]) {
   if (quotes.length === 0) return paragraph;
@@ -35,6 +46,7 @@ function withHighlights(paragraph: string, quotes: string[]) {
   return parts;
 }
 
+/** The generic layout (free), and Pro's article, video and recipe templates on top of it. */
 export function ReaderPanel({
   link,
   onOpenCollection,
@@ -42,7 +54,7 @@ export function ReaderPanel({
   link: LinkItem;
   onOpenCollection: () => void;
 }) {
-  const { links, addHighlight } = useLibrary();
+  const { links, addHighlight, plan } = useLibrary();
   const articleRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<{ x: number; y: number; text: string } | null>(null);
 
@@ -70,6 +82,18 @@ export function ReaderPanel({
 
   const paragraphs = readableParagraphs(link.articleText, link.excerpt);
 
+  const pro = isPro(plan);
+  const t: TemplateData = link.templateData ?? {};
+  const article = pro && link.contentType === "article";
+  const published = t.publishedAt ? new Date(t.publishedAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "";
+  const byline = article ? [t.author && `By ${t.author}`, published].filter(Boolean).join(" · ") : "";
+  // With less than real prose the excerpt already is the body.
+  const summary = article && hasProse(link.articleText) ? link.excerpt : "";
+  const player = pro && link.contentType === "video" ? videoEmbedUrl(t) : undefined;
+  const videoMeta = pro ? [t.channel, t.durationSeconds && clockLabel(t.durationSeconds)].filter(Boolean).join(" · ") : "";
+  const recipe = pro && link.contentType === "recipe" && Boolean(t.ingredients?.length || t.steps?.length);
+  const upsell = pro ? undefined : UPSELL[link.contentType];
+
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 @3xl:flex-row @3xl:items-start">
       <article
@@ -91,6 +115,18 @@ export function ReaderPanel({
           </div>
         </div>
 
+        {(byline || summary) && (
+          <div className="mx-auto flex max-w-[600px] flex-col gap-4 px-6 pt-8 sm:px-8">
+            {byline && <p className="text-[13px] text-ink/55">{byline}</p>}
+            {summary && (
+              <div className="rounded-[18px] bg-ink/6 px-5 py-4">
+                <span className="text-eyebrow text-ink/40">Summary</span>
+                <p className="mt-1.5 text-[15px] leading-[1.55] text-ink/80">{summary}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div
           ref={articleRef}
           data-tour="article"
@@ -98,14 +134,33 @@ export function ReaderPanel({
           className="relative mx-auto max-w-[600px] px-6 py-8 text-[17px] leading-[1.65] text-ink/80 sm:px-8"
         >
           {link.contentType === "video" ? (
-            <div className="flex flex-col items-center gap-3 rounded-[18px] bg-ink/6 py-14 text-center">
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .5)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 3v18l15-9L5 3z" />
-              </svg>
-              <p className="max-w-[360px] text-body text-ink/55">
-                Video — open the original to watch. AnyLink stores the description and thumbnail only.
-              </p>
-            </div>
+            <>
+              {player ? (
+                // Privacy-enhanced players (videoEmbedUrl); the referrer is what YouTube checks embeds by.
+                <iframe
+                  src={player}
+                  title={link.title}
+                  loading="lazy"
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className="aspect-video w-full rounded-[18px] bg-black"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-3 rounded-[18px] bg-ink/6 py-14 text-center">
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ stroke: "rgb(var(--ink-rgb) / .5)" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 3v18l15-9L5 3z" />
+                  </svg>
+                  <p className="max-w-[360px] text-body text-ink/55">
+                    Video — open the original to watch. AnyLink stores the description and thumbnail only.
+                  </p>
+                </div>
+              )}
+              {videoMeta && <p className="mt-3 text-[13px] text-ink/55">{videoMeta}</p>}
+              {pro && link.excerpt && <p className="mt-5">{link.excerpt}</p>}
+            </>
+          ) : recipe ? (
+            <RecipeCard data={t} />
           ) : (
             paragraphs.map((p, i) => (
               <p key={i} className="mb-5">
@@ -113,6 +168,8 @@ export function ReaderPanel({
               </p>
             ))
           )}
+
+          {upsell && <p className="mt-6 rounded-[14px] bg-ink/6 px-4 py-3 text-[13px] leading-[1.5] text-ink/60">{upsell}</p>}
 
           {popover && (
             <button
@@ -170,6 +227,57 @@ export function ReaderPanel({
           </div>
         </RailSection>
       </aside>
+    </div>
+  );
+}
+
+/** Pro's recipe template: the times, a checklist of ingredients and the numbered steps. Ticks aren't saved. */
+function RecipeCard({ data }: { data: TemplateData }) {
+  const [ticked, setTicked] = useState<number[]>([]);
+  const times = [
+    data.prepMinutes && `Prep ${minutesLabel(data.prepMinutes)}`,
+    data.cookMinutes && `Cook ${minutesLabel(data.cookMinutes)}`,
+    data.totalMinutes && `Total ${minutesLabel(data.totalMinutes)}`,
+    data.yield && `Makes ${data.yield}`,
+  ].filter((time): time is string => Boolean(time));
+  const toggle = (i: number) => setTicked((list) => (list.includes(i) ? list.filter((x) => x !== i) : [...list, i]));
+
+  return (
+    <div className="flex flex-col gap-7">
+      {times.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {times.map((time) => (
+            <span key={time} className="rounded-full bg-ink/6 px-3 py-1.5 text-[12px] font-medium text-ink">
+              {time}
+            </span>
+          ))}
+        </div>
+      )}
+      {data.ingredients?.length ? (
+        <section>
+          <h2 className="mb-2 text-[15px] font-semibold text-ink">Ingredients</h2>
+          <ul>
+            {data.ingredients.map((item, i) => (
+              <li key={i}>
+                <label className="flex cursor-pointer items-baseline gap-3 py-1.5">
+                  <input type="checkbox" checked={ticked.includes(i)} onChange={() => toggle(i)} className="h-4 w-4 flex-none translate-y-0.5 accent-lime" />
+                  <span className={ticked.includes(i) ? "text-ink/40 line-through" : undefined}>{item}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {data.steps?.length ? (
+        <section>
+          <h2 className="mb-2 text-[15px] font-semibold text-ink">Steps</h2>
+          <ol className="flex list-decimal flex-col gap-3 pl-6 marker:font-semibold marker:text-ink/50">
+            {data.steps.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLibrary } from "@/lib/store";
+import { isPro } from "@/lib/plan";
 import { AmbientOrbs } from "./ambient-orbs";
 import { ReaderPanel } from "./reader-panel";
 import { ProductPanel } from "./product-panel";
@@ -67,7 +68,7 @@ export function DetailPane({ split }: { split: SplitView }) {
 /** Header actions, note and reader/product panel. `onClose` means it's in the side pane:
  * no breadcrumb or back button, a close and an expand-to-full-page instead. */
 function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void }) {
-  const { collections, moveLinks, setFavorite, setNote } = useLibrary();
+  const { collections, moveLinks, setFavorite, setNote, plan } = useLibrary();
   const router = useRouter();
   const [noteOpen, setNoteOpen] = useState(Boolean(link.note));
   const collection = collections.find((c) => c.id === link.collectionId);
@@ -237,9 +238,10 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
             <NotePanel link={link} />
           ) : isImage ? (
             <ImagePanel link={link} />
-          ) : isProduct && link.product ? (
+          ) : isProduct && link.product && isPro(plan) ? (
             <ProductPanel link={link} />
           ) : (
+            // Free accounts get this generic layout for every type; Pro gets the templates inside it.
             <ReaderPanel link={link} onOpenCollection={() => router.push(`/collections/${link.collectionId}`)} />
           )}
         </div>
