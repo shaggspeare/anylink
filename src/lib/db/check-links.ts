@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
 import { checkLinkStatus } from "../crawler/check-link";
@@ -15,14 +15,21 @@ export type CheckedLink = { id: string; url: string; title: string; status: numb
 const CONCURRENCY = 24;
 
 /** Oldest-checked first (never-checked before that), which is what both callers want:
- * the cron works through every user's backlog, the import screen finds its own fresh rows. */
+ * the cron works through every Pro user's backlog, the import screen finds its own fresh rows.
+ * Link health is Pro; the import screen's dead-link check (a userId) stays free. */
 export async function linksNeedingCheck(limit: number, userId?: string) {
   return db
     .select({ id: schema.links.id, url: schema.links.url, title: schema.links.title })
     .from(schema.links)
     .where(
       and(
-        userId ? eq(schema.links.userId, userId) : undefined,
+        userId
+          ? eq(schema.links.userId, userId)
+          : // Same rule as isPro (src/lib/plan.ts).
+            inArray(
+              schema.links.userId,
+              db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.plan, "pro"))
+            ),
         isNull(schema.links.deletedAt),
         eq(schema.links.status, "ready"),
         notInArray(schema.links.contentType, ["note", "image"])
