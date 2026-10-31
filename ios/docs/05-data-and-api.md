@@ -65,7 +65,8 @@ public struct LinkPatch: Sendable { var note: String?; var favorite: Bool?; var 
 // note → setNote [id, note] · favorite → setFavorite [id, bool] · size → setLinkSize [id, size]
 // collectionId → moveLinks [[id], collectionId]. Editing title/excerpt has no endpoint yet (BACKEND:).
 
-public struct LibrarySnapshot: Sendable, Decodable { let links: [LinkItem]; let trashed: [LinkItem]; let collections: [LinkCollection] }
+public struct LibrarySnapshot: Sendable, Decodable { let links: [LinkItem]; let trashed: [LinkItem]; let collections: [LinkCollection]; var displayName: String?; var plan: String? }
+// plan: "pro" or "free" (src/lib/plan.ts). Missing reads as free (`isPro` is false).
 ```
 
 **`createLink` input** is built from the crawl result, the same way the web app does it
@@ -95,6 +96,7 @@ and 3 once `done` arrives.
 | no connection | `.offline` | Optimistic change kept and queued; banner "You're offline…" |
 | 401 | `.unauthorized` | Refresh the token once, then sign out → Welcome |
 | 404 | `.notFound` | Drop the local item, toast `error.generic` |
+| 200 `{ "ok": false, "reason": "pro" }` | `.proRequired` | Roll back, toast `error.proRequired`. A queued call is dropped, not retried. Never signs out. |
 | 5xx | `.server(code)` | Roll back, toast `error.generic` |
 
 ### Images
