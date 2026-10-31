@@ -43,6 +43,8 @@ Open **Authentication → URL Configuration**.
    - `http://localhost:3000/**`
    - `anylink://**` (the iOS app: account confirmation and password-reset links)
    - `https://*.vercel.app/**` (so sign-in also works on Vercel preview deployments)
+   - `https://naiejkkikjnpbfhdppghkehemjlmocjk.chromiumapp.org/**` (the Chrome extension loaded unpacked; the store
+     build has its own id, see `extension/README.md`)
 
 Use the `/**` wildcards, not exact callback URLs. The app returns to `/auth/callback?next=…`, and that `?next=…` part fails an exact match. When an address isn't on the list, Supabase sends you to the Site URL instead. The app recovers from that, but you land on the home page instead of `/app`.
 
