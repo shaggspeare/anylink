@@ -57,3 +57,24 @@ export function planAfter(row: StoredPlan, event: PlanEvent): StoredPlan | null 
 /** What a gated action returns to a free account, the way `setPinned` reports the pin limit. Never thrown:
  * production builds hide a Server Action's error text, and iOS signs out on a 401. */
 export const PRO_REQUIRED = { ok: false, reason: "pro" } as const;
+
+/** Whether an action answered `PRO_REQUIRED`. */
+export function isProRefusal(result: unknown): boolean {
+  return typeof result === "object" && result !== null && (result as { reason?: unknown }).reason === "pro";
+}
+
+/** `api` with every function wrapped: one answering `PRO_REQUIRED` also calls `onRefusal`. The web store wraps its
+ * actions in it, so each Pro refusal opens the Pro dialog, including from actions added later. */
+export function proAware<T extends object>(api: T, onRefusal: () => void): T {
+  return new Proxy(api, {
+    get: (target, key) => {
+      const value: unknown = Reflect.get(target, key);
+      if (typeof value !== "function") return value;
+      return async (...args: unknown[]) => {
+        const result = await (value as (...a: unknown[]) => unknown)(...args);
+        if (isProRefusal(result)) onRefusal();
+        return result;
+      };
+    },
+  });
+}

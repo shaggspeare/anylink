@@ -1,7 +1,17 @@
 // Run: node --test src/lib/plan.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fullCrawl, isPro, LIFETIME_FAIR_USE, planAfter, type PlanEvent, type PlanRow, type StoredPlan } from "./plan.ts";
+import {
+  fullCrawl,
+  isPro,
+  LIFETIME_FAIR_USE,
+  planAfter,
+  PRO_REQUIRED,
+  proAware,
+  type PlanEvent,
+  type PlanRow,
+  type StoredPlan,
+} from "./plan.ts";
 
 const now = new Date("2026-11-15T12:00:00Z");
 const later = new Date("2026-12-15T12:00:00Z");
@@ -39,6 +49,26 @@ test("fullCrawl: Pro gets AI and the browser, except lifetime past its fair use 
     [{ plan: "pro" }, LIFETIME_FAIR_USE + 1, false, "grandfathered past the cap"],
   ];
   for (const [row, links, expected, why] of table) assert.equal(fullCrawl(row, links, now), expected, why);
+});
+
+test("proAware: any action's Pro refusal calls back, and every answer passes through", async () => {
+  let refusals = 0;
+  const api = proAware(
+    {
+      setShared: async (on: boolean) => (on ? PRO_REQUIRED : { shareToken: null }),
+      later: async () => ({ ok: false, reason: "pro" }),
+      pin: async () => ({ ok: false }),
+      nothing: async () => undefined,
+    },
+    () => refusals++
+  );
+  assert.deepEqual(await api.setShared(false), { shareToken: null });
+  assert.deepEqual(await api.pin(), { ok: false });
+  assert.equal(await api.nothing(), undefined);
+  assert.equal(refusals, 0);
+  assert.deepEqual(await api.setShared(true), PRO_REQUIRED);
+  await api.later();
+  assert.equal(refusals, 2);
 });
 
 test("planAfter: purchases and App Store events, stale ones changing nothing", () => {

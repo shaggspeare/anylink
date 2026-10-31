@@ -13,6 +13,7 @@ import { linkCount } from "@/lib/format";
 import { useLocalSetting } from "@/lib/use-local-setting";
 import { DEFAULT_COLLECTION_KEY, useDefaultCollection } from "@/lib/use-default-collection";
 import { applyTheme, THEME_KEY, type Theme } from "@/lib/theme";
+import { isPro } from "@/lib/plan";
 
 const THEMES: { id: Theme; label: string }[] = [
   { id: "system", label: "System" },
@@ -32,7 +33,8 @@ const SHORTCUTS: [string, string][] = [
 /** Web Settings, after iOS S18. iOS's "Open links in" (in-app browser vs Safari) has no
  * web counterpart. */
 export default function SettingsPage() {
-  const { links, trashed, collections, guest, email, openSignUp, displayName, setDisplayName, showToast } = useLibrary();
+  const { links, trashed, collections, guest, email, openSignUp, displayName, setDisplayName, showToast, plan, openPro } =
+    useLibrary();
   const [theme, setTheme] = useLocalSetting<Theme>(THEME_KEY, "light");
   const [, setDefaultCollection] = useLocalSetting<string>(DEFAULT_COLLECTION_KEY, "");
   const defaultCollectionId = useDefaultCollection();
@@ -58,6 +60,16 @@ export default function SettingsPage() {
             ) : (
               <>
                 <p className="text-body text-ink">{email}</p>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-body text-ink">Plan: {isPro(plan) ? "Pro" : "Free"}</p>
+                  {isPro(plan) ? (
+                    <p className="text-meta text-ink/60">Manage your subscription in the iOS app.</p>
+                  ) : (
+                    <button type="button" onClick={openPro} className="self-start text-body font-semibold text-ink underline-offset-2 hover:underline">
+                      See what Pro adds
+                    </button>
+                  )}
+                </div>
                 <label className="flex items-center justify-between gap-4">
                   <span className="text-body text-ink">Name on shared collections</span>
                   <input

@@ -10,8 +10,9 @@ import type { CardSize, Collection, LinkItem } from "./types";
 import { linkCount } from "./format";
 import { noteTitle } from "./linkify";
 import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
-import type { Plan } from "./plan";
+import { isProRefusal, proAware, type Plan } from "./plan";
 import { AuthDialog } from "@/components/auth-panel";
+import { ProDialog } from "@/components/pro-dialog";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
   status?: LinkItem["status"];
@@ -64,6 +65,8 @@ type LibraryContextValue = {
   setDisplayName: (name: string) => Promise<void>;
   /** From the server; guests are free. */
   plan: Plan;
+  /** The Pro dialog: for Pro controls on a free account. A Pro refusal from any action opens it on its own. */
+  openPro: () => void;
   /** A viewer's Save from a shared collection: `linkIds` to the inbox, or all of it as a new collection. */
   saveFromShare: (token: string, linkIds?: string[]) => Promise<{ links: LinkItem[]; collection?: Collection }>;
 
@@ -195,7 +198,9 @@ export function LibraryProvider({
   guest?: boolean;
   email?: string | null;
 }) {
-  const api = demo || guest ? LOCAL_ACTIONS : actions;
+  const [proOpen, setProOpen] = useState(false);
+  // Every Pro refusal opens the Pro dialog, whichever call site it came from.
+  const api = useMemo(() => proAware(demo || guest ? LOCAL_ACTIONS : actions, () => setProOpen(true)), [demo, guest]);
   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
   const [trashed, setTrashed] = useState<LinkItem[]>(initialTrashed);
   const [collections, setCollections] = useState<Collection[]>(initialCollections);
@@ -514,11 +519,10 @@ export function LibraryProvider({
         api
           .setAlertThreshold(linkId, threshold, currency)
           .then((result) => {
-            if (result?.reason !== "pro") return;
+            if (!isProRefusal(result)) return;
             setLinks((prev) =>
               prev.map((l) => (l.id === linkId && l.product ? { ...l, product: { ...l.product, alertThreshold: before } } : l))
             );
-            setToast({ message: "Price alerts are a Pro feature.", key: Date.now() });
           })
           .catch(console.error);
       },
@@ -543,10 +547,7 @@ export function LibraryProvider({
       },
       setCollectionShared: async (id, shared) => {
         const result = await api.setCollectionShared(id, shared);
-        if ("reason" in result) {
-          setToast({ message: "Share links are a Pro feature.", key: Date.now() });
-          return collections.find((c) => c.id === id)?.shareToken;
-        }
+        if ("reason" in result) return collections.find((c) => c.id === id)?.shareToken;
         const { shareToken } = result;
         setCollections((prev) => prev.map((c) => (c.id === id ? { ...c, shareToken: shareToken ?? undefined } : c)));
         return shareToken ?? undefined;
@@ -556,6 +557,7 @@ export function LibraryProvider({
         setDisplayName(await api.setDisplayName(name));
       },
       plan,
+      openPro: () => setProOpen(true),
       saveFromShare: async (token, linkIds) => {
         const result = await api.saveFromShare(token, linkIds);
         if (result.collection) setCollections((prev) => [...prev, result.collection!]);
@@ -604,6 +606,7 @@ export function LibraryProvider({
     <LibraryContext.Provider value={value}>
       {children}
       {signUpOpen && <AuthDialog onClose={() => setSignUpOpen(false)} />}
+      {proOpen && <ProDialog onClose={() => setProOpen(false)} />}
       {toast && (
         <div
           key={toast.key}
