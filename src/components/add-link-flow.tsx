@@ -231,6 +231,7 @@ export function AddLinkFlow() {
       tags,
       size,
       product: crawled?.product,
+      templateData: crawled?.templateData,
     });
     handleClose();
   };
