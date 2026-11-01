@@ -48,8 +48,9 @@ struct SettingsView: View {
     @State private var iCloud: Bool?
     private let asksICloud: Bool
 
-    /// Previews set `iCloud` themselves and don't ask: they can't reach CloudKit.
-    init(iCloud: Bool? = nil, asksICloud: Bool = !AppConfig.isUITesting) {
+    /// Previews set `iCloud` themselves and don't ask: they can't reach CloudKit. Neither can UI tests, whose library
+    /// is in memory, so they show sync off.
+    init(iCloud: Bool? = AppConfig.isUITesting ? false : nil, asksICloud: Bool = !AppConfig.isUITesting) {
         _iCloud = State(initialValue: iCloud)
         self.asksICloud = asksICloud
     }
@@ -189,11 +190,14 @@ struct SettingsView: View {
     private var iCloudSync: some View {
         Section {
             LabeledContent {
-                switch iCloud {
-                case true?: Text("On")
-                case false?: Text("Off")
-                case nil: EmptyView()
+                Group {
+                    switch iCloud {
+                    case true?: Text("On")
+                    case false?: Text("Off")
+                    case nil: EmptyView()
+                    }
                 }
+                .foregroundStyle(AL.ink.opacity(AL.Ink.a60))   // the system grey is under 4.5:1 on a light row
             } label: {
                 Label("iCloud sync", systemImage: "icloud").foregroundStyle(.primary)
             }
