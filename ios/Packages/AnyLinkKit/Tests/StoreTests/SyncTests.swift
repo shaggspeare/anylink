@@ -266,7 +266,7 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         let api = MockAPI.fixtures(latency: false)
         let cache = try LocalCache(inMemory: true)
         cache.saveRecentCollections([LinkCollection(id: "reading", name: "Reading", color: "#7C8CFF")])
-        let s = ShareSession(api: api, cache: cache, signedIn: true)
+        let s = ShareSession(api: api, cache: cache)
         let start = ContinuousClock.now
         await s.start(url: url, title: "A story")
         #expect(ContinuousClock.now - start < .seconds(1))
@@ -282,7 +282,7 @@ final class APIStub: URLProtocol, @unchecked Sendable {
 
     @Test func pendingWithoutBackendThenAppDrains() async throws {
         let cache = try LocalCache(inMemory: true)
-        let s = ShareSession(api: nil, cache: cache, signedIn: true)
+        let s = ShareSession(api: nil, cache: cache)
         await s.start(url: url, title: "A story")
         #expect(s.mode == .pending)
         await s.move(to: LinkCollection(id: "ios", name: "iOS design", color: "#7C8CFF"))
@@ -314,7 +314,7 @@ final class APIStub: URLProtocol, @unchecked Sendable {
     /// Launch and becoming active drain at the same moment; the share is still saved once.
     @Test func concurrentDrainsSaveOnce() async throws {
         let cache = try LocalCache(inMemory: true)
-        await ShareSession(api: nil, cache: cache, signedIn: true).start(url: url, title: "A story")
+        await ShareSession(api: nil, cache: cache).start(url: url, title: "A story")
         let api = MockAPI.fixtures(latency: true)
         let store = LibraryStore(api: api, snapshot: Fixtures.library)
         async let a: Void = store.drainPendingSaves(from: cache)
@@ -328,17 +328,21 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         let api = MockAPI.fixtures(latency: false)
         await api.failNext(.offline)
         let cache = try LocalCache(inMemory: true)
-        let s = ShareSession(api: api, cache: cache, signedIn: true)
+        let s = ShareSession(api: api, cache: cache)
         await s.start(url: url, title: nil)
         #expect(s.mode == .pending)
         #expect(cache.pendingSaves().map(\.url) == [url.absoluteString])
     }
 
-    @Test func signedOutAndNoLink() async {
-        let a = ShareSession(api: nil, cache: nil, signedIn: false)
+    /// No sign-in wall in the extension either: a local library's shares all wait for the app (S9).
+    @Test func aLocalLibraryLeavesEveryShareForTheApp() async throws {
+        let cache = try LocalCache(inMemory: true)
+        let a = ShareSession(api: nil, cache: cache)
         await a.start(url: url, title: nil)
-        #expect(a.mode == .signedOut)
-        let b = ShareSession(api: nil, cache: nil, signedIn: true)
+        #expect(a.mode == .pending && a.isLocal)
+        #expect(a.headline == "Saved to Unsorted")
+        #expect(cache.pendingSaves().map(\.url) == [url.absoluteString])
+        let b = ShareSession(api: nil, cache: nil)
         await b.start(url: nil, title: nil)
         #expect(b.mode == .noLink)
     }
@@ -384,7 +388,7 @@ import CoreSpotlight
         let api = MockAPI.fixtures(latency: false)
         await api.failNext(.offline)
         let cache = try LocalCache(inMemory: true)
-        let s = ShareSession(api: api, cache: cache, signedIn: true)
+        let s = ShareSession(api: api, cache: cache)
         await s.start(.note("Call the plumber\nhttps://example.com/quote"))
         #expect(s.mode == .pending && s.kind == .note)
         await store.drainPendingSaves(from: cache)

@@ -17,10 +17,11 @@ final class ShareViewController: UIViewController {
         AL.registerFonts()
         let base = (Bundle.main.object(forInfoDictionaryKey: "AnyLinkAPIBase") as? String)
             .flatMap(URL.init(string:)).flatMap { $0.host() == nil ? nil : $0 }
-        // The app's Supabase session, from the shared keychain. A guest (or a mock build) reads as signed out.
-        let api: (any AnyLinkAPI)? = AuthService.client == nil ? nil : base.map { b in LiveAPI(base: b) { await AuthService.accessToken() } }
-        let signedIn = UserDefaults(suiteName: Self.group)?.bool(forKey: "signedIn") ?? false
-        let session = ShareSession(api: api, cache: LocalCache.appGroup(Self.group), signedIn: signedIn)
+        // The app's Supabase session, from the shared keychain, only while the app shows that account's server
+        // library. A local library (signed out, or on Free) gets a PendingSave the app files (S9); a mock build too.
+        let server = UserDefaults(suiteName: Self.group)?.bool(forKey: "serverLibrary") ?? false
+        let api: (any AnyLinkAPI)? = !server || AuthService.client == nil ? nil : base.map { b in LiveAPI(base: b) { await AuthService.accessToken() } }
+        let session = ShareSession(api: api, cache: LocalCache.appGroup(Self.group))
 
         let host = UIHostingController(rootView: ShareView(session: session) { [weak self] in
             Self.updateWidgets(session)
