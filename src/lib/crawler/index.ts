@@ -154,8 +154,9 @@ function salvage(html: string, url: string): CrawlResult | null {
  * take a pass at the metadata (title/excerpt/type/tags/product). With no article
  * text — a blocked page we only have metadata for — it works from the title, the
  * description and the URL alone, which is what makes those cards presentable.
- * Best-effort: never fails the crawl. */
-async function enrichWithLLM(result: CrawlResult): Promise<void> {
+ * Best-effort: never fails the crawl. False when the model didn't answer. `enrichLink`
+ * runs it later on what a link saved without it has stored. */
+export async function enrichWithLLM(result: CrawlResult): Promise<boolean> {
   const structured = await structureContent({
     url: result.canonicalUrl,
     domain: result.domain,
@@ -169,7 +170,7 @@ async function enrichWithLLM(result: CrawlResult): Promise<void> {
       ? { price: result.product.price, currency: result.product.currency, inStock: result.product.inStock }
       : undefined,
   });
-  if (!structured) return;
+  if (!structured) return false;
 
   result.title = structured.title;
   result.excerpt = structured.excerpt;
@@ -197,4 +198,5 @@ async function enrichWithLLM(result: CrawlResult): Promise<void> {
       ];
     }
   }
+  return true;
 }

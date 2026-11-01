@@ -75,11 +75,32 @@ export async function getLibraryData(): Promise<{
     .from(schema.links)
     .where(eq(schema.links.userId, uid))
     .orderBy(desc(schema.links.createdAt));
+  const allLinks = await withDetails(linkRows);
 
+  // Trashed links travel separately so no existing view has to learn to skip them.
+  return {
+    displayName,
+    plan,
+    collections: collectionRows.map(toCollection),
+    links: allLinks.filter((l) => !l.deleted),
+    trashed: allLinks.filter((l) => l.deleted),
+  };
+}
+
+/** One of the caller's links as the library sends it, or null if it isn't theirs. */
+export async function getLink(id: string): Promise<LinkItem | null> {
+  const uid = await currentUserId();
+  const rows = await db
+    .select()
+    .from(schema.links)
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
+  return (await withDetails(rows))[0] ?? null;
+}
+
+/** `linkRows` as `LinkItem`s, with their tags, highlights, prices and price alerts. */
+async function withDetails(linkRows: (typeof schema.links.$inferSelect)[]): Promise<LinkItem[]> {
   const linkIds = linkRows.map((l) => l.id);
-  if (linkIds.length === 0) {
-    return { links: [], trashed: [], collections: collectionRows.map(toCollection), displayName, plan };
-  }
+  if (linkIds.length === 0) return [];
 
   const [tagRows, highlightRows, snapshotRows, alertRows] = await Promise.all([
     db
@@ -110,7 +131,7 @@ export async function getLibraryData(): Promise<{
   // snapshotRows is ascending by capturedAt, so the last set() per key is the latest snapshot.
   const latestSnapshotByLink = new Map(snapshotRows.map((r) => [r.linkId, r]));
 
-  const allLinks = linkRows.map((row) =>
+  return linkRows.map((row) =>
     toLinkItem(row, {
       tags: tagsByLink.get(row.id),
       highlights: highlightsByLink.get(row.id),
@@ -119,15 +140,6 @@ export async function getLibraryData(): Promise<{
       alert: alertByLink.get(row.id),
     })
   );
-
-  // Trashed links travel separately so no existing view has to learn to skip them.
-  return {
-    displayName,
-    plan,
-    collections: collectionRows.map(toCollection),
-    links: allLinks.filter((l) => !l.deleted),
-    trashed: allLinks.filter((l) => l.deleted),
-  };
 }
 
 type SnapshotRow = typeof schema.priceSnapshots.$inferSelect;

@@ -11,11 +11,11 @@ import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
-import { crawlUrl } from "../crawler";
+import { crawlUrl, enrichWithLLM, type CrawlResult } from "../crawler";
 import { IMAGE_IDENTITY, NOTE_IDENTITY, identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
 import { GROUP_LIMIT, groupByMetadata, groupLinks, SYSTEM_COLORS, type Priorities } from "../rank/group-links";
-import { ensureInbox, sharedCollectionRows, toLinkItem } from "./queries";
+import { ensureInbox, getLink, sharedCollectionRows, toLinkItem } from "./queries";
 import { linkMatcher, matchCollection, mergeLinks, type MergeFields } from "../library-merge";
 import type { ImportedLink } from "../import/parse";
 import { CARD_SIZES, type CardSize, type Collection, type ImportMeta, type LinkItem, type ProductDetails, type TemplateData } from "../types";
@@ -196,6 +196,55 @@ async function fillFromPage(uid: string, id: string, url: string, sentTitle: str
       .set({ ...patch, status: "ready", aiPending: !full, updatedAt: new Date() })
       .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
   }
+}
+
+/** The AI step for a link saved without it (`aiPending`: a free crawl, or an upload), the first time a Pro account opens
+ * it. Run on what the link has stored, it answers the link as it is now; a link with nothing stored is read again after
+ * the response, as an unread save is, and answers null like a link with nothing to do. Lifetime past its fair use
+ * waits for next month. Pro only.
+ * ponytail: lazy backfill bounds AI cost; backfill in bulk if users ask. */
+export async function enrichLink(id: string): Promise<LinkItem | null | typeof PRO_REQUIRED> {
+  const uid = await currentUserId();
+  if (!isPro(await currentPlan())) return PRO_REQUIRED;
+  const [row] = await db
+    .select()
+    .from(schema.links)
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
+  if (!row?.aiPending || !(await fullCrawls())) return null;
+  if (!row.articleText?.length && !row.excerpt) {
+    // Long enough to hold up every other action the web app sends meanwhile: they go one at a time.
+    after(() => fillFromPage(uid, row.id, row.url, row.title, true));
+    return null;
+  }
+  const result: CrawlResult = {
+    domain: row.domain,
+    canonicalUrl: row.canonicalUrl ?? row.url,
+    title: row.title,
+    excerpt: row.excerpt,
+    articleText: row.articleText ?? [],
+    tint: row.tint,
+    stripe: row.stripe,
+    initial: row.initial,
+    contentType: row.contentType,
+    suggestedTags: [],
+  };
+  // The model didn't answer: it's asked again the next time the link opens.
+  if (!(await enrichWithLLM(result))) return null;
+  // The summary is the excerpt. A page that turns out to be a product gets the card a Pro save would have made.
+  const product = result.contentType === "product" && !row.productData ? result.product : undefined;
+  await db
+    .update(schema.links)
+    .set({
+      excerpt: result.excerpt,
+      contentType: result.contentType,
+      ...(product ? { productData: productJson(product) } : {}),
+      aiPending: false,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
+  await addTags(uid, id, result.suggestedTags);
+  await savePrice(id, product);
+  return getLink(id);
 }
 
 const MAX_NOTE_CHARS = 20_000;
