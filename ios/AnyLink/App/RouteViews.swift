@@ -243,7 +243,7 @@ private struct ConfirmDialogs: ViewModifier {
         case .dissolve: "Dissolving moves its links back to Unsorted and deletes the collection."
         case .emptyTrash(let n): "\(n.linkCount) will be deleted for good."
         case .deleteForever: "This link and its saved image are removed for good."
-        case .deleteAccount: "Your library, collections and notes are deleted from every device. This can't be undone."
+        case .deleteAccount: "Your library, collections and notes are deleted from every device. This can't be undone. Deleting your account doesn't stop App Store billing: cancel a Pro subscription in Settings → Apple Account → Subscriptions."
         }
     }
 

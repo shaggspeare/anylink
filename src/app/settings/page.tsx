@@ -97,7 +97,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!confirm("Delete your account and everything in it? This can't be undone.")) return;
+                    if (!confirm("Delete your account and everything in it? This can't be undone. A Pro subscription bought in the iOS app keeps billing until you cancel it in the App Store.")) return;
                     await deleteAccount();
                     await signOut();
                   }}

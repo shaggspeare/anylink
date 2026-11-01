@@ -26,7 +26,7 @@ export const TOUR_STEPS: TourStep[] = [
     element: "[data-tour=add]",
     title: "Save anything",
     description:
-      "Paste a URL here, or press ⌘V anywhere in the app. AnyLink fetches the page and streams its progress: title, summary, hero image, reading time and suggested tags. Sites that block bots get a headless-browser retry; paywalled ones save what metadata they expose. The form stays editable either way.",
+      "Paste a URL here, or press ⌘V anywhere in the app. AnyLink fetches the page and streams its progress: title, summary, hero image, reading time and suggested tags. With Pro, an AI pass writes the summary and tags, and sites that block bots get a headless-browser retry. Paywalled pages save what metadata they expose. The form stays editable either way.",
     side: "bottom",
     align: "end",
   },

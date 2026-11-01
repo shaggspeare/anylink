@@ -42,7 +42,7 @@ only the user can do.
 - [ ] Set `APPLE_APP_ID` in Vercel → Production: the numeric Apple ID from App Store Connect → App Information. Until
       it's set, Production purchases and notifications are refused. Never set `APP_STORE_ALLOW_XCODE` on Vercel
       (Phase 4).
-- [ ] Once the listing exists, set `APP_STORE_URL` in `src/components/pro-dialog.tsx`. Until then, the dialog says
+- [ ] Once the listing exists, set `APP_STORE_URL` in `src/lib/pro.ts`. Until then, the dialog says
       the app is coming to the App Store (Phase 4).
 - [ ] Run `AnyLinkTests` → `ProStoreTests` from Xcode. Apple's simulator bug FB22237318 stops them under
       `xcodebuild`, so they skip themselves there (Phase 4).
@@ -363,3 +363,35 @@ audits (209 package tests, zero warnings). Two-device iCloud sync and the real-i
    - A Safari bookmarks import groups links and flags dead ones.
    - With iCloud off, the app still works.
    - Signing in as Pro opens the server library. Signing out brings back the local one.
+
+## Phase 9 · Launch prep
+
+**Status:** the code and docs are done. Device QA, screenshots and submission are yours.
+
+### Done
+- Landing page:
+  - A pricing section after "How it works", with the Free and Pro cards and the three prices.
+  - Production shows it, and its nav link, only once `APP_STORE_URL` is set in `src/lib/pro.ts`. Development always
+    shows it.
+  - `APP_STORE_URL` and the Pro benefits list now live in `src/lib/pro.ts`, shared with the Pro dialog.
+- Privacy policy, dated November 1, 2026, now covers:
+  - the local library in iCloud
+  - App Attest keys
+  - purchases
+  - Pro and AI
+  - the Chrome extension
+  - Microlink, the import link check and export
+- Docs:
+  - `docs/app-store-listing.md`: the draft listing, privacy-label answers, review notes and product names.
+  - `docs/auth-setup.md`: the new environment variables, plus the Apple and App Store Connect setup.
+  - `docs/pro-qa.md`: an hour-long TestFlight QA script, plus the launch hardening checklist.
+- Two follow-ups done after the merge:
+  - The tour says the AI pass and the browser retry are Pro.
+  - The delete-account confirmation, on web and iOS, says App Store billing continues until cancelled (Apple
+    guideline 5.1.1(v)).
+
+### Needs you
+- Approve the listing copy and the privacy labels in `docs/app-store-listing.md`. Its open questions are listed at
+  the end: support URL, iPad for 1.0, age rating, and the promo video size.
+- Create the two demo accounts for App Review.
+- Run `docs/pro-qa.md` on TestFlight. Work through its hardening checklist right before you submit.
