@@ -53,7 +53,7 @@ the first screen (S0).
 
 **Interactions:**
 - Apple sign-in → `AuthService` → the sheet closes, then the app asks the server for the account's plan:
-  - **Pro**: the app switches to the account's server library (onboarding first if it's empty).
+  - **Pro**: the local library moves into the account's server library (S20), then the app switches to it.
   - **Free**: the local library stays, with the toast `toast.signedInFree` "Signed in. On Free, your iPhone and web
     libraries stay separate."
   - No answer (offline): the local library stays, and the app asks again the next time it becomes active.
@@ -559,8 +559,11 @@ Free accounts see the generic layout (S15) instead.
     saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices."
 - Hidden: Name on shared collections and Delete account. Your library (Export, with its Pro footer) and Sign out
   show only when signed in.
+- After Pro ends (S20) the app is on this local library again, still signed in: the card shows the email, and Sign out
+  stays.
 
-**States:** server library · local, signed out · local, signed in on Free · iCloud on · iCloud off · iCloud checking.
+**States:** server library · local, signed out · local, signed in on Free (and after a lapse) · iCloud on · iCloud
+off · iCloud checking.
 
 ## S19 · Paywall (`SheetRoute.paywall`)
 
@@ -599,7 +602,7 @@ Pro and Sync with web.
 - Buying: Continue shows progress and the sheet can't be swiped away.
 - Confirming: "Confirming your purchase…" while the server records it.
 - Pending: "Waiting for approval. Pro turns on as soon as the purchase is approved."
-- Done: the sheet closes and the toast "You're on Pro" shows.
+- Done: the sheet closes and the toast "You're on Pro" shows. A local library then moves to the server (S20).
 - Failed: "The purchase didn't go through. Try again."
 - Not confirmed: "Your purchase went through, but AnyLink couldn't confirm it yet. It tries again each time you open
   the app, or tap Restore purchases."
@@ -616,6 +619,55 @@ install, and a Pro refusal anywhere opens this sheet instead of a toast.
   buttons and the generic layout's upsell line.
 - Web Settings › Account shows "Plan: Pro" with "Manage your subscription in the iOS app.", or "Plan: Free" with
   **See what Pro adds**, which opens the dialog.
+
+---
+
+## S20 · Moving your library (upgrade and lapse)
+
+The app has two libraries (ADR 0002): a local one on Free and the server one on Pro. When the plan changes, the
+library moves (`CONTEXT.md`: Upgrade, Lapse), and nothing is deleted on either side.
+
+**When:**
+- **Upgrade**: the app is on a local library, someone is signed in, and the server says the account is Pro: after a
+  purchase is confirmed (S19), after signing in (S1), and each time the app becomes active.
+- **Lapse**: the app is on the server library and a refresh comes back `plan: free`. Every refresh checks, not only
+  the first one after signing in.
+
+**Upgrade layout** (full screen over the library, not a sheet, so it can follow the paywall closing):
+- `Orbs(.sheet)` on canvas.
+- Eyebrow "AnyLink Pro".
+- Title (`sheetHero`): "Moving your library to AnyLink Pro…"
+- A determinate progress bar, then "{done} of {total}" (footnote, ink .60). Before the count is known, an
+  indeterminate spinner.
+- Body (lead, ink .75): "Your links, collections, notes and highlights are joining your library on the web. This
+  iPhone keeps its own copy too."
+
+**Upgrade states:**
+- Moving: as above. The library behind it can't be touched.
+- Failed: the title becomes "Your library didn't finish moving" and the body "Check your connection and try again. It
+  carries on where it stopped." Then **Try again** (signal, h52) and **Later** (plain). Later goes back to the
+  local library; the move carries on the next time AnyLink opens.
+- Done: the screen fades into the server library, and the toast `toast.upgraded` "Your library is on AnyLink Pro"
+  shows if anything moved.
+
+**Interactions:**
+- The move goes up in batches and remembers what arrived, so a kill or a lost connection carries on where it
+  stopped. Sending something twice adds nothing: the server matches links by URL, and notes and images by the id they
+  had here.
+- The local library stays as it was, a backup. Settings (S18) then shows the server library: Pro, Sync with web On.
+
+**Lapse notice** (an alert, once per lapse):
+- Title: "Pro has ended"
+- Message: "Your library stays on this iPhone, and the web keeps its own copy. They stay separate until you go Pro
+  again."
+- **OK** (default) and **Get Pro again**, which opens the paywall (S19).
+- Before it shows, the server library is copied into the local one, adding what this iPhone doesn't have and merging
+  what it does (tags, highlights, notes). The account stays signed in, so web keeps working. Settings (S18) shows the
+  local library on Free with the account's email.
+
+**Done when:** buying Pro with a local library shows this screen and lands in the server library with everything in
+it; killing the app mid-move and opening it again finishes the move; a lapse keeps every link on the iPhone and shows
+the notice once.
 
 ---
 
@@ -647,3 +699,4 @@ install, and a Pro refusal anywhere opens this sheet instead of a toast.
 | settings.icloudOn | Your library syncs between your Apple devices through iCloud. AnyLink's server never stores it. |
 | settings.icloudOff | iCloud isn't available, so saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices. |
 | share.local | Title and picture fill in when you open AnyLink. (S9 status line for a local library.) |
+| toast.upgraded | Your library is on AnyLink Pro (S20, after the upgrade moved something.) |
