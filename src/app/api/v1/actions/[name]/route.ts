@@ -2,6 +2,9 @@ import * as actions from "@/lib/db/actions";
 import { iosJson } from "@/lib/ios-types";
 import { unauthorized } from "../../auth";
 
+/** `uploadLibrary` writes up to 200 links a call, and `enrichLink` may read the page again. */
+export const maxDuration = 60;
+
 /** Every server action the web app uses, over HTTP for the iOS app:
  * `POST /api/v1/actions/moveLinks` with the arguments as a JSON array, e.g. `[["id1"], "collectionId"]`.
  * One dispatcher instead of a route per action so the two clients can't drift apart. */
