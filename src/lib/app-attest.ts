@@ -141,6 +141,10 @@ export type Usage = { usageDay: string | null; crawlCount: number; checkCount: n
 /** Per key and UTC day. A check counts the links in it; a crawl or a grouping counts one call. */
 export const DAILY_CAPS: Record<UsageKind, number> = { crawl: 200, check: 5000, group: 10 };
 
+/** Groupings per UTC day across every key together. One device can register many keys, so the per-key caps alone
+ * don't bound the day's AI spend; this does. */
+export const DAILY_GROUPS_ALL_KEYS = 300;
+
 /** The key's usage after spending `amount` of `kind` on `today` (YYYY-MM-DD), or null when that would pass the day's
  * cap. A new day starts from zero. */
 export function spend(usage: Usage, kind: UsageKind, today: string, amount = 1): Usage | null {

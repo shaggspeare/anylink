@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "./client";
-import { appAttestKeys } from "./schema";
-import { checkAssertion, spend, type UsageKind } from "../app-attest";
+import { appAttestDaily, appAttestKeys } from "./schema";
+import { checkAssertion, DAILY_GROUPS_ALL_KEYS, spend, type UsageKind } from "../app-attest";
 
 /** Calls from an iOS install without an account (docs/adr/0002) carry `X-AnyLink-Key` and `X-AnyLink-Assertion`: an
  * App Attest assertion over the SHA-256 of the body, from a key registered at /api/attest/register. A refusal is a 403
@@ -10,6 +10,10 @@ import { checkAssertion, spend, type UsageKind } from "../app-attest";
 
 function refuse(reason: string): Response {
   return Response.json({ error: "This call couldn't be verified.", reason }, { status: 403 });
+}
+
+function dailyCap(error: string): Response {
+  return Response.json({ error, reason: "daily-cap" }, { status: 429 });
 }
 
 /** The simulator can't attest, so DEBUG builds send `X-AnyLink-Dev`. It counts only where APP_ATTEST_DEV_SECRET is set,
@@ -25,8 +29,9 @@ export function claimsAttestation(request: Request): boolean {
   return request.headers.has("x-anylink-assertion") || devBypass(request);
 }
 
-/** Checks the call's assertion over `body`, then spends `amount` from the key's daily `kind` cap. Returns null when the
- * call may go ahead, otherwise the 403 or 429 to answer with. Stores nothing but the key's counter and counts. */
+/** Checks the call's assertion over `body`, then spends `amount` from the key's daily `kind` cap; a grouping also takes
+ * one from the day's ceiling for all keys. Returns null when the call may go ahead, otherwise the 403 or 429 to answer
+ * with. Stores nothing but the counter and the counts. */
 export async function verifyAssertion(
   request: Request,
   body: string,
@@ -51,18 +56,32 @@ export async function verifyAssertion(
   // The counts are worked out from the row as read, so the write only lands if the row hasn't moved since: of calls
   // racing on one key, one wins and the rest read as replays (iOS signs again once). checkAssertion already saw
   // counter > signCount, so the counter still only goes up.
-  const usage = spend(key, kind, new Date().toISOString().slice(0, 10), amount);
+  const today = new Date().toISOString().slice(0, 10);
+  const usage = spend(key, kind, today, amount);
   const [moved] = await db
     .update(appAttestKeys)
     .set({ signCount: counter, lastUsedAt: new Date(), ...usage })
     .where(and(eq(appAttestKeys.keyId, keyId), eq(appAttestKeys.signCount, key.signCount)))
     .returning({ keyId: appAttestKeys.keyId });
   if (!moved) return refuse("replay");
-  if (!usage) {
-    return Response.json(
-      { error: "That's today's limit for this device. It resets at midnight UTC.", reason: "daily-cap" },
-      { status: 429 }
-    );
+  if (!usage) return dailyCap("That's today's limit for this device. It resets at midnight UTC.");
+  if (kind === "group" && !(await spendGroupingForAllKeys(today))) {
+    return dailyCap("Grouping is at today's limit. It resets at midnight UTC.");
   }
   return null;
+}
+
+/** Takes one of the day's groupings for all keys together. One statement, so racing calls can't both take the last
+ * one; false once they're gone. */
+async function spendGroupingForAllKeys(today: string): Promise<boolean> {
+  const [counted] = await db
+    .insert(appAttestDaily)
+    .values({ day: today, groups: 1 })
+    .onConflictDoUpdate({
+      target: appAttestDaily.day,
+      set: { groups: sql`${appAttestDaily.groups} + 1` },
+      setWhere: lt(appAttestDaily.groups, DAILY_GROUPS_ALL_KEYS),
+    })
+    .returning({ groups: appAttestDaily.groups });
+  return counted !== undefined;
 }
