@@ -33,6 +33,8 @@ struct AppEnvironment {
         self.local = local
         // A 401 (after the token can't be refreshed) signs out, back to the local library.
         store.onUnauthorized = { UserDefaults.standard.set(false, forKey: "signedIn") }
+        // A Pro refusal opens the paywall (S19) instead of a toast.
+        store.onProRequired = { [router] in router.sheet = .paywall }
         // The widgets read the App Group, so only an App Group library feeds them.
         if shared != nil {
             store.onSave = { [weak store] in

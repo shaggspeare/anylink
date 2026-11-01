@@ -1,8 +1,7 @@
 import { crawlUrl, type CrawlStep } from "@/lib/crawler";
-import { currentPlan, currentUser } from "@/lib/db/current-user";
+import { currentUser, fullCrawls } from "@/lib/db/current-user";
 import { claimsAttestation, verifyAssertion } from "@/lib/db/attest-keys";
 import { contentTypesFor } from "@/lib/ios-types";
-import { isPro } from "@/lib/plan";
 
 export const maxDuration = 60;
 
@@ -56,8 +55,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  // Signed-out visitors and free accounts get a free crawl: no model pass, no headless browser.
-  const pro = isPro(await currentPlan());
+  // Signed-out visitors, free accounts and lifetime past its fair use get a free crawl: no model pass, no headless browser.
+  const full = await fullCrawls();
   const encoder = new TextEncoder();
   const types = contentTypesFor(request);
 
@@ -68,7 +67,7 @@ export async function POST(request: Request) {
       try {
         const result = await crawlUrl(
           url,
-          { ai: pro, browser: pro },
+          { ai: full, browser: full },
           (step: CrawlStep) => send({ type: "step", step }),
           (preview) => send({ type: "preview", result: preview })
         );

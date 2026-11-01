@@ -186,7 +186,10 @@ struct ReaderView: View {
                 }
             }
         }
-        if let upsell { Notice(upsell) }
+        if let upsell {
+            Button { router.sheet = .paywall } label: { Notice(upsell) }
+                .buttonStyle(.plain)
+        }
     }
 
     /// The article template's byline, and the summary when the full text follows it.
@@ -239,7 +242,7 @@ struct ReaderView: View {
         }
     }
 
-    /// The generic layout's last line (S15). Phase 4: make it open the paywall.
+    /// The generic layout's last line (S15). Tapping it opens the paywall.
     private var upsell: String? {
         guard !store.isPro else { return nil }
         return switch link.contentType {

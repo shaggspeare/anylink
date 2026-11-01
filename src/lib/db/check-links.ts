@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "./client";
 import * as schema from "./schema";
+import { proAccounts } from "./plan";
 import { checkLinkStatus } from "../crawler/check-link";
 import { isDeadStatus } from "../link-health";
 
@@ -25,11 +26,7 @@ export async function linksNeedingCheck(limit: number, userId?: string) {
       and(
         userId
           ? eq(schema.links.userId, userId)
-          : // Same rule as isPro (src/lib/plan.ts).
-            inArray(
-              schema.links.userId,
-              db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.plan, "pro"))
-            ),
+          : inArray(schema.links.userId, db.select({ id: schema.users.id }).from(schema.users).where(proAccounts)),
         isNull(schema.links.deletedAt),
         eq(schema.links.status, "ready"),
         notInArray(schema.links.contentType, ["note", "image"])

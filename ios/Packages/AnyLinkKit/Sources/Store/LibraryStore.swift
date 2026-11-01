@@ -23,6 +23,8 @@ public final class LibraryStore {
     public private(set) var outbox: [OutboxItem] = []
     /// Set by the app: a 401 signs the user out.
     @ObservationIgnored public var onUnauthorized: (@MainActor () -> Void)?
+    /// Set by the app: a Pro refusal (`AppError.proRequired`) opens the paywall. Unset, it's a toast.
+    @ObservationIgnored public var onProRequired: (@MainActor () -> Void)?
     /// Set by the app: runs after each (debounced) library save, with or without a cache. Feeds the widgets.
     @ObservationIgnored public var onSave: (@MainActor () -> Void)?
     /// First retry delay for a failing outbox call; doubles each attempt, 5 attempts.
@@ -132,6 +134,12 @@ public final class LibraryStore {
             : "That didn't go through. Try again."
     }
 
+    /// Where a failed call reaches the user: a Pro refusal opens the paywall (`onProRequired`), anything else is a
+    /// toast. Report errors here, and a Pro refusal from any later call site opens the paywall too.
+    public func report(_ error: Error) {
+        if (error as? AppError) == .proRequired, let onProRequired { onProRequired() } else { toasts.show(Self.message(for: error)) }
+    }
+
     /// Awaits every in-flight API call. Tests and pull-to-refresh use it.
     public func settle() async {
         while !inflight.isEmpty {
@@ -172,7 +180,7 @@ public final class LibraryStore {
                 self.onUnauthorized?()
             } catch {
                 rollback()
-                self.toasts.show(Self.message(for: error))
+                self.report(error)
             }
         }
     }
@@ -225,12 +233,12 @@ public final class LibraryStore {
                 // Asking again won't change the answer. The next refresh shows what the server kept.
                 outbox.removeFirst()
                 persistOutbox()
-                toasts.show(Self.message(for: AppError.proRequired))
+                report(AppError.proRequired)
             } catch {
                 outbox[0].attempts += 1
                 if outbox[0].attempts >= 5 {
                     outbox.removeFirst()
-                    toasts.show(Self.message(for: error))
+                    report(error)
                 }
                 persistOutbox()
                 try? await Task.sleep(for: retryBase * (1 << min(item.attempts, 4)))
@@ -367,7 +375,7 @@ public final class LibraryStore {
         } catch {
             links[temp.id] = nil
             order.removeAll { $0 == temp.id }
-            toasts.show(Self.message(for: error))
+            report(error)
             return nil
         }
     }
@@ -531,7 +539,7 @@ public final class LibraryStore {
             collections.append(c)
             return c
         } catch {
-            toasts.show(Self.message(for: error))
+            report(error)
             return nil
         }
     }
@@ -543,7 +551,7 @@ public final class LibraryStore {
             toasts.show("Saved as a filter in Collections")
             return c
         } catch {
-            toasts.show(Self.message(for: error))
+            report(error)
             return nil
         }
     }
@@ -585,7 +593,7 @@ public final class LibraryStore {
                 self?.remapCollection(c.id, to: new.id)
                 if !ids.isEmpty { try await api.bulk(.move(to: new.id), ids: ids) }
             } catch {
-                self?.toasts.show(Self.message(for: error))
+                self?.report(error)
             }
         }
     }
@@ -612,13 +620,13 @@ public final class LibraryStore {
             if let i = collections.firstIndex(where: { $0.id == id }) { collections[i].shareToken = token }
             return true
         } catch {
-            toasts.show(Self.message(for: error))
+            report(error)
             return false
         }
     }
 
     public func setDisplayName(_ name: String) async {
-        do { displayName = try await api.setDisplayName(name) } catch { toasts.show(Self.message(for: error)) }
+        do { displayName = try await api.setDisplayName(name) } catch { report(error) }
     }
 
     /// A viewer's Save from a shared collection: `linkIds` land in the inbox; nil saves all of it as a new collection.
@@ -632,7 +640,7 @@ public final class LibraryStore {
             toasts.show(saved.collection.map { "Saved “\($0.name)” — \(saved.links.count.linkCount)" } ?? "Saved to \(name(of: inboxID))")
             return saved
         } catch {
-            toasts.show(Self.message(for: error))
+            report(error)
             return nil
         }
     }
@@ -644,7 +652,7 @@ public final class LibraryStore {
             reset()
             return true
         } catch {
-            toasts.show(Self.message(for: error))
+            report(error)
             return false
         }
     }
@@ -655,7 +663,7 @@ public final class LibraryStore {
             collections.removeAll { ids.contains($0.id) }
             toasts.show("Removed \(ids.count) empty collections")
         } catch {
-            toasts.show(Self.message(for: error))
+            report(error)
         }
     }
 }

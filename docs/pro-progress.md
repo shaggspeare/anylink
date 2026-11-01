@@ -28,6 +28,25 @@ only the user can do.
       sends them `article` instead. Once no older build is installed, delete `src/lib/ios-types.ts` and the
       `X-AnyLink-Types` header; its `ponytail:` comment marks them (Phase 6).
 
+- [ ] **App Store Connect** (Phase 4):
+  - the Paid Apps agreement, tax and banking
+  - the Small Business Program
+  - the app record for `com.shaggspeare.anylink`
+  - the subscription group "AnyLink Pro":
+    - `com.shaggspeare.anylink.pro.monthly` at $2.99
+    - `com.shaggspeare.anylink.pro.yearly` at $19.99, at the same level
+  - `com.shaggspeare.anylink.pro.lifetime` at $49.99, a non-consumable
+  - the V2 server notification URL `https://www.anylink.space/api/billing/apple/notifications`, for production and
+    sandbox
+  - a sandbox tester
+- [ ] Set `APPLE_APP_ID` in Vercel → Production: the numeric Apple ID from App Store Connect → App Information. Until
+      it's set, Production purchases and notifications are refused. Never set `APP_STORE_ALLOW_XCODE` on Vercel
+      (Phase 4).
+- [ ] Once the listing exists, set `APP_STORE_URL` in `src/components/pro-dialog.tsx`. Until then, the dialog says
+      the app is coming to the App Store (Phase 4).
+- [ ] Run `AnyLinkTests` → `ProStoreTests` from Xcode. Apple's simulator bug FB22237318 stops them under
+      `xcodebuild`, so they skip themselves there (Phase 4).
+
 ## Deploys and database changes
 
 | When (UTC) | What | Notes |
@@ -39,6 +58,7 @@ only the user can do.
 | 2026-10-31 night | Production deploy of Phases 2 and 7, plus the security fixes (`main` at `2fb7176`) | Smoke test passed. `/api/attest/challenge` answers 503 until `APP_ATTEST_SECRET` is set, and production ignores `X-AnyLink-Dev` |
 | 2026-10-31 night | Migration `20261105000000_templates.sql` applied | `content_type` gains `recipe`; `links.template_data` added |
 | 2026-10-31 night | Production deploy of Phase 6 (`main` at `7a15a5e`) | Smoke test passed. A live crawl of a recipe page answers `article` without `X-AnyLink-Types` and `recipe` with it, ingredients included |
+| 2026-11-01 early | Migration `20261104000000_plan_expiry.sql` applied | `users.plan_product` and `users.plan_expires_at` added. All 6 accounts are Pro with no expiry (lifetime) |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
@@ -241,3 +261,50 @@ screen.
 2. Check web as free: each type shows the generic layout and its upsell line.
 3. Run the same checks on a new iOS build, for Pro and for free.
 4. Point an older iOS build at the new server. The library should still load, with recipes shown as articles.
+
+## Phase 4 · App Store billing and paywall
+
+**Status:** built on server, web and iOS, and merged. Every check passes except the two baseline accessibility
+audits. StoreKit purchases couldn't be driven in the simulator because of Apple's bug FB22237318. Sandbox testing and
+App Store Connect are waiting on you.
+
+### Done
+- Plan expiry:
+  - `isPro(row, now)` checks the plan and its expiry, in code and in SQL (`proAccounts`).
+  - The crons, share links, the library and `currentPlan` all use it.
+  - Accounts with Pro and no expiry are lifetime, which includes the grandfathered ones.
+- `src/lib/billing/apple.ts` checks purchases with Apple's `SignedDataVerifier`, against the root certificates
+  committed in `src/lib/billing/apple-roots/`.
+  - `POST /api/v1/billing/apple` takes a purchase from the app and checks its `appAccountToken`.
+  - `POST /api/billing/apple/notifications` handles V2 notifications.
+- Lifetime fair use: after 1,000 saves in a calendar month, a lifetime account's crawls are free crawls.
+- Web: one Pro dialog. Every `{ ok: false, reason: "pro" }` opens it, and so does every Pro control (share, price
+  alert, export, the template upsells). Settings shows the plan.
+- iOS:
+  - `AnyLink.storekit`, with the three products.
+  - `ProStore` buys with `appAccountToken` and listens to `Transaction.updates` from launch. It posts each
+    transaction to the server, then finishes it. It also restores.
+  - The paywall signs the user in first when needed. Every Pro refusal opens it.
+  - Settings has AnyLink Pro, Sync with web and Manage Subscription.
+
+### Deviations
+- `ProStore` lives in the app target, with a new hosted test target `AnyLinkTests`, because StoreKitTest needs an app
+  host.
+- Stale events can't undo newer state:
+  - Grants never shorten an expiry.
+  - Ends apply only to the current product.
+  - A pre-refund transaction posted again counts as a replay.
+- `src/proxy.ts` skips `api/billing/`.
+
+### Check by hand
+1. Run `ProStoreTests` from Xcode. Expect 7 passes.
+2. Simulator purchase sheet:
+   - Clear `SUPABASE_URL` in `ios/Config.xcconfig`, run `xcodegen generate`, then ⌘R.
+   - Open Profile → AnyLink Pro and buy a product.
+   - Profile should show Pro.
+   - Restore the xcconfig afterwards.
+3. Sandbox, on a real iPhone, after the App Store Connect setup:
+   - Buy Monthly. Profile and web Settings should show Pro within seconds.
+   - Renewals, about every 5 minutes in the sandbox, move `plan_expires_at` forward.
+   - Cancel the subscription and let it expire. The plan should turn free.
+4. Web as a free account: share, price alert, export and the upsell lines each open the Pro dialog.

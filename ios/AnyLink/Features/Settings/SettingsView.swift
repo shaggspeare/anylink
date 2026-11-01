@@ -8,6 +8,7 @@ import Store
 import Auth
 import TipKit
 import AppIntents
+import StoreKit
 
 enum Appearance: String, CaseIterable, Identifiable {
     case system, light, dark
@@ -44,6 +45,7 @@ struct SettingsView: View {
     @AppStorage("signedIn") private var signedIn = false
     @AppStorage("plan") private var plan = ""
     @State private var displayName = ""
+    @State private var managingSubscription = false
     /// Whether iCloud can sync a local library; nil while it checks.
     @State private var iCloud: Bool?
     private let asksICloud: Bool
@@ -56,11 +58,22 @@ struct SettingsView: View {
     }
 
     private var mode: LibraryMode { LibraryMode(signedIn: signedIn, plan: plan) }
+    /// The plan of the library on screen. A local library has none, so it reads as Free.
+    private var pro: Bool { store.isPro }
 
     var body: some View {
         List {
             Section { account }
             if mode == .local { iCloudSync }
+            Section {
+                proRow("AnyLink Pro", value: pro ? "Pro" : "Free", systemImage: "sparkles")
+                proRow("Sync with web", value: pro ? "On" : "Pro", systemImage: "arrow.triangle.2.circlepath")
+                if pro {
+                    Button { managingSubscription = true } label: { row("Manage Subscription", systemImage: "creditcard") }
+                }
+            } header: {
+                header("AnyLink Pro")
+            }
             Section {
                 TipView(ShareSheetTip())
                 ShortcutsLink()
@@ -131,6 +144,7 @@ struct SettingsView: View {
             }
         }
         .tint(AL.ink)
+        .manageSubscriptionsSheet(isPresented: $managingSubscription)
         .onAppear { displayName = store.displayName ?? "" }
         .onDisappear(perform: saveDisplayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -232,6 +246,17 @@ struct SettingsView: View {
         Label(title, systemImage: systemImage).foregroundStyle(.primary).frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Shows where Pro stands; on Free it opens the paywall (S19).
+    @ViewBuilder
+    private func proRow(_ title: LocalizedStringKey, value: LocalizedStringKey, systemImage: String) -> some View {
+        let content = LabeledContent { Text(value) } label: { Label(title, systemImage: systemImage).foregroundStyle(.primary) }
+        if pro {
+            content
+        } else {
+            Button { router.sheet = .paywall } label: { content }
+        }
+    }
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let v = info?["CFBundleShortVersionString"] as? String ?? "–"
@@ -275,10 +300,12 @@ private struct AppearanceThumb: View {
     }
 }
 
-/// Settings as one library mode sees it, on defaults of its own so previews don't share sign-in state.
+/// Settings as one library mode sees it, on defaults of its own so previews don't share sign-in state. A local
+/// library has no plan, so it reads as Free.
 @MainActor
 private func settingsPreview(signedIn: Bool, plan: String, iCloud: Bool? = nil) -> some View {
-    let env = AppEnvironment.mock(latency: false)
+    let server = LibraryMode(signedIn: signedIn, plan: plan) == .server
+    let env = AppEnvironment.mock(latency: false, plan: server ? "pro" : "free")
     let defaults = UserDefaults(suiteName: "preview.settings.\(signedIn).\(plan)")!
     defaults.set(signedIn, forKey: "signedIn")
     defaults.set(plan, forKey: "plan")

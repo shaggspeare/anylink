@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   // automatic file tracing doesn't pick up — force them into the function output.
   outputFileTracingIncludes: {
     "/api/crawl": ["./node_modules/@sparticuz/chromium/bin/**"],
+    // Apple's root certificates, read at run time by src/lib/billing/apple.ts.
+    "/api/v1/billing/apple": ["./src/lib/billing/apple-roots/*.cer"],
+    "/api/billing/apple/notifications": ["./src/lib/billing/apple-roots/*.cer"],
   },
   // createImage takes the file as base64 in the action body (1 MB by default).
   experimental: {

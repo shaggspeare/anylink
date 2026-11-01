@@ -10,6 +10,7 @@ import Store
 /// A dialog, not a `Menu`: in a List, a Menu cuts its label to two lines at the largest text sizes.
 struct ExportSection: View {
     @Environment(LibraryStore.self) private var store
+    @Environment(Router.self) private var router
     @State private var choosing = false
     @State private var preparing = false
     @State private var file: ExportedFile?
@@ -46,7 +47,11 @@ struct ExportSection: View {
             Text("Your library").foregroundStyle(AL.ink.opacity(AL.Ink.a60))
         } footer: {
             if !store.isPro {
-                Text("Export is a Pro feature.").foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                // Opens the paywall, like a refused export (`LibraryStore.export` → `report`).
+                Button { router.sheet = .paywall } label: {
+                    Text("Export is a Pro feature.").foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -83,22 +88,22 @@ struct ExportedFile: FileDocument {
 
 #Preview("Export") {
     let env = AppEnvironment.mock(latency: false)
-    List { ExportSection() }.environment(env.store)
+    List { ExportSection() }.environment(env.store).environment(env.router)
 }
 
 #Preview("Export — Dark") {
     let env = AppEnvironment.mock(latency: false)
-    List { ExportSection() }.environment(env.store).preferredColorScheme(.dark)
+    List { ExportSection() }.environment(env.store).environment(env.router).preferredColorScheme(.dark)
 }
 
 #Preview("Export — Preparing") {
     let env = AppEnvironment.mock(latency: false)
-    List { ExportSection(preparing: true) }.environment(env.store)
+    List { ExportSection(preparing: true) }.environment(env.store).environment(env.router)
 }
 
 #Preview("Export — Free, Dark") {
     let env = AppEnvironment.mock(latency: false)
     let lib = Fixtures.library
     let _ = env.store.apply(LibrarySnapshot(links: lib.links, trashed: lib.trashed, collections: lib.collections, plan: "free"))
-    List { ExportSection() }.environment(env.store).preferredColorScheme(.dark)
+    List { ExportSection() }.environment(env.store).environment(env.router).preferredColorScheme(.dark)
 }

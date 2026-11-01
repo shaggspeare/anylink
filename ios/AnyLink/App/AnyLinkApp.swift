@@ -5,6 +5,8 @@ import Store
 @main
 struct AnyLinkApp: App {
     @State private var env: AppEnvironment
+    /// Made at launch so it hears every App Store transaction from the start.
+    @State private var pro: ProStore
 
     init() {
         AL.registerFonts()
@@ -20,6 +22,7 @@ struct AnyLinkApp: App {
             defaults.set(true, forKey: "onboarded")
         }
         _env = State(initialValue: .make(LibraryMode(signedIn: defaults.bool(forKey: "signedIn"), plan: defaults.string(forKey: "plan"))))
+        _pro = State(initialValue: .app())
         AppTips.configure()
     }
 
@@ -30,10 +33,11 @@ struct AnyLinkApp: App {
                 GalleryView()
             } else {
                 RootView(env: $env)
+                    .environment(pro)
                     .onAppear { if ProcessInfo.processInfo.arguments.contains("-onboarding") { env.router.showsOnboarding = true } }
             }
             #else
-            RootView(env: $env)
+            RootView(env: $env).environment(pro)
             #endif
         }
     }

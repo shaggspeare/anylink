@@ -34,7 +34,11 @@ targets:
     type: application
     platform: iOS
     sources:
-      - AnyLink
+      - path: AnyLink
+        excludes: [AnyLink.storekit]
+      # For the scheme's run action and the unit tests; it doesn't ship in the app.
+      - path: AnyLink/AnyLink.storekit
+        buildPhase: none
     dependencies:
       - package: AnyLinkKit
         products: [Models, QueryLanguage, Networking, Persistence, Store, DesignSystem, Fixtures]
@@ -161,6 +165,23 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.widgets
         TARGETED_DEVICE_FAMILY: "1,2"
 
+  # Unit tests that need the app around them: ProStore under a StoreKitTest session.
+  AnyLinkTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - AnyLinkTests
+      - path: AnyLink/AnyLink.storekit
+        buildPhase: resources
+    dependencies:
+      - target: AnyLink
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.tests
+        GENERATE_INFOPLIST_FILE: YES
+        # The testing frameworks as system frameworks, so StoreKitTest's own use of deprecated StoreKit isn't our warning.
+        SYSTEM_FRAMEWORK_SEARCH_PATHS: [$(inherited), $(SDKROOT)/Developer/Library/Frameworks]
+
   AnyLinkUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -182,7 +203,13 @@ schemes:
         AnyLinkWidgets: all
     run:
       config: Debug
+      # Local StoreKit testing: Pro's three products, bought without App Store Connect.
+      storeKitConfiguration: AnyLink/AnyLink.storekit
     test:
       config: Debug
+      # AnyLinkTests run inside the app: keep it on mock data, off the network.
+      commandLineArguments:
+        "-ui-testing": true
       targets:
+        - AnyLinkTests
         - AnyLinkUITests

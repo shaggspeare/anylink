@@ -33,6 +33,8 @@ public enum SheetRoute: Hashable, Identifiable, Sendable {
     case share(LinkCollection.ID)
     /// S1, from Settings in a local library.
     case signIn
+    /// Buying Pro (S19): Settings, and every Pro refusal (`LibraryStore.onProRequired`).
+    case paywall
     public var id: Self { self }
 }
 

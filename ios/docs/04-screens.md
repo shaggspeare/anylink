@@ -477,7 +477,7 @@ Notes and images keep their own screens on both plans.
   - video: "Pro plays the video right here."
   - recipe: "Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."
   - product: "Pro tracks this price for you and charts its history."
-- The line doesn't open anything yet. Phase 4 points it at the paywall.
+- Tapping the line opens the paywall (S19); on web, the Pro dialog.
 
 **States (previews, light and dark):** Article, Video, Recipe and Product, each for Pro and for Free; Summary only;
 Large type.
@@ -524,6 +524,10 @@ Free accounts see the generic layout (S15) instead.
 
 **Layout:**
 - An account card: avatar 52, "Your account", "Apple ID · {n} links · synced {relative}".
+- **AnyLink Pro** (every library; a local library has no plan, so it reads Free):
+  - "AnyLink Pro", with the plan on the right: "Pro" or "Free". On Free it opens the paywall (S19).
+  - "Sync with web", with "On" on the right for Pro. On Free it shows "Pro" and opens the paywall.
+  - "Manage Subscription" (Pro only) → `manageSubscriptionsSheet`.
 - **Capture**:
   - Share sheet (opens a tip explaining how to pin AnyLink)
   - Siri & Shortcuts — "“Save to AnyLink”" (`ShortcutsLink` / opens Shortcuts)
@@ -536,8 +540,8 @@ Free accounts see the generic layout (S15) instead.
   label to two lines at the largest text sizes. Picking one downloads the file (`GET /api/v1/export`).
   - States: ready; preparing (the row reads "Preparing your file…" with a spinner and can't be tapped); free.
   - When the file is ready, the Files save sheet opens with `anylink-{date}.{ext}`.
-  - Pro only. On a free account the footer reads "Export is a Pro feature.", and picking a format shows
-    `error.proRequired`.
+  - Pro only. On a free account the footer reads "Export is a Pro feature."; tapping it, or picking a format, opens
+    the paywall (S19). On web the buttons and the footer open the Pro dialog.
   - Offline shows `error.exportOffline`; anything else, `error.generic`.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
   deleted from every device. This can't be undone." Required by the App Store.
@@ -547,7 +551,7 @@ Free accounts see the generic layout (S15) instead.
 - The account card reads "Your library" (or the email when signed in) and "{n} links".
   - Signed out, the card ends with **Sign in** (footnote semibold), and the whole card is the button that opens S1
     as a sheet.
-- An **iCloud sync** row (`icloud`) shows "On" or "Off" on the right, and nothing while it checks
+- An **iCloud sync** row (`icloud`), under the account card, shows "On" or "Off" on the right, and nothing while it checks
   (`CKContainer.accountStatus()`, asked each time Settings appears). Its footer:
   - On: `settings.icloudOn` "Your library syncs between your Apple devices through iCloud. AnyLink's server never
     stores it."
@@ -556,6 +560,61 @@ Free accounts see the generic layout (S15) instead.
 - Hidden: Your library (Export), Name on shared collections and Delete account. Sign out shows only when signed in.
 
 **States:** server library · local, signed out · local, signed in on Free · iCloud on · iCloud off · iCloud checking.
+
+## S19 · Paywall (`SheetRoute.paywall`)
+
+Pro is sold only here (`docs/adr/0002`). It opens from any Pro refusal (`AppError.proRequired`: turning on sharing,
+setting a price alert or exporting on Free), from the generic layout's upsell line (S15), and from Settings › AnyLink
+Pro and Sync with web.
+
+**Layout** (a large sheet, Close in the toolbar):
+- Eyebrow "AnyLink Pro", then the title "Your library on iPhone and the web".
+- Benefits, one row each with a symbol:
+  - "One library on your iPhone and the web"
+  - "AI summaries and tags on every save"
+  - "A second read in a full browser when a page won't load"
+  - "Layouts for products, articles, videos and recipes"
+  - "Price history and price alerts"
+  - "Link health checks"
+  - "Share links to your collections"
+  - "Export as HTML, JSON or CSV"
+- Three plan rows, a radio group with yearly preselected, each showing the product's `displayPrice`:
+  - **Yearly** · "{price} a year"
+  - **Monthly** · "{price} a month"
+  - **Lifetime** · "{price} once"
+- **Continue** (signal, h52), then **Restore purchases** (plain).
+- Fine print (footnote, ink .55): "Subscriptions renew automatically until you cancel in Settings › Apple Account ›
+  Subscriptions. Lifetime is paid once and includes about 1,000 AI saves a month."
+- Links: "Terms of Use" (Apple's standard EULA, https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) ·
+  "Privacy Policy" (https://www.anylink.space/privacy-policy).
+
+**States:**
+- Loading: the plan rows show a progress view and Continue is disabled.
+- Prices unavailable: "Couldn't load prices. Check your connection and try again." with **Try again**.
+- Ready: yearly selected.
+- Signed out: Continue opens a sign-in sheet first: "Sign in to buy Pro" / "Pro belongs to your AnyLink account, so
+  it works on the web too." and the Welcome sign-in buttons. Once signed in, the purchase goes on. An account that's
+  already Pro switches to its server library (S1), which closes the sheet.
+- Buying: Continue shows progress and the sheet can't be swiped away.
+- Confirming: "Confirming your purchase…" while the server records it.
+- Pending: "Waiting for approval. Pro turns on as soon as the purchase is approved."
+- Done: the sheet closes and the toast "You're on Pro" shows.
+- Failed: "The purchase didn't go through. Try again."
+- Not confirmed: "Your purchase went through, but AnyLink couldn't confirm it yet. It tries again each time you open
+  the app, or tap Restore purchases."
+- Restoring: Restore shows progress. Nothing found: "No AnyLink Pro purchase on this Apple Account."
+
+**Done when:** each StoreKit-configuration product turns the account Pro within seconds, Restore works on a fresh
+install, and a Pro refusal anywhere opens this sheet instead of a toast.
+
+**Web counterpart (the Pro dialog, `src/components/pro-dialog.tsx`):** web can't sell Pro, so it reuses this copy:
+- Title "AnyLink Pro", then "Pro is sold in the AnyLink iOS app." and the benefits above.
+- "Get AnyLink on the App Store", linking to the App Store page. Until that page exists: "AnyLink for iPhone is
+  coming to the App Store."
+- It opens from every `{ ok: false, reason: "pro" }`, and on Free from the share switch, the price alert, the export
+  buttons and the generic layout's upsell line.
+- Web Settings › Account shows "Plan: Pro" with "Manage your subscription in the iOS app.", or "Plan: Free" with
+  **See what Pro adds**, which opens the dialog.
 
 ---
 
@@ -579,7 +638,8 @@ Free accounts see the generic layout (S15) instead.
 | error.offline | You're offline. Changes are saved and will sync when you're back. |
 | error.exportOffline | You're offline. Export needs a connection. |
 | error.generic | That didn't go through. Try again. |
-| error.proRequired | That's a Pro feature. (A free account turned on sharing or set a price alert. The change is undone; the paywall replaces this toast later.) |
+| error.proRequired | That's a Pro feature. (Fallback only: a Pro refusal undoes the change and opens the paywall, S19.) |
+| toast.pro | You're on Pro |
 | share.paused | Paused while you're on Free: viewers get “not found”. Go Pro and this same link works again. Turning sharing off breaks it for good. (Share sheet footer when a free owner's collection still has its link.) |
 | error.invalidURL | That doesn't look like a link — it should start with https:// |
 | toast.signedInFree | Signed in. On Free, your iPhone and web libraries stay separate. (S1, after a free account signs in.) |

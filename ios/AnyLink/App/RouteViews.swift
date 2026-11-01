@@ -107,6 +107,8 @@ struct SheetHost: View {
             CollectionNameSheet(renaming: store.collection(id))
         case .share(let id):
             ShareCollectionSheet(id: id)
+        case .paywall:
+            PaywallView()
         default:
             standard
         }
@@ -171,7 +173,7 @@ struct SheetHost: View {
             }
             .navigationTitle("Tag \(ids.count.linkCount)")
             .navigationBarTitleDisplayMode(.inline)
-        case .newCollection, .rename, .signIn, .share:
+        case .newCollection, .rename, .signIn, .share, .paywall:
             EmptyView()
         }
     }
