@@ -52,6 +52,10 @@ only the user can do.
 - [ ] Two-device iCloud sync check, and the real-iPhone pass for the local library. Both are listed under Phase 3
       below (Phase 3).
 
+- [ ] Ship a new iOS build only now that the server is deployed. Phase 5's app calls `uploadLibrary` and `enrichLink`.
+      Then do one sandbox run on a real iPhone: buy, check web, let it expire, check iOS. `docs/pro-qa.md` §3, §6 and
+      §9 have the steps (Phase 5).
+
 ## Deploys and database changes
 
 | When (UTC) | What | Notes |
@@ -66,6 +70,8 @@ only the user can do.
 | 2026-11-01 early | Migration `20261104000000_plan_expiry.sql` applied | `users.plan_product` and `users.plan_expires_at` added. All 6 accounts are Pro with no expiry (lifetime) |
 | 2026-11-01 early | Migration `20261104010000_plan_transactions.sql` applied | `users.plan_transaction` and `users.plan_revoked` added |
 | 2026-11-01 early | Production deploy of Phases 3, 4 (with its security fixes) and 9 (`main` at `5643460`) | Smoke test passed. Signed-out billing gets 403 `signed-out` and forged notifications get 403 `invalid`. The pricing section is hidden while `APP_STORE_URL` is null, and the new privacy policy is live |
+| 2026-11-01 early | Migration `20261106000000_upload_library.sql` applied | `links.client_id` (unique per user when set) and `links.ai_pending` added. 84 links, none pending |
+| 2026-11-01 early | Production deploy of Phase 5 (`main` at `51ff676`) | Smoke test passed. Signed-out `uploadLibrary` and `enrichLink` get 401 |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
@@ -409,3 +415,45 @@ audits (209 package tests, zero warnings). Two-device iCloud sync and the real-i
   the end: support URL, iPad for 1.0, age rating, and the promo video size.
 - Create the two demo accounts for App Review.
 - Run `docs/pro-qa.md` on TestFlight. Work through its hardening checklist right before you submit.
+
+## Phase 5 · Upgrade and lapse
+
+**Status:** built on server, web and iOS, deployed, and every check passes apart from the two baseline accessibility
+audits (215 package tests, 92 web tests). The upgrade and the lapse were driven in the simulator with mock data. The
+sandbox run on a real iPhone is waiting on you.
+
+### Done
+- `uploadLibrary`, Pro only. It takes 200 links a call, and the rules live in `src/lib/library-merge.ts`, with tests.
+  - Collections match by name, smart collections by name and query, and the inbox to the inbox.
+  - Links match by `client_id`, then by id, then by a URL with the scheme, `www.`, tracking parameters and trailing
+    slashes ignored.
+  - A match keeps the server copy and adds the phone's tags, highlights and note. It keeps the earlier save date.
+  - Sending the same batch twice creates nothing.
+- `ai_pending` marks links saved without AI: free crawls and uploads. `enrichLink`, Pro only, adds the summary and
+  tags the first time a Pro user opens such a link, on web and iOS. There's no bulk backfill.
+- iOS upgrade (screen S20):
+  - It runs after a confirmed purchase, after sign-in, and whenever the app returns to the foreground on a local
+    library with a Pro account.
+  - It uploads in batches with a progress bar and resumes after a kill or a failure.
+  - Then it switches to the server library. The local store is never written.
+- iOS lapse:
+  - It runs when a refresh of the server library says `free`.
+  - It copies the server library into the local store as a union, deleting nothing.
+  - It switches to the local library, stays signed in, and shows "Pro has ended" once.
+- Resubscribing runs the same upgrade. Only what was added during the lapse is created.
+- Decision D29: on a lapse, the server copy wins the fields that aren't merged.
+
+### Deviations
+- An image travels as base64, one image per call. Images above about 2.25 MB are re-encoded at 1600 px. A link whose
+  JSON is over 3 MB goes up without its article text.
+- Checking the plan on every return to a signed-in local library downloads the whole web library. There's a
+  `ponytail:` note on this.
+- New launch arguments: `-free` means a signed-in free account, and `-pro-ends` simulates a lapse.
+
+### Check by hand
+Follow `docs/pro-qa.md` §3, §6 and §9:
+1. Upgrade: buy in the sandbox. Web shows everything, with no duplicates. Killing the app mid-move still finishes the
+   move.
+2. Expiry: "Pro has ended" shows once, and nothing is lost.
+3. Resubscribe: the link saved during the lapse uploads once.
+4. As Pro, open an uploaded link. A summary and tags appear, and `ai_pending` turns false.
