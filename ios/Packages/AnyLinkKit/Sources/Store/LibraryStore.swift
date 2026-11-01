@@ -23,10 +23,6 @@ public final class LibraryStore {
     public private(set) var outbox: [OutboxItem] = []
     /// Set by the app: a 401 signs the user out.
     @ObservationIgnored public var onUnauthorized: (@MainActor () -> Void)?
-    /// Set by the app for a guest: true once they've used their free saves. Every save checks it.
-    @ObservationIgnored public var saveLimitReached: (@MainActor () -> Bool)?
-    /// What a save does instead when the limit is reached (the app asks them to sign up).
-    @ObservationIgnored public var onSaveLimit: (@MainActor () -> Void)?
     /// Set by the app: runs after each (debounced) library save, with or without a cache. Feeds the widgets.
     @ObservationIgnored public var onSave: (@MainActor () -> Void)?
     /// First retry delay for a failing outbox call; doubles each attempt, 5 attempts.
@@ -298,7 +294,9 @@ public final class LibraryStore {
     }
 
     /// Full fetch, then merge: the server wins, except while local changes are still queued — then local stays.
+    /// Calls already under way land first, so the fetch can't undo a change that's on screen.
     public func refresh() async {
+        await settle()
         if !outbox.isEmpty {
             drainOutbox()
             await settle()
@@ -349,10 +347,6 @@ public final class LibraryStore {
 
     /// Shows `temp` at once, swaps in the server's copy, or takes it back out and says why.
     private func insert(_ temp: LinkItem, suffix: String = "", create: @escaping @MainActor () async throws -> LinkItem) async -> LinkItem? {
-        if saveLimitReached?() == true {
-            onSaveLimit?()
-            return nil
-        }
         links[temp.id] = temp
         order.insert(temp.id, at: 0)
         let attempt = Task { @MainActor in try await create() }
@@ -366,7 +360,8 @@ public final class LibraryStore {
                 saved.archived = edited.archived; saved.deleted = edited.deleted; saved.highlights = edited.highlights
             }
             links[saved.id] = saved
-            if let i = order.firstIndex(of: temp.id) { order[i] = saved.id }
+            // A refresh while it saved rebuilt the order without the temporary card, and maybe with the saved one.
+            if let i = order.firstIndex(of: temp.id) { order[i] = saved.id } else if !order.contains(saved.id) { order.insert(saved.id, at: 0) }
             undo.register("Saved to \(name(of: saved.collectionId))" + suffix) { [weak self] in self?.trash([saved.id], announce: false) }
             return saved
         } catch {
@@ -605,11 +600,8 @@ public final class LibraryStore {
 
     // MARK: - Sharing
 
-    /// Reads share links. Nil uses `api`; a guest's offline store gets the live backend, since the endpoint is public.
-    @ObservationIgnored public var sharedAPI: (any AnyLinkAPI)?
-
     public func sharedCollection(token: String) async throws -> SharedCollection {
-        try await (sharedAPI ?? api).sharedCollection(token: token)
+        try await api.sharedCollection(token: token)
     }
 
     /// Online only: the server makes the token. Sharing off kills the old link for good. False if it didn't go through.
