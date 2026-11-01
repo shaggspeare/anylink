@@ -44,9 +44,10 @@ function claimedEnvironment(jws: string): string | undefined {
 /** A verifier for the environment `jws` claims, checked against Apple's root certificates (apple-roots/), or null
  * when that environment isn't accepted here:
  * - Production needs `APPLE_APP_ID`, the app's numeric id in App Store Connect.
- * - Sandbox always works: App Review and TestFlight buy there.
- * - Xcode and LocalTesting data is signed by Xcode, not Apple, and nothing checks it, so it's accepted only with
- *   `APP_STORE_ALLOW_XCODE=1`. Production must never set it.
+ * - Sandbox always works: App Review and TestFlight buy there. `facts` labels those purchases and limits them.
+ * - Xcode and LocalTesting data is signed by Xcode, not Apple, and nothing checks it, so it's accepted only by a
+ *   development server (`next dev`) with `APP_STORE_ALLOW_XCODE=1`, never by a production build, previews included:
+ *   they share the database.
  * The claim can't pick a weaker verifier: each one checks the environment again after verifying. */
 export function appleVerifier(jws: string): Verifier | null {
   const environment = claimedEnvironment(jws);
@@ -56,7 +57,8 @@ export function appleVerifier(jws: string): Verifier | null {
     environment === Environment.SANDBOX ||
     (environment === Environment.PRODUCTION && appId !== undefined) ||
     ((environment === Environment.XCODE || environment === Environment.LOCAL_TESTING) &&
-      process.env.APP_STORE_ALLOW_XCODE === "1");
+      process.env.APP_STORE_ALLOW_XCODE === "1" &&
+      process.env.NODE_ENV !== "production");
   if (!accepted || !environment) return null;
   let verifier = verifiers.get(environment);
   if (!verifier) {
@@ -68,32 +70,67 @@ export function appleVerifier(jws: string): Verifier | null {
   return verifier;
 }
 
-type Facts = { product: string; until: Date | null; purchasedAt: Date; revokedAt: Date | null };
+/** How long a lifetime bought outside production (App Review, TestFlight, development) lasts, from its purchase. */
+const TEST_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** The parts of a transaction the plan needs. Null for a product that isn't Pro, or a subscription without an expiry. */
+type Facts = {
+  product: string;
+  purchase: string;
+  refundKey: string;
+  until: Date | null;
+  purchasedAt: Date;
+  revokedAt: Date | null;
+  signedAt: number;
+};
+
+/** The parts of a transaction the plan needs. Null for a product that isn't Pro, a subscription without an expiry, or
+ * a transaction without ids. Outside production the product is labelled ("sandbox:…", "xcode:…"), so it never matches
+ * a real purchase and those grants can be found, and a lifetime lasts a week from its purchase, however often it's
+ * posted again. */
 function facts(tx: JWSTransactionDecodedPayload): Facts | null {
-  const product = tx.productId ?? "";
-  const lifetime = product === PRODUCTS.lifetime;
-  if (!lifetime && product !== PRODUCTS.monthly && product !== PRODUCTS.yearly) return null;
-  if (!lifetime && !tx.expiresDate) return null;
+  const id = tx.productId ?? "";
+  const lifetime = id === PRODUCTS.lifetime;
+  if (!lifetime && id !== PRODUCTS.monthly && id !== PRODUCTS.yearly) return null;
+  if ((!lifetime && !tx.expiresDate) || !tx.transactionId || !tx.originalTransactionId) return null;
+  const live = tx.environment === Environment.PRODUCTION;
+  const purchasedAt = new Date(tx.purchaseDate ?? 0);
   return {
-    product,
-    until: lifetime ? null : new Date(tx.expiresDate!),
-    purchasedAt: new Date(tx.purchaseDate ?? 0),
+    product: live ? id : `${String(tx.environment).toLowerCase()}:${id}`,
+    purchase: tx.originalTransactionId,
+    refundKey: lifetime ? tx.originalTransactionId : tx.transactionId,
+    until: !lifetime ? new Date(tx.expiresDate!) : live ? null : new Date(purchasedAt.getTime() + TEST_LIFETIME_MS),
+    purchasedAt,
     revokedAt: tx.revocationDate ? new Date(tx.revocationDate) : null,
+    signedAt: tx.signedDate ?? 0,
   };
 }
 
-const grant = (f: Facts, until: Date | null): PlanEvent => ({ kind: "grant", product: f.product, until, purchasedAt: f.purchasedAt });
-const end = (f: Facts, at: Date, covered = f.until): PlanEvent => ({ kind: "end", product: f.product, covered, at });
+type From = PlanEvent["from"];
+const about = (f: Facts, from: From, signedAt: number) => ({ from, purchase: f.purchase, refundKey: f.refundKey, product: f.product, signedAt });
+const grant = (f: Facts, from: From, until: Date | null, signedAt = f.signedAt, reversal = false): PlanEvent => ({
+  ...about(f, from, signedAt),
+  kind: "grant",
+  until,
+  purchasedAt: f.purchasedAt,
+  ...(reversal ? { reversal } : {}),
+});
+const end = (f: Facts, from: From, at: Date, covered: Date | null, signedAt = f.signedAt, refund = false): PlanEvent => ({
+  ...about(f, from, signedAt),
+  kind: "end",
+  covered,
+  at,
+  ...(refund ? { refund } : {}),
+});
 
 /** A verified transaction on its own: a refunded or revoked one ends Pro, any other grants it. */
-export function transactionEvent(tx: JWSTransactionDecodedPayload): PlanEvent | null {
+export function transactionEvent(tx: JWSTransactionDecodedPayload, from: From = "app"): PlanEvent | null {
   const f = facts(tx);
-  return f && (f.revokedAt ? end(f, f.revokedAt) : grant(f, f.until));
+  if (!f) return null;
+  return f.revokedAt ? end(f, from, f.revokedAt, f.until, f.signedAt, true) : grant(f, from, f.until);
 }
 
-export type PurchaseRefusal = "environment" | "invalid" | "account" | "product";
+/** `retry`: Apple's revocation check couldn't be reached. */
+export type PurchaseRefusal = "environment" | "invalid" | "retry" | "account" | "product";
 
 /** A transaction the app sent for `userId`: after a purchase, for a renewal it saw, or on Restore. It must carry their
  * id as its `appAccountToken`, which ties a purchase to one account, so nobody can claim someone else's. */
@@ -107,8 +144,9 @@ export async function purchaseEvent(
   let tx: JWSTransactionDecodedPayload;
   try {
     tx = await verifier.verifyAndDecodeTransaction(jws);
-  } catch {
-    return "invalid";
+  } catch (error) {
+    const retry = error instanceof VerificationException && error.status === VerificationStatus.RETRYABLE_VERIFICATION_FAILURE;
+    return retry ? "retry" : "invalid";
   }
   if (tx.appAccountToken?.toLowerCase() !== userId.toLowerCase()) return "account";
   return transactionEvent(tx) ?? "product";
@@ -116,7 +154,8 @@ export async function purchaseEvent(
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** What a verified notification does, and to whose account: its transaction's `appAccountToken`. Null for the types
+/** What a verified notification does, and to which account: its transaction's `appAccountToken`. Any client can set
+ * that token, so the events only touch the purchase the account is already on (`planAfter`). Null for the types
  * nothing acts on, and for purchases made without a token. */
 export async function notificationEvent(
   n: ResponseBodyV2DecodedPayload,
@@ -128,6 +167,7 @@ export async function notificationEvent(
   const f = facts(tx);
   const userId = tx.appAccountToken?.toLowerCase();
   if (!f || !userId || !UUID.test(userId)) return null;
+  const signedAt = n.signedDate ?? f.signedAt;
   const graceEnd = async () => {
     const signed = n.data?.signedRenewalInfo;
     const renewal = signed ? await verifier.verifyAndDecodeRenewalInfo(signed) : undefined;
@@ -141,29 +181,28 @@ export async function notificationEvent(
     case NotificationTypeV2.DID_CHANGE_RENEWAL_STATUS:
     // An upgrade starts the new product at once, even when it's made outside the app.
     case NotificationTypeV2.DID_CHANGE_RENEWAL_PREF:
-      event = transactionEvent(tx);
+      event = transactionEvent(tx, "apple");
       break;
     case NotificationTypeV2.REFUND_REVERSED:
-      // Granted as of now: the purchase predates the refund that ended it, which planAfter would read as a replay.
-      event = grant({ ...f, purchasedAt: now }, f.until);
+      event = grant(f, "apple", f.until, signedAt, true);
       break;
     case NotificationTypeV2.DID_FAIL_TO_RENEW: {
       // Pro until the billing grace period ends; without one, the expiry already on the account stands.
       const grace = await graceEnd();
-      event = grace && grant(f, grace);
+      event = grace && grant(f, "apple", grace);
       break;
     }
     case NotificationTypeV2.EXPIRED:
-      event = end(f, f.until ?? now);
+      event = end(f, "apple", f.until ?? now, f.until);
       break;
     case NotificationTypeV2.GRACE_PERIOD_EXPIRED: {
       const covered = (await graceEnd()) ?? f.until;
-      event = end(f, covered ?? now, covered);
+      event = end(f, "apple", covered ?? now, covered);
       break;
     }
     case NotificationTypeV2.REFUND:
     case NotificationTypeV2.REVOKE:
-      event = end(f, f.revokedAt ?? now);
+      event = end(f, "apple", f.revokedAt ?? now, f.until, signedAt, true);
       break;
   }
   return event && { userId, event };

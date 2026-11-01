@@ -11,7 +11,13 @@ export const proAccounts = and(eq(users.plan, "pro"), or(isNull(users.planExpire
 export async function applyPlanEvent(userId: string, event: PlanEvent): Promise<void> {
   await db.transaction(async (tx) => {
     const [row] = await tx
-      .select({ plan: users.plan, planProduct: users.planProduct, planExpiresAt: users.planExpiresAt })
+      .select({
+        plan: users.plan,
+        planProduct: users.planProduct,
+        planExpiresAt: users.planExpiresAt,
+        planTransaction: users.planTransaction,
+        planRevoked: users.planRevoked,
+      })
       .from(users)
       .where(eq(users.id, userId))
       .for("update");

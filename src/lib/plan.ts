@@ -24,34 +24,82 @@ export function fullCrawl(row: PlanRow | null | undefined, linksThisMonth: numbe
 }
 
 /** What a verified purchase or App Store notification means for an account (src/lib/billing/apple.ts). */
-export type PlanEvent =
-  /** Pro from `product` until `until` (null: lifetime), bought at `purchasedAt`. */
-  | { kind: "grant"; product: string; until: Date | null; purchasedAt: Date }
-  /** Pro from `product` ended at `at`. The transaction behind it covered Pro until `covered` (null: lifetime). */
-  | { kind: "end"; product: string; covered: Date | null; at: Date };
+export type PlanEvent = {
+  /** "app": the signed-in app posted it, so it may move the account onto this purchase. "apple": a notification,
+   * routed by an `appAccountToken` any client can choose, so it only touches the purchase the account is on. */
+  from: "app" | "apple";
+  /** StoreKit's `originalTransactionId`: one per purchase, kept across renewals and upgrades within the group. */
+  purchase: string;
+  /** What a refund is recorded under: the purchase for lifetime (every copy of it), the transaction for a subscription
+   * (resubscribing later is the same purchase, but new money). */
+  refundKey: string;
+  /** The App Store product, prefixed "sandbox:" (or "xcode:") outside production. */
+  product: string;
+  /** When Apple signed it, in ms: a refund and its reversal can arrive in either order, and the later one wins. */
+  signedAt: number;
+} & (
+  /** Pro until `until` (null: lifetime), bought at `purchasedAt`. `reversal`: Apple took back the refund of it. */
+  | { kind: "grant"; until: Date | null; purchasedAt: Date; reversal?: boolean }
+  /** Pro from it ended at `at`; `refund` when refunded or revoked. It covered Pro until `covered` (null: lifetime). */
+  | { kind: "end"; covered: Date | null; at: Date; refund?: boolean }
+);
 
 /** The plan columns a purchase writes. */
-export type StoredPlan = { plan: string; planProduct: string | null; planExpiresAt: Date | null };
+export type StoredPlan = {
+  plan: string;
+  planProduct: string | null;
+  planExpiresAt: Date | null;
+  /** The purchase Pro came from. Null for grandfathered accounts, which no App Store event can touch. */
+  planTransaction: string | null;
+  /** Apple's last word on each refunded purchase: "<refundKey>:refunded:<ms>" or "<refundKey>:reversed:<ms>". */
+  planRevoked: string[];
+};
+
+const REFUND_NEWS = /^(.*):(refunded|reversed):(\d+)$/;
+
+/** Apple's last word on `key` in a refund log. */
+function refundNews(log: string[], key: string) {
+  for (const entry of log) {
+    const m = REFUND_NEWS.exec(entry);
+    if (m?.[1] === key) return { refunded: m[2] === "refunded", at: Number(m[3]) };
+  }
+}
 
 /** The plan after `event`, or null to leave it alone. Apple resends and reorders notifications, and the app reposts
- * old transactions, so a stale event must never undo a newer one. */
+ * old transactions, so a stale event must never undo a newer one, and a refunded purchase must never grant again. */
 export function planAfter(row: StoredPlan, event: PlanEvent): StoredPlan | null {
-  const pro = row.plan === "pro";
-  const { product } = event;
-  if (event.kind === "grant") {
-    // Lifetime and grandfathered accounts already have everything; a subscription on top changes nothing.
-    if (pro && !row.planExpiresAt) return null;
-    // Never shortens Pro: an older renewal arriving after a newer one.
-    if (pro && event.until && row.planExpiresAt && row.planExpiresAt >= event.until) return null;
-    // Bought before Pro from this product ended: a transaction from before a refund, sent again.
-    if (!pro && row.planProduct === product && row.planExpiresAt && event.purchasedAt <= row.planExpiresAt) return null;
-    return { plan: "pro", planProduct: product, planExpiresAt: event.until };
+  // Refunds and reversals go on the log first, whatever they do to Pro: a purchase refunded before it was ever posted
+  // can't grant later either.
+  let log = row.planRevoked;
+  const refund = event.kind === "end" && event.refund;
+  if (refund || (event.kind === "grant" && event.reversal)) {
+    const last = refundNews(log, event.refundKey);
+    if (last && last.at > event.signedAt) return null;
+    log = [
+      ...log.filter((entry) => REFUND_NEWS.exec(entry)?.[1] !== event.refundKey),
+      `${event.refundKey}:${refund ? "refunded" : "reversed"}:${event.signedAt}`,
+    ];
   }
-  // Pro comes from something else: another product, or a grandfathered account.
-  if (row.planProduct !== product) return null;
-  // A newer transaction for this product already took Pro past what this one covered.
-  if (event.covered && row.planExpiresAt && row.planExpiresAt > event.covered) return null;
-  return { plan: "free", planProduct: product, planExpiresAt: event.at };
+  const unchanged = log === row.planRevoked ? null : { ...row, planRevoked: log };
+  const pro = row.plan === "pro";
+  const current = row.planTransaction === event.purchase;
+  if (event.from === "apple" && !current) return unchanged;
+
+  if (event.kind === "grant") {
+    if (refundNews(log, event.refundKey)?.refunded) return unchanged;
+    // Lifetime and grandfathered accounts already have everything.
+    if (pro && !row.planExpiresAt) return unchanged;
+    // Never shortens Pro: an older renewal arriving after a newer one.
+    if (pro && event.until && row.planExpiresAt && row.planExpiresAt >= event.until) return unchanged;
+    // Bought before Pro from this purchase ended: an old transaction of it, sent again.
+    if (!pro && current && !event.reversal && row.planExpiresAt && event.purchasedAt <= row.planExpiresAt) return unchanged;
+    return { ...row, planRevoked: log, plan: "pro", planProduct: event.product, planExpiresAt: event.until, planTransaction: event.purchase };
+  }
+  // Pro comes from another purchase, or the account is grandfathered.
+  if (!current) return unchanged;
+  // A newer transaction of this purchase already took Pro past what this one covered.
+  if (event.covered && row.planExpiresAt && row.planExpiresAt > event.covered) return unchanged;
+  return { ...row, planRevoked: log, plan: "free", planExpiresAt: event.at };
 }
 
 /** What a gated action returns to a free account, the way `setPinned` reports the pin limit. Never thrown:
