@@ -182,12 +182,17 @@ final class AnyLinkUITests: XCTestCase {
 
         let free = launch(["-free"])
         free.buttons["tile-ramen"].tap()
-        XCTAssertTrue(free.staticTexts["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."].waitForExistence(timeout: 3))
+        // The upsell line is a button that opens the paywall (S19).
+        let upsell = free.buttons["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."]
+        XCTAssertTrue(upsell.waitForExistence(timeout: 3))
         XCTAssertFalse(free.staticTexts["Ingredients"].exists)
+        upsell.tap()
+        XCTAssertTrue(free.staticTexts["Your library on iPhone and the web"].waitForExistence(timeout: 3))
+        free.buttons["Close"].tap()
         free.navigationBars.buttons.firstMatch.tap()
         free.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Products")).firstMatch.tap()
         free.buttons["tile-iph"].tap()
-        XCTAssertTrue(free.staticTexts["Pro tracks this price for you and charts its history."].waitForExistence(timeout: 3))
+        XCTAssertTrue(free.buttons["Pro tracks this price for you and charts its history."].waitForExistence(timeout: 3))
         XCTAssertFalse(free.staticTexts["Tell me under"].exists)
     }
 

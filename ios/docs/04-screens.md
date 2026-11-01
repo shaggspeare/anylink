@@ -512,8 +512,8 @@ Free accounts see the generic layout (S15) instead.
   label to two lines at the largest text sizes. Picking one downloads the file (`GET /api/v1/export`).
   - States: ready; preparing (the row reads "Preparing your file…" with a spinner and can't be tapped); free.
   - When the file is ready, the Files save sheet opens with `anylink-{date}.{ext}`.
-  - Pro only. On a free account the footer reads "Export is a Pro feature.", and picking a format opens the
-    paywall (S19). On web the buttons and the footer open the Pro dialog.
+  - Pro only. On a free account the footer reads "Export is a Pro feature."; tapping it, or picking a format, opens
+    the paywall (S19). On web the buttons and the footer open the Pro dialog.
   - Offline shows `error.exportOffline`; anything else, `error.generic`.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
   deleted from every device. This can't be undone." Required by the App Store.
