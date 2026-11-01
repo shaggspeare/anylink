@@ -1,19 +1,6 @@
 "use client";
 
-/** AnyLink's App Store page. Null until the listing is live (Phase 9): set it here and the Pro dialog links to it. */
-export const APP_STORE_URL: string | null = null;
-
-/** Same list as the iOS paywall (ios/docs/04-screens.md S19). */
-const BENEFITS = [
-  "One library on your iPhone and the web",
-  "AI summaries and tags on every save",
-  "A second read in a full browser when a page won't load",
-  "Layouts for products, articles, videos and recipes",
-  "Price history and price alerts",
-  "Link health checks",
-  "Share links to your collections",
-  "Export as HTML, JSON or CSV",
-];
+import { APP_STORE_URL, PRO_BENEFITS } from "@/lib/pro";
 
 /** Web can't sell Pro (docs/adr/0002), so this says where to get it. Every Pro refusal and every Pro control opens
  * it, through `openPro` in the library store. */
@@ -46,7 +33,7 @@ export function ProDialog({ onClose }: { onClose: () => void }) {
         </h2>
         <p className="text-body text-ink">Pro is sold in the AnyLink iOS app.</p>
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-body text-ink/75">
-          {BENEFITS.map((b) => (
+          {PRO_BENEFITS.map((b) => (
             <li key={b}>{b}</li>
           ))}
         </ul>
