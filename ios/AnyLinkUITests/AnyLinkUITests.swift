@@ -69,20 +69,19 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Saved to Unsorted"].waitForExistence(timeout: 3))
     }
 
+    /// No sign-in wall (S0): a local library saves with no account, as many links as you like.
     @MainActor
-    func testGuestGetsTwoSavesThenSignUp() throws {
-        let app = launch(["-welcome"])
-        app.buttons["Skip for now"].tap()
-        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
-        for path in ["www.theverge.com/2026/10/one", "www.theverge.com/2026/10/two"] {
+    func testLocalLibrarySavesWithoutAnAccount() throws {
+        let app = launch(["-signed-out"])
+        XCTAssertTrue(app.staticTexts["Nothing saved yet"].waitForExistence(timeout: 5))
+        for path in ["www.theverge.com/2026/10/one", "www.theverge.com/2026/10/two", "www.theverge.com/2026/10/three"] {
             read(path, in: app)
             let save = app.buttons["Save to Unsorted"]
             XCTAssertTrue(save.waitForExistence(timeout: 5))
             save.tap()
             XCTAssertTrue(app.staticTexts["Saved to Unsorted"].waitForExistence(timeout: 3))
         }
-        app.buttons["New link"].tap()
-        XCTAssertTrue(app.staticTexts["Keep everything you save"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["3 links in Unsorted"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -238,12 +237,17 @@ final class AnyLinkUITests: XCTestCase {
 
     // MARK: - Welcome + onboarding (S1–S5)
 
+    /// Sign-in moved to Settings (S1, S18); MockAPI's account is Pro, so it switches to that server library.
     @MainActor
-    func testWelcomeSignsInWithMockAuth() throws {
-        let app = launch(["-welcome"])
+    func testSignInFromSettingsOpensTheProLibrary() throws {
+        let app = launch(["-signed-out"])
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Delete account…"].exists, "a local library has no account to delete")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Sign in")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Paste anything.\nWe read the rest."].waitForExistence(timeout: 3))
         app.buttons["Continue with Apple"].tap()
-        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -283,7 +287,19 @@ final class AnyLinkUITests: XCTestCase {
     func testShareFromSafariSavesToUnsorted() throws {
         let app = launch()                                       // signs in, publishes the App Group flag
         XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
+        shareFromSafari(into: app)
+    }
 
+    /// A local library has no account for the extension to use: the save waits for the app, which files it.
+    @MainActor
+    func testShareFromSafariIntoALocalLibrary() throws {
+        let app = launch(["-signed-out"])
+        XCTAssertTrue(app.staticTexts["Nothing saved yet"].waitForExistence(timeout: 5))
+        shareFromSafari(into: app)
+    }
+
+    @MainActor
+    private func shareFromSafari(into app: XCUIApplication) {
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         safari.launch()
         safari.open(URL(string: "https://example.com/share-test")!)
@@ -425,9 +441,13 @@ final class AnyLinkUITests: XCTestCase {
         sleep(2)
         audit(app, "Trash")
 
-        let welcome = launch(["-welcome"])
-        XCTAssertTrue(welcome.buttons["Continue with Apple"].waitForExistence(timeout: 3))
-        audit(welcome, "Welcome")
+        let local = launch(["-signed-out"])
+        local.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(local.staticTexts["iCloud sync"].waitForExistence(timeout: 3))
+        audit(local, "Profile (local)")
+        local.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Sign in")).firstMatch.tap()
+        XCTAssertTrue(local.buttons["Continue with Apple"].waitForExistence(timeout: 3))
+        audit(local, "Welcome")
     }
 
     /// Labels the audit calls "partially unsupported" although they grow (system Toggle/Picker labels, hero eyebrow).

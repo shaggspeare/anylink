@@ -35,9 +35,10 @@ struct RootView: View {
             .preferredColorScheme(appearance.scheme)
             .sheet(isPresented: $choosingPassword) { NewPasswordSheet() }
             .onChange(of: mode, initial: true) { _, mode in
-                // The share extension saves through the API only for a server library (S9).
-                UserDefaults(suiteName: LocalImages.group)?.set(mode == .server, forKey: "serverLibrary")
                 if mode != env.mode { env = .make(mode) }
+                // The share extension saves through the API only for a live server library (S9). MockAPI's is out of
+                // its reach, so mock builds and UI tests get PendingSaves too.
+                UserDefaults(suiteName: LocalImages.group)?.set(env.mode == .server && env.isLive, forKey: "serverLibrary")
             }
             .onChange(of: signedIn) { _, on in
                 // An email link can sign them in while S1 is still open.
