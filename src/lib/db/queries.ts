@@ -188,6 +188,8 @@ export function toLinkItem(
     // Videos saved before template_data existed still get their player.
     templateData:
       (row.templateData as TemplateData | null) ?? (row.contentType === "video" ? videoFromUrl(row.url) : undefined),
+    aiPending: row.aiPending,
+    clientId: row.clientId ?? undefined,
   };
 }
 

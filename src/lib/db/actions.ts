@@ -101,6 +101,8 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
   const url = cleanUrl(input.url);
   // Saved before anything read the page: the iOS share sheet, or "Save now" mid-read.
   const unread = !input.excerpt && !input.articleText?.length;
+  // The crawl behind this save ran with this plan, so a free one skipped the AI step: enrichLink adds it later.
+  const full = await fullCrawls();
 
   const [row] = await db
     .insert(schema.links)
@@ -124,16 +126,14 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       templateData: input.templateData ?? null,
       source: input.source || undefined,
       note: input.note?.trim() || null,
+      aiPending: !full,
     })
     .returning();
 
   await savePrice(row.id, input.product);
   await addTags(uid, row.id, input.tags);
-  if (unread) {
-    // Read now: after() runs outside the request.
-    const full = await fullCrawls();
-    after(() => fillFromPage(uid, row.id, url, input.title, full));
-  }
+  // Read now: after() runs outside the request.
+  if (unread) after(() => fillFromPage(uid, row.id, url, input.title, full));
 
   // Download/resize/upload runs after the response: the card shows the hotlinked
   // image now and picks up the re-hosted copy on the next load.
@@ -158,12 +158,14 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     status: row.status,
     heroImage,
     pinned: row.pinned,
+    aiPending: row.aiPending,
   };
 }
 
 /** Reads a link saved unread and fills in its card after the response — the same crawl the add-link
  * form runs first. A title the client sent stays, unless it's only the URL or domain. Ends "ready"
- * either way: a page that can't be read keeps what it was saved with. Without `full` (`fullCrawls`) it's a free crawl. */
+ * either way: a page that can't be read keeps what it was saved with. Without `full` (`fullCrawls`) it's a free crawl,
+ * which leaves the link `aiPending`; with it, the AI step was the one try it gets. */
 async function fillFromPage(uid: string, id: string, url: string, sentTitle: string, full: boolean) {
   let patch: Partial<typeof schema.links.$inferInsert> = {};
   try {
@@ -191,7 +193,7 @@ async function fillFromPage(uid: string, id: string, url: string, sentTitle: str
   } finally {
     await db
       .update(schema.links)
-      .set({ ...patch, status: "ready", updatedAt: new Date() })
+      .set({ ...patch, status: "ready", aiPending: !full, updatedAt: new Date() })
       .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
   }
 }
@@ -580,6 +582,8 @@ export async function saveFromShare(
         status: "ready" as const,
         productData: r.productData,
         templateData: r.templateData,
+        // A copy of a link still waiting for its AI step is waiting too.
+        aiPending: r.aiPending,
         source: "shared",
       };
     })
