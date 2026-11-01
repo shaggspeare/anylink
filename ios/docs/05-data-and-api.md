@@ -98,7 +98,7 @@ and 3 once `done` arrives.
 | 401 | `.unauthorized` | Refresh the token once, then sign out → Welcome |
 | 404 | `.notFound` | Drop the local item, toast `error.generic` |
 | 200 `{ "ok": false, "reason": "pro" }` | `.proRequired` | Roll back and open the paywall (`LibraryStore.report` → `onProRequired`, S19). A queued call is dropped, not retried. Never signs out. |
-| 403 from `POST /api/v1/billing/apple` | `.server(403)` | The purchase stays unfinished; the paywall says it couldn't be confirmed yet. Never signs out. |
+| 403, or 503 `retry`, from `POST /api/v1/billing/apple` | `.server(403)` / `.server(503)` | The purchase stays unfinished and is posted again next launch; the paywall says it couldn't be confirmed yet. Never signs out. |
 | 5xx | `.server(code)` | Roll back, toast `error.generic` |
 
 ### Images
