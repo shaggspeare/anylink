@@ -30,7 +30,7 @@ built yet. Until they are, skip those steps and run the rest.
 
 ```sql
 -- An account's plan
-select email, plan, plan_product, plan_expires_at from users where email = '<email>';
+select email, plan, plan_product, plan_expires_at, plan_transaction, plan_revoked from users where email = '<email>';
 
 -- The newest App Attest keys
 select environment, sign_count, crawl_count, check_count, group_count, created_at
@@ -79,7 +79,8 @@ group by url having count(*) > 1;
       Restore purchases, and the Terms of Use and Privacy Policy links.
 - [ ] Choose Monthly → Continue. "Sign in to buy Pro" appears: sign in as QA-M, then buy with the sandbox tester. The
       toast "You're on Pro" shows, and Profile shows Pro.
-- [ ] The plan query for QA-M shows `pro`, `com.shaggspeare.anylink.pro.monthly`, and an expiry about 5 minutes away.
+- [ ] The plan query for QA-M shows `pro`, `sandbox:com.shaggspeare.anylink.pro.monthly` (sandbox purchases are
+      labelled), an expiry about 5 minutes away, and a `plan_transaction`.
 - [ ] **Phase 5:** a progress screen uploads the local library. Swipe the app away halfway through and reopen it. The
       upload picks up again and finishes.
 - [ ] **Phase 5:** on the web as QA-M, every link, collection, note, highlight and the photo from A is there, merged
@@ -139,14 +140,15 @@ Check each on A and on the web, both as QA-M.
 ## 9. Resubscribe yearly (4 min)
 
 - [ ] On A: Profile → AnyLink Pro → Yearly → Continue. Pro is back, and the plan query shows
-      `com.shaggspeare.anylink.pro.yearly`.
+      `sandbox:com.shaggspeare.anylink.pro.yearly`, with the same `plan_transaction` as before.
 - [ ] **Phase 5:** I is uploaded once: it's on the web, and the duplicates query returns no rows. W now shows on A.
 - [ ] The share link from section 5 works again, at the same address.
 
 ## 10. Lifetime and Restore (5 min)
 
 - [ ] On A: Profile → Sign out. Then Profile → AnyLink Pro → Lifetime → Continue, sign in as QA-L, and buy. The plan
-      query for QA-L shows `pro`, `com.shaggspeare.anylink.pro.lifetime`, and no expiry.
+      query for QA-L shows `pro`, `sandbox:com.shaggspeare.anylink.pro.lifetime`, and an expiry a week after the
+      purchase: a sandbox lifetime lasts a week. A real one has no expiry.
 - [ ] Delete the app from A and install it again from TestFlight. Sign in as QA-F, then Profile → AnyLink Pro →
       Restore purchases. QA-F stays Free, because the purchases on this Apple Account belong to QA-M and QA-L. Note
       the message it shows: one that says QA-F's purchase is still being confirmed is a bug.

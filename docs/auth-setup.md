@@ -288,7 +288,7 @@ In your local `.env.local`, also delete `CURRENT_USER_ID` and `API_TOKEN`.
 | `APP_ATTEST_SECRET` | Vercel → Production, and `.env.local` if you test locally | Signs the App Attest registration challenges, so they need no table. Use any long random string, such as the output of `openssl rand -base64 48`. Until it's set, `/api/attest/*` answer 503: iOS installs without an account fall back to the per-IP crawl limit, and their import link checks and grouping fail. |
 | `APP_ATTEST_DEV_SECRET` | Only `.env.local`, or a server you point the simulator at. **Never Production.** | The simulator can't attest, so Debug builds there send this value in an `X-AnyLink-Dev` header instead. It must be 32 characters or more, and the same as `APP_ATTEST_DEV_SECRET` in `ios/Config.xcconfig` (step 8). Vercel's production deployment ignores the header whatever the variable says. |
 | `APPLE_APP_ID` | Vercel → Production | The app's numeric Apple ID (step 5g, item 9). Purchases and notifications from the Production App Store are verified against it, and refused while it's missing. Sandbox purchases, which TestFlight and App Review use, work without it. |
-| `APP_STORE_ALLOW_XCODE` | Only `.env.local`, as `1`, while you test purchases from Xcode's StoreKit configuration against a local server. **Never on Vercel.** | Accepts transactions signed by Xcode instead of Apple. Nothing can check those, so anyone could forge one. |
+| `APP_STORE_ALLOW_XCODE` | Only `.env.local`, as `1`, while you test purchases from Xcode's StoreKit configuration against `npm run dev`. **Never on Vercel.** | Accepts transactions signed by Xcode instead of Apple. Nothing can check those, so anyone could forge one, and a production build (`next start`, every Vercel deployment) ignores the variable. |
 
 ---
 
@@ -337,7 +337,7 @@ After changing it, run `xcodegen generate` in `ios/`.
 | iOS build: "Associated Domains capability" signing error | Step 5a, item 3 hasn't been done yet. |
 | iOS build: an App Attest, iCloud or Push Notifications signing error | Step 5a, items 4 and 5 haven't been done yet. |
 | `/api/attest/challenge` answers 503 | `APP_ATTEST_SECRET` isn't set in Vercel, or the deploy after setting it hasn't happened (step 7). |
-| A purchase leaves the account free, and `POST /api/v1/billing/apple` answered 403 `environment` | A Production purchase while `APPLE_APP_ID` is missing, or an Xcode StoreKit purchase without `APP_STORE_ALLOW_XCODE=1` locally (step 7). |
+| A purchase leaves the account free, and `POST /api/v1/billing/apple` answered 403 `environment` | A Production purchase while `APPLE_APP_ID` is missing, or an Xcode StoreKit purchase anywhere but `npm run dev` with `APP_STORE_ALLOW_XCODE=1` (step 7). |
 | Renewals and expiries don't reach the account | The notification URL in step 5g, item 7, is missing or not set to Version 2. |
 
 ## Rollout order
