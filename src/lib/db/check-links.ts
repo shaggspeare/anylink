@@ -12,7 +12,7 @@ export type CheckedLink = { id: string; url: string; title: string; status: numb
 
 /** In flight at once. A link check is almost entirely waiting, so this is about being
  * polite to the sites being checked, not about local CPU. */
-const CONCURRENCY = 24;
+export const CONCURRENCY = 24;
 
 /** Oldest-checked first (never-checked before that), which is what both callers want:
  * the cron works through every Pro user's backlog, the import screen finds its own fresh rows.

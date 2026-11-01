@@ -53,6 +53,11 @@ struct AppEnvironment {
         FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting)
     }
 
+    /// Signs calls from an install without an account (App Attest). One per process, so the key registers once.
+    static let attest = AppConfig.apiBase.map {
+        AppAttestClient(base: $0, keychainGroup: AppConfig.sharedKeychainGroup, devSecret: AppConfig.appAttestDevSecret)
+    }
+
     // MARK: - Guest
 
     /// Saves a guest can make before being asked to sign up (same as the web app).
@@ -60,12 +65,12 @@ struct AppEnvironment {
     private static let guestStore = URL.applicationSupportDirectory.appending(path: "Guest.store")
 
     /// Skipped sign-in: the sample library plus their own saves, kept on this device only. Previews still come
-    /// from the real crawler (rate-limited per IP for guests).
+    /// from the real crawler, signed with App Attest (rate-limited per IP where the device can't attest).
     static func guest() -> AppEnvironment {
         try? FileManager.default.createDirectory(at: .applicationSupportDirectory, withIntermediateDirectories: true)
         let cache = AppConfig.isUITesting ? try? LocalCache(inMemory: true) : try? LocalCache(url: guestStore)
         let library = cache?.loadSnapshot() ?? Fixtures.library
-        let crawler = AppConfig.isUITesting ? nil : AppConfig.apiBase.map { LiveCrawler(base: $0, token: nil) }
+        let crawler = AppConfig.isUITesting ? nil : AppConfig.apiBase.map { LiveCrawler(base: $0, token: nil, attest: attest) }
         let env = AppEnvironment(
             api: MockAPI(links: library.links, trashed: library.trashed, collections: library.collections, latency: false),
             snapshot: library, cache: cache, crawl: crawler.map { c in { @Sendable url in c.crawl(url) } }

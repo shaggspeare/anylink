@@ -11,6 +11,8 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  bigint,
+  date,
 } from "drizzle-orm/pg-core";
 
 export const contentTypeEnum = pgEnum("content_type", ["article", "video", "product", "note", "image"]);
@@ -229,4 +231,23 @@ export const crawlJobs = pgTable("crawl_jobs", {
   startedAt: timestamp("started_at", { withTimezone: true }),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}).enableRLS();
+
+/** One row per App Attest key: an iOS install without an account (docs/adr/0002). No library data, only what checking
+ * the key's calls (src/lib/app-attest.ts) and capping them per day needs. */
+export const appAttestKeys = pgTable("app_attest_keys", {
+  keyId: text("key_id").primaryKey(),
+  /** SPKI PEM of the key, from the attestation's leaf certificate. */
+  publicKey: text("public_key").notNull(),
+  /** The last assertion's counter; the next one must be higher. */
+  signCount: bigint("sign_count", { mode: "number" }).notNull().default(0),
+  /** "development" | "production", from the attestation's aaguid. */
+  environment: text("environment").notNull(),
+  /** The UTC day the counts belong to; an older day reads as zero. */
+  usageDay: date("usage_day"),
+  crawlCount: integer("crawl_count").notNull().default(0),
+  checkCount: integer("check_count").notNull().default(0),
+  groupCount: integer("group_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();

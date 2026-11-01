@@ -63,6 +63,8 @@ targets:
         SupabaseAnonKey: $(SUPABASE_ANON_KEY)
         # The shared keychain group is "<prefix>com.shaggspeare.anylink.shared"; Auth.swift needs the prefix at runtime.
         AppIdentifierPrefix: $(AppIdentifierPrefix)
+        # What the simulator sends instead of an App Attest assertion (AppConfig.appAttestDevSecret). Empty in Release.
+        AppAttestDevSecret: $(APP_ATTEST_DEV_SECRET)
     entitlements:
       path: AnyLink/AnyLink.entitlements
       properties:
@@ -72,11 +74,19 @@ targets:
         # Universal links for https://www.anylink.space/links/{id} (the site serves /.well-known/apple-app-site-association).
         # Only www: the apex redirects, and Apple doesn't follow redirects for that file.
         com.apple.developer.associated-domains: ["applinks:www.anylink.space"]
+        # App Attest for installs without an account: development in Debug, production in Release (settings below).
+        com.apple.developer.devicecheck.appattest-environment: $(APP_ATTEST_ENVIRONMENT)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          APP_ATTEST_ENVIRONMENT: development
+        Release:
+          APP_ATTEST_ENVIRONMENT: production
+          APP_ATTEST_DEV_SECRET: ""
 
   AnyLinkShare:
     type: app-extension
