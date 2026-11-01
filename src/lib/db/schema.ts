@@ -14,6 +14,7 @@ import {
   bigint,
   date,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const contentTypeEnum = pgEnum("content_type", ["article", "video", "product", "note", "image", "recipe"]);
 export const linkStatusEnum = pgEnum("link_status", ["crawling", "ready", "failed"]);
@@ -35,6 +36,10 @@ export const users = pgTable("users", {
   planProduct: text("plan_product"),
   /** When Pro ends; null with plan "pro" is lifetime. On a free account, when Pro last ended. */
   planExpiresAt: timestamp("plan_expires_at", { withTimezone: true }),
+  /** The App Store purchase (originalTransactionId) Pro comes from; only the signed-in app sets it. */
+  planTransaction: text("plan_transaction"),
+  /** Apple's last word on each refunded purchase (`planAfter`, src/lib/plan.ts). */
+  planRevoked: text("plan_revoked").array().notNull().default(sql`'{}'::text[]`),
   /** Shown on their shared collections. Null = no owner line. */
   displayName: text("display_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

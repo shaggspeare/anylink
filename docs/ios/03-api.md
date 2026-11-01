@@ -145,16 +145,26 @@ to the signed-in Supabase user id, and that's how the server ties a purchase to 
 
 | Call | What it does |
 |---|---|
-| `POST /api/v1/billing/apple { "jws": "<Transaction.jwsRepresentation>" }` | Signed in. Verifies the transaction against Apple's root certificates and records it: `{ "ok": true }`. A refusal is a 403 (never a 401) with `{ "ok": false, "reason" }`: `signed-out`, `environment` (Production without `APPLE_APP_ID` on the server, or Xcode/LocalTesting without `APP_STORE_ALLOW_XCODE=1`), `invalid` (didn't verify), `account` (its `appAccountToken` is another user's) or `product`. A refunded or revoked transaction ends Pro. |
-| `POST /api/billing/apple/notifications` | **From Apple:** App Store Server Notifications V2, for production and sandbox. Renewals, expiry, billing grace periods, refunds and revokes update the account in the transaction's `appAccountToken`. Any other verified type is logged and answered 200. |
+| `POST /api/v1/billing/apple { "jws": "<Transaction.jwsRepresentation>" }` | Signed in. Verifies the transaction against Apple's root certificates and records it: `{ "ok": true }`. It's the only call that moves an account onto a purchase. A refusal is never a 401: 403 `{ "ok": false, "reason" }` with `signed-out`, `environment` (Production without `APPLE_APP_ID` on the server; Xcode/LocalTesting anywhere but a `next dev` server with `APP_STORE_ALLOW_XCODE=1`), `invalid` (didn't verify), `account` (its `appAccountToken` is another user's) or `product`; or 503 `retry` when Apple's revocation check couldn't be reached. A refunded or revoked transaction ends Pro. |
+| `POST /api/billing/apple/notifications` | **From Apple:** App Store Server Notifications V2, for production and sandbox. Renewals, expiry, billing grace periods, refunds, revokes and reversed refunds reach the account in the transaction's `appAccountToken`, but only change the purchase that account is on. Any other verified type is logged and answered 200. |
 
 The plan is `users.plan`, `plan_product` and `plan_expires_at`: an account is Pro while `plan` is `pro` and
 `plan_expires_at` is empty (lifetime, or grandfathered) or still ahead. `GET /api/v1/library`'s `plan` already has the
 expiry applied. A lifetime account that has saved 1,000 links this calendar month gets free crawls until the month
-turns.
+turns. The rules are `planAfter` in `src/lib/plan.ts`:
+
+- `plan_transaction` is the purchase (StoreKit's `originalTransactionId`, the same across renewals and upgrades) Pro
+  comes from. Only the signed-in post sets it, so a notification under someone else's chosen token can't change an
+  account. A notification that beats the app's post is ignored, and the post then grants. Grandfathered accounts have
+  none, and no App Store event touches them.
+- `plan_revoked` remembers every refund, posted or notified, whatever it did to Pro: per transaction for a
+  subscription, per purchase for lifetime. A refunded purchase never grants again, however often its old receipt is
+  posted. A refund and its reversal can arrive in either order; the one Apple signed later wins.
+- Purchases outside production keep working, because App Review and TestFlight buy in the sandbox, but they're
+  labelled `sandbox:<product>` and never match a real purchase. A sandbox lifetime lasts a week from its purchase.
 
 The app posts each verified transaction after a purchase, on Restore, and for every `Transaction.updates` from launch,
 then finishes it and refreshes the library. A transaction the server didn't take stays unfinished, so StoreKit offers
 it again at the next launch.
 
-Apply `supabase/migrations/20261104000000_plan_expiry.sql` before deploying.
+Apply `supabase/migrations/20261104000000_plan_expiry.sql` and `20261104010000_plan_transactions.sql` before deploying.
