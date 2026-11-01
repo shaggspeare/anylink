@@ -5,10 +5,10 @@ import Auth
 import DesignSystem
 import Store
 
-/// S1. Sign in, or skip and try the sample library first (a guest gets GUEST_LIMIT saves of their own).
+/// S1. Sign in, as a sheet from Settings: a new install opens its local library with no sign-in (S0).
 struct WelcomeView: View {
     let onSignedIn: () -> Void
-    var onSkip: (() -> Void)?
+    var onClose: (() -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var floating = false
 
@@ -30,11 +30,15 @@ struct WelcomeView: View {
                     pillar("Organise", "collections build themselves")
                     pillar("Find", "even inside the article text")
                 }
+                Text("Have Pro? Sign in to see the same library here and on the web.")
+                    .font(AL.Font.lead)
+                    .foregroundStyle(AL.ink.opacity(AL.Ink.a75))
+                    .fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 12) {
                     SignInButtons(onSignedIn: onSignedIn)
-                    if let onSkip {
-                        Button(action: onSkip) {
-                            Text("Skip for now")
+                    if let onClose {
+                        Button(action: onClose) {
+                            Text("Not now")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
                                 .frame(maxWidth: .infinity, minHeight: 44)
@@ -97,8 +101,8 @@ struct WelcomeView: View {
     }
 }
 
-/// Apple, Google and email — on Welcome and in the guest's sign-up sheet. Without a Supabase config (previews,
-/// UI tests, mock builds) every button signs in at once.
+/// Apple, Google and email, on Welcome. Without a Supabase config (previews, UI tests, mock builds) every button
+/// signs in at once.
 struct SignInButtons: View {
     let onSignedIn: () -> Void
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 18
@@ -339,28 +343,5 @@ struct NewPasswordSheet: View {
     }
 }
 
-/// A guest who has used their free saves (SheetRoute.signUp).
-struct SignUpSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Keep everything you save").font(AL.Font.cardTitleL).foregroundStyle(AL.ink)
-                Text("Create a free account to save more. What you've added so far comes with you.")
-                    .font(AL.Font.lead).foregroundStyle(AL.ink.opacity(AL.Ink.a75))
-                SignInButtons {
-                    // RootView sees the flag, moves the guest's saves over and swaps to the signed-in library.
-                    UserDefaults.standard.set(true, forKey: "signedIn")
-                }
-                Spacer()
-            }
-            .padding(20)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() } } }
-        }
-        .presentationDetents([.large])
-    }
-}
-
-#Preview("Welcome") { WelcomeView(onSignedIn: {}, onSkip: {}) }
-#Preview("Welcome — Dark") { WelcomeView {}.preferredColorScheme(.dark) }
+#Preview("Welcome") { WelcomeView(onSignedIn: {}, onClose: {}) }
+#Preview("Welcome — Dark") { WelcomeView(onSignedIn: {}, onClose: {}).preferredColorScheme(.dark) }

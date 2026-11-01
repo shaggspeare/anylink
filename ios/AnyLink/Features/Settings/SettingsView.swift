@@ -3,6 +3,7 @@ import DesignSystem
 import Models
 import Networking
 import Fixtures
+import Persistence
 import Store
 import Auth
 import TipKit
@@ -22,16 +23,16 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// S18. System chrome (SF, inset-grouped list) per D4.
-/// Ends the Supabase session and clears this account's library and outbox from the device; RootView
-/// sees the flag and shows Welcome.
+/// Ends the Supabase session. A server library's copy leaves the device with it, queued calls included; a local
+/// library belongs to the device, not the account, and stays. RootView sees the flag and switches library.
 @MainActor
-func signOut(_ store: LibraryStore) async {
+func signOut(_ store: LibraryStore, mode: LibraryMode) async {
     try? await AuthService.client?.signOut()
-    store.reset()
+    if mode == .server { store.reset() }
     UserDefaults.standard.set(false, forKey: "signedIn")
 }
 
+/// S18. System chrome (SF, inset-grouped list) per D4.
 struct SettingsView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
@@ -41,17 +42,29 @@ struct SettingsView: View {
     @AppStorage(ClipboardWatcher.settingKey) private var clipboardSuggestions = true
     @AppStorage("defaultCollection") private var defaultCollection = "unsorted"
     @AppStorage("resetTipsOnLaunch") private var resetTips = false
-    @AppStorage("signedIn") private var signedIn = true
-    @AppStorage("guest") private var guest = false
+    @AppStorage("signedIn") private var signedIn = false
+    @AppStorage("plan") private var plan = ""
     @State private var displayName = ""
     @State private var managingSubscription = false
+    /// Whether iCloud can sync a local library; nil while it checks.
+    @State private var iCloud: Bool?
+    private let asksICloud: Bool
 
-    /// A guest's sample library says nothing about them: they're on Free.
-    private var pro: Bool { !guest && store.isPro }
+    /// Previews set `iCloud` themselves and don't ask: they can't reach CloudKit. Neither can UI tests, whose library
+    /// is in memory, so they show sync off.
+    init(iCloud: Bool? = AppConfig.isUITesting ? false : nil, asksICloud: Bool = !AppConfig.isUITesting) {
+        _iCloud = State(initialValue: iCloud)
+        self.asksICloud = asksICloud
+    }
+
+    private var mode: LibraryMode { LibraryMode(signedIn: signedIn, plan: plan) }
+    /// The plan of the library on screen. A local library has none, so it reads as Free.
+    private var pro: Bool { store.isPro }
 
     var body: some View {
         List {
             Section { account }
+            if mode == .local { iCloudSync }
             Section {
                 proRow("AnyLink Pro", value: pro ? "Pro" : "Free", systemImage: "sparkles")
                 proRow("Sync with web", value: pro ? "On" : "Pro", systemImage: "arrow.triangle.2.circlepath")
@@ -105,8 +118,8 @@ struct SettingsView: View {
                     row("Show tips again", systemImage: "lightbulb")
                 }
             } header: { header("Reading") }
-            if !guest {
-                ExportSection()
+            if signedIn { ExportSection() }
+            if mode == .server {
                 Section {
                     TextField("Not shown", text: $displayName)
                         .textContentType(.name)
@@ -114,9 +127,12 @@ struct SettingsView: View {
                 } header: {
                     header("Name on shared collections")
                 }
+            }
+            if signedIn {
                 Section {
-                    Button("Sign out") { Task { await signOut(store) } }
-                    Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount }
+                    Button("Sign out") { Task { await signOut(store, mode: mode) } }
+                    // A local library has no server copy to delete (S18).
+                    if mode == .server { Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount } }
                 }
             }
             Section {
@@ -146,7 +162,19 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
     private var account: some View {
+        if signedIn {
+            accountCard.accessibilityElement(children: .combine)
+        } else {
+            // Signed out, the whole card is the Sign in button: a target far past 44 pt.
+            Button { router.sheet = .signIn } label: { accountCard.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var accountCard: some View {
         HStack(spacing: 14) {
             Image(systemName: "person.fill")
                 .font(.title2.weight(.semibold))
@@ -154,23 +182,54 @@ struct SettingsView: View {
                 .frame(width: 52, height: 52)
                 .background(AL.periwinkle, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                if guest {
-                    Text("Trying AnyLink").font(.headline)
-                    Button("Sign in or create an account") { router.sheet = .signUp }
-                        .font(.footnote.weight(.semibold))
-                } else {
+                if signedIn {
                     Text(AuthService.client?.currentSession?.user.email ?? "Your account").font(.headline)
-                    Text("\(store.live.count.linkCount) · \(synced)")
-                        .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                } else {
+                    Text("Your library").font(.headline)
+                }
+                Group {
+                    if mode == .server { Text("\(store.live.count.linkCount) · \(synced)") } else { Text(store.live.count.linkCount) }
+                }
+                .font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                if !signedIn {
+                    Text("Sign in").font(.footnote.weight(.semibold)).foregroundStyle(AL.ink)
                 }
             }
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: guest ? .contain : .combine)
+    }
+
+    /// A local library syncs through the user's iCloud, when there is one (S18).
+    private var iCloudSync: some View {
+        Section {
+            LabeledContent {
+                Group {
+                    switch iCloud {
+                    case true?: Text("On")
+                    case false?: Text("Off")
+                    case nil: EmptyView()
+                    }
+                }
+                .foregroundStyle(AL.ink.opacity(AL.Ink.a60))   // the system grey is under 4.5:1 on a light row
+            } label: {
+                Label("iCloud sync", systemImage: "icloud").foregroundStyle(.primary)
+            }
+        } footer: {
+            Group {
+                switch iCloud {
+                case true?: Text("Your library syncs between your Apple devices through iCloud. AnyLink's server never stores it.")
+                case false?: Text("iCloud isn't available, so saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices.")
+                case nil: EmptyView()
+                }
+            }
+            .foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+        }
+        .task { if asksICloud { iCloud = await LocalStore.iCloudAvailable() } }
     }
 
     private func saveDisplayName() {
-        guard !guest, displayName.trimmingCharacters(in: .whitespaces) != (store.displayName ?? "") else { return }
+        guard mode == .server, displayName.trimmingCharacters(in: .whitespaces) != (store.displayName ?? "") else { return }
         Task { await store.setDisplayName(displayName) }
     }
 
@@ -241,19 +300,23 @@ private struct AppearanceThumb: View {
     }
 }
 
-#Preview("Settings") {
-    let env = AppEnvironment.mock(latency: false)
-    NavigationStack { SettingsView() }.environment(env.store).environment(env.router)
+/// Settings as one library mode sees it, on defaults of its own so previews don't share sign-in state. A local
+/// library has no plan, so it reads as Free.
+@MainActor
+private func settingsPreview(signedIn: Bool, plan: String, iCloud: Bool? = nil) -> some View {
+    let server = LibraryMode(signedIn: signedIn, plan: plan) == .server
+    let env = AppEnvironment.mock(latency: false, plan: server ? "pro" : "free")
+    let defaults = UserDefaults(suiteName: "preview.settings.\(signedIn).\(plan)")!
+    defaults.set(signedIn, forKey: "signedIn")
+    defaults.set(plan, forKey: "plan")
+    return NavigationStack { SettingsView(iCloud: iCloud, asksICloud: false) }
+        .environment(env.store).environment(env.router)
+        .defaultAppStorage(defaults)
 }
 
-#Preview("Settings — Dark") {
-    let env = AppEnvironment.mock(latency: false)
-    NavigationStack { SettingsView() }.environment(env.store).environment(env.router).preferredColorScheme(.dark)
-}
-
-#Preview("Settings — Free") {
-    let env = AppEnvironment.mock(latency: false)
-    let lib = Fixtures.library
-    let _ = env.store.apply(LibrarySnapshot(links: lib.links, trashed: lib.trashed, collections: lib.collections, plan: "free"))
-    NavigationStack { SettingsView() }.environment(env.store).environment(env.router)
-}
+#Preview("Settings") { settingsPreview(signedIn: true, plan: "pro") }
+#Preview("Settings — Dark") { settingsPreview(signedIn: true, plan: "pro").preferredColorScheme(.dark) }
+#Preview("Local, iCloud on") { settingsPreview(signedIn: false, plan: "", iCloud: true) }
+#Preview("Local, no iCloud — Dark") { settingsPreview(signedIn: false, plan: "", iCloud: false).preferredColorScheme(.dark) }
+#Preview("Local, checking iCloud") { settingsPreview(signedIn: false, plan: "") }
+#Preview("Free account — Dark") { settingsPreview(signedIn: true, plan: "free", iCloud: true).preferredColorScheme(.dark) }

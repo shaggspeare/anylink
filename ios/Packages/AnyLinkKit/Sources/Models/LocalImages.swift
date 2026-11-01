@@ -20,7 +20,7 @@ public enum LocalImages {
     /// The local file for a link, if this device has one.
     public static func existing(for id: String) -> URL? {
         let u = url(for: id)
-        return FileManager.default.fileExists(atPath: u.path()) ? u : nil
+        return FileManager.default.fileExists(atPath: u.path(percentEncoded: false)) ? u : nil
     }
 
     @discardableResult

@@ -14,7 +14,25 @@ glass where possible. Hide the system navigation title on tab roots so the brand
 
 ---
 
+## S0 · First launch (no sign-in)
+
+There's no sign-in wall (ADR 0002). A new install opens the Library tab on its **local library**: empty, on this
+iPhone and in the user's iCloud.
+
+- With an empty library and onboarding never finished, the import flow (S2) opens over it first. Its "Start with an
+  empty library" closes it onto S6's empty state.
+- On a second device the library can still be arriving from iCloud. The import flow offers itself all the same; the
+  library fills in when CloudKit delivers, with no prompt.
+- Sign-in lives in Settings (S18 → **Sign in**, which opens S1).
+
+**Done when:** a fresh install shows the library or the import flow, never Welcome. Saving works with no account.
+
+---
+
 ## S1 · Welcome / Sign in
+
+Opened from Settings → **Sign in** as a sheet (`SheetRoute.signIn`), only when nobody is signed in. It's no longer
+the first screen (S0).
 
 **Layout:**
 - `Orbs(.addLink)`.
@@ -26,13 +44,19 @@ glass where possible. Hide the system navigation title on tab roots so the brand
   - **Save**: "from any app's share sheet"
   - **Organise**: "collections build themselves"
   - **Find**: "even inside the article text"
+- Lead (ink .75): "Have Pro? Sign in to see the same library here and on the web."
 - `SignInWithAppleButton` (h52, `.signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)`), then
   **Continue with email** (glass, h52).
+- **Not now** (SF 15 semibold, ink .60, full width, 44 high): closes the sheet.
 
 **States:** idle · signing in (button disabled, progress) · error toast "Couldn't sign in. Try again."
 
 **Interactions:**
-- Apple sign-in → `AuthService` → if the library is empty, onboarding; otherwise, the main tabs.
+- Apple sign-in → `AuthService` → the sheet closes, then the app asks the server for the account's plan:
+  - **Pro**: the app switches to the account's server library (onboarding first if it's empty).
+  - **Free**: the local library stays, with the toast `toast.signedInFree` "Signed in. On Free, your iPhone and web
+    libraries stay separate."
+  - No answer (offline): the local library stays, and the app asks again the next time it becomes active.
 - Email → a sheet with an email field and "Send link", then "Check your inbox — the link signs you in on this iPhone."
 
 **Done when:** works with the Supabase Apple provider. MockAPI auth succeeds instantly under `-ui-testing`.
@@ -281,8 +305,12 @@ Activation: a web URL (max 1), or text that contains a URL.
 - On appear, call `POST /api/links` immediately with the URL plus title and favicon from the extension context.
 - Start the crawl in the background. Keep total memory under the extension limit (no image decoding beyond the thumb).
 - Offline → write a `PendingSave` to the App Group store and show "Saved — it will sync when you're online."
-- Auth comes from the shared keychain. If there's no session: "Open AnyLink once to sign in, then share again." with
-  a button that opens `anylink://`.
+- Auth comes from the shared keychain. The extension saves through the API only when the app uses a server library
+  (App Group key `serverLibrary`).
+- **Local library** (the app is signed out, or signed in on Free): no API call and no CloudKit. The save waits as a
+  `PendingSave` in the App Group, and the sheet shows the usual "Saved to {collection}", Move to and note. The status
+  line is a tray icon + `share.local` "Title and picture fill in when you open AnyLink." The app files the save and
+  reads the page when it next becomes active. There's no signed-out state any more.
 
 ---
 
@@ -496,7 +524,7 @@ Free accounts see the generic layout (S15) instead.
 
 **Layout:**
 - An account card: avatar 52, "Your account", "Apple ID · {n} links · synced {relative}".
-- **AnyLink Pro** (signed in and guest alike):
+- **AnyLink Pro** (every library; a local library has no plan, so it reads Free):
   - "AnyLink Pro", with the plan on the right: "Pro" or "Free". On Free it opens the paywall (S19).
   - "Sync with web", with "On" on the right for Pro. On Free it shows "Pro" and opens the paywall.
   - "Manage Subscription" (Pro only) → `manageSubscriptionsSheet`.
@@ -518,6 +546,21 @@ Free accounts see the generic layout (S15) instead.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
   deleted from every device. This can't be undone." Required by the App Store.
 - Footer: version and build.
+
+**Local library** (signed out, or signed in on Free: `LibraryMode.local`, ADR 0002):
+- The account card reads "Your library" (or the email when signed in) and "{n} links".
+  - Signed out, the card ends with **Sign in** (footnote semibold), and the whole card is the button that opens S1
+    as a sheet.
+- An **iCloud sync** row (`icloud`), under the account card, shows "On" or "Off" on the right, and nothing while it checks
+  (`CKContainer.accountStatus()`, asked each time Settings appears). Its footer:
+  - On: `settings.icloudOn` "Your library syncs between your Apple devices through iCloud. AnyLink's server never
+    stores it."
+  - Off (no iCloud account, restricted, or iCloud can't be reached): `settings.icloudOff` "iCloud isn't available, so
+    saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices."
+- Hidden: Name on shared collections and Delete account. Your library (Export, with its Pro footer) and Sign out
+  show only when signed in.
+
+**States:** server library · local, signed out · local, signed in on Free · iCloud on · iCloud off · iCloud checking.
 
 ## S19 · Paywall (`SheetRoute.paywall`)
 
@@ -551,7 +594,8 @@ Pro and Sync with web.
 - Prices unavailable: "Couldn't load prices. Check your connection and try again." with **Try again**.
 - Ready: yearly selected.
 - Signed out: Continue opens a sign-in sheet first: "Sign in to buy Pro" / "Pro belongs to your AnyLink account, so
-  it works on the web too." and the Welcome sign-in buttons. Once signed in, the purchase goes on.
+  it works on the web too." and the Welcome sign-in buttons. Once signed in, the purchase goes on. An account that's
+  already Pro switches to its server library (S1), which closes the sheet.
 - Buying: Continue shows progress and the sheet can't be swiped away.
 - Confirming: "Confirming your purchase…" while the server records it.
 - Pending: "Waiting for approval. Pro turns on as soon as the purchase is approved."
@@ -599,3 +643,7 @@ install, and a Pro refusal anywhere opens this sheet instead of a toast.
 | toast.pro | You're on Pro |
 | share.paused | Paused while you're on Free: viewers get “not found”. Go Pro and this same link works again. Turning sharing off breaks it for good. (Share sheet footer when a free owner's collection still has its link.) |
 | error.invalidURL | That doesn't look like a link — it should start with https:// |
+| toast.signedInFree | Signed in. On Free, your iPhone and web libraries stay separate. (S1, after a free account signs in.) |
+| settings.icloudOn | Your library syncs between your Apple devices through iCloud. AnyLink's server never stores it. |
+| settings.icloudOff | iCloud isn't available, so saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices. |
+| share.local | Title and picture fill in when you open AnyLink. (S9 status line for a local library.) |

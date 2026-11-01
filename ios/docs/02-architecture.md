@@ -15,6 +15,9 @@ Shared capabilities:
 - **Keychain Sharing** group `$(AppIdentifierPrefix)com.shaggspeare.anylink.shared`: auth session.
 - **Associated Domains** (phase 13): `applinks:<web domain>`.
 - **Sign in with Apple**.
+- **iCloud** (app only): CloudKit container `iCloud.com.shaggspeare.anylink` for the local library, plus push
+  (`aps-environment`) and the remote-notification background mode, so CloudKit can tell the app about changes.
+- **App Attest** (app only): signs the server calls a local library makes (`05` §3).
 
 ## Package modules (`Packages/AnyLinkKit`)
 
@@ -106,14 +109,15 @@ Everything else reads `LibraryStore` directly from the environment.
 }
 ```
 
-`AppEnvironment` builds `LiveAPI` or `MockAPI`, the `AuthService`, the `ModelContainer` (App Group URL) and the
-`LibraryStore`.
+`AppEnvironment` builds `LiveAPI`, `LocalAPI` or `MockAPI`, the `AuthService`, the `ModelContainer` (App Group URL)
+and the `LibraryStore`. `AppEnvironment.make(_ mode: LibraryMode)` picks: `.server` → `live()` (or `mock()` without a
+backend or under `-ui-testing`), `.local` → `local()`.
 
 ## Navigation
 
 ```
-RootView
-├─ AuthGate          signed out → WelcomeView (fullScreen)
+RootView             no sign-in wall: a new install opens its local library
+├─ WelcomeView       Settings → Sign in, as a sheet (router.sheet = .signIn)
 ├─ OnboardingFlow    first launch or "Import links" → fullScreenCover, NavigationStack of steps
 └─ MainTabs          TabView (Liquid Glass) + .tabBarMinimizeBehavior(.onScrollDown) + .tabViewBottomAccessory
     ├─ Tab "Library"      NavigationStack(path: $router.library)
@@ -155,11 +159,31 @@ enum Route: Hashable {
 
 ## Persistence
 
-- SwiftData `@Model` mirrors (`CachedLink`, `CachedCollection`) in the App Group container. They map to and from the
-  `Models` value types; views never see `@Model` types.
-- Launch: load the cache into `LibraryStore` (instant UI), then `refresh()`.
-- The share extension writes a `PendingSave` row when it can't reach the network. The app drains pending saves on
-  launch and on `scenePhase == .active`.
+Two SwiftData stores in the App Group container, both owned by `Persistence`. Views never see `@Model` types.
+
+- **Which library**: `LibraryMode(signedIn:plan:)` in Store. Signed in with Pro → the server library. Anything else
+  (signed out, or signed in on Free) → the local library (ADR 0002, D28). `AppEnvironment.make(_:)` builds the
+  environment for a mode; RootView swaps it when the mode changes. Upgrade and lapse (Pro phase 5) hook in there.
+- **Server library cache** (`LocalCache`, `AnyLink.store`, D21): the last library snapshot and the outbox as JSON
+  blobs (`CacheBlob`). Launch loads it into `LibraryStore` (instant UI), then `refresh()`.
+- **Local library** (`LocalStore`, `Local.store`, D28): the free library itself, mirrored to the user's private
+  CloudKit database.
+  - One `LinkRecord` per link and one `CollectionRecord` per collection. Each holds the `Models` value as JSON, plus
+    `id` and `updatedAt`. An image item's bytes sit in `.externalStorage`, so they sync as an asset.
+  - CloudKit's rules: every property has a default, nothing is `.unique`, and there are no relationships.
+  - Writes upsert by `id`, one record per item. Reads keep the newest copy if two devices made the same id.
+  - `LocalAPI` (Store) implements `AnyLinkAPI` over it, so `LibraryStore` works the same in both modes. Creating
+    collections and filters works offline. Sharing, price alerts and export answer `.proRequired`.
+  - `LibraryStore.refresh()` re-reads it at launch, whenever the app becomes active, after a background crawl fills
+    in a link, and when `LocalStore.remoteChanges()` reports a CloudKit import (persistent history: a save by
+    another author).
+  - `LocalCache` opts out of CloudKit (`cloudKitDatabase: .none`): with the iCloud entitlement, SwiftData would
+    otherwise try to sync it too.
+- **Shared with the extension**: `AnyLink.store` also holds the `PendingSave`s and the recent collections, in both
+  modes. The extension never opens `Local.store`. The App Group defaults key `serverLibrary` tells it which mode the
+  app is in: a server library saves through the API; a local one always leaves a `PendingSave`.
+- The app drains pending saves on launch and on `scenePhase == .active`. In a local library, a save with no page data
+  (share extension, Shortcuts) is filed at once and read in the background, as the server's `fillFromPage` does.
 
 ## Concurrency
 

@@ -176,8 +176,8 @@ struct PaywallView: View {
         if pro.isSignedIn { start(intent) } else { signingIn = intent }
     }
 
-    /// Not tied to this view: a guest who just signed in swaps to their account's library, which closes the paywall,
-    /// and the purchase carries on behind it.
+    /// Not tied to this view: signing in to an account that's already Pro switches to its server library, which closes
+    /// the paywall, and the purchase carries on behind it.
     private func start(_ intent: Intent) {
         let pro = pro, id = selected
         Task {
@@ -202,7 +202,7 @@ private struct ProSignInSheet: View {
                 Text("Pro belongs to your AnyLink account, so it works on the web too.")
                     .font(AL.Font.lead).foregroundStyle(AL.ink.opacity(AL.Ink.a75))
                 SignInButtons {
-                    // A guest's library moves into the account (RootView), as with any sign-in.
+                    // RootView asks the server for the plan, as with any sign-in (S1).
                     UserDefaults.standard.set(true, forKey: "signedIn")
                     onSignedIn()
                 }

@@ -10,7 +10,6 @@ struct SharedCollectionView: View {
     let token: String
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
-    @AppStorage("signedIn") private var signedIn = false
     @State private var state: LoadState
     /// Link ids saved from here, or `Self.all` once the whole collection was.
     @State private var saved: Set<String> = []
@@ -128,10 +127,8 @@ struct SharedCollectionView: View {
         }
     }
 
+    /// Into whichever library this is: the server copies into the account's, a local library copies into itself.
     private func save(_ ids: [LinkItem.ID]?) {
-        // ponytail: after signing up they land back on Library, not here; reopen the link to save.
-        // Carry the pending save through sign-in if people drop off there.
-        guard signedIn else { router.sheet = .signUp; return }
         busy = true
         Task {
             if await store.saveFromShare(token: token, linkIds: ids) != nil {

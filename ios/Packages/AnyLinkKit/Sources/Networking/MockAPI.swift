@@ -157,12 +157,7 @@ public actor MockAPI: AnyLinkAPI {
 
     public func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem {
         try maybeThrow(); await delay()
-        let link = LinkItem(
-            id: UUID().uuidString, url: "", domain: "", title: noteTitle(text), excerpt: text,
-            tint: "#D6F24B", stripe: "#17181B", initial: "✎", contentType: .note,
-            collectionId: collectionId ?? "unsorted", tags: [], size: .M, status: .ready,
-            createdAt: Date().formatted(.iso8601), source: "ios"
-        )
+        let link = LibraryRules.note(text, collectionId: collectionId ?? "unsorted")
         links.insert(link, at: 0)
         return link
     }
@@ -170,12 +165,7 @@ public actor MockAPI: AnyLinkAPI {
     /// No upload in the mock: the card keeps showing the local file the store wrote.
     public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem {
         try maybeThrow(); await delay()
-        let link = LinkItem(
-            id: UUID().uuidString, url: "", domain: "", title: caption.flatMap { $0.isEmpty ? nil : $0 } ?? "Image", excerpt: "",
-            tint: "#17181B", stripe: "#FFFFFF", initial: "▣", contentType: .image,
-            collectionId: collectionId ?? "unsorted", tags: [], size: .M, status: .ready,
-            createdAt: Date().formatted(.iso8601), source: "ios"
-        )
+        let link = LibraryRules.image(caption: caption, collectionId: collectionId ?? "unsorted")
         links.insert(link, at: 0)
         return link
     }
@@ -261,22 +251,10 @@ public actor MockAPI: AnyLinkAPI {
     }
 
     public func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare {
-        let shared = try await sharedCollection(token: token)
-        var target = collections.first { $0.isInbox == true }?.id ?? "unsorted"
-        var made: LinkCollection?
-        if linkIds == nil {
-            made = LinkCollection(id: UUID().uuidString, name: shared.name, color: shared.color, createdBy: "user", icon: shared.icon)
-            collections.append(made!)
-            target = made!.id
-        }
-        let copies = shared.links.filter { linkIds?.contains($0.id) ?? true }.map { l in
-            LinkItem(id: UUID().uuidString, url: l.url, domain: l.domain, title: l.title, excerpt: l.excerpt,
-                     heroImage: l.heroImage, tint: l.tint, stripe: l.stripe, initial: l.initial, contentType: l.contentType,
-                     readingTimeMinutes: l.readingTimeMinutes, collectionId: target, tags: [], size: l.size,
-                     status: .ready, createdAt: ISO8601DateFormatter().string(from: .now), source: "shared", product: l.product)
-        }
-        links.insert(contentsOf: copies, at: 0)
-        return SavedFromShare(links: copies, collection: made)
+        let saved = LibraryRules.copies(of: try await sharedCollection(token: token), linkIds: linkIds, inbox: inboxID)
+        if let made = saved.collection { collections.append(made) }
+        links.insert(contentsOf: saved.links, at: 0)
+        return saved
     }
 
     public func createFilter(name: String, query: String) async throws -> LinkCollection {
@@ -334,52 +312,19 @@ public actor MockAPI: AnyLinkAPI {
 
     public func importLinks(_ items: [ImportItem]) async throws -> ImportResult {
         try maybeThrow(); await delay()
-        func key(_ u: String) -> String { var k = u.lowercased(); while k.hasSuffix("/") { k.removeLast() }; return k }
-        var existing = Set((links + trashed).map { key($0.url) })
-        let tints = ["#FF5A1F", "#7C8CFF", "#D6F24B", "#9AA3AD", "#17181B", "#E0855A"]
-        var added: [LinkItem] = []
-        for item in items where existing.insert(key(item.url)).inserted {
-            let host = URL(string: item.url)?.host() ?? item.url
-            let domain = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-            let h = Int(domain.unicodeScalars.reduce(UInt32(5)) { ($0 &* 33) &+ $1.value } % UInt32(tints.count))
-            let tint = tints[h]
-            added.append(LinkItem(
-                id: UUID().uuidString, url: item.url, domain: domain, title: item.title, excerpt: "",
-                tint: tint, stripe: tint == "#17181B" || tint == "#7C8CFF" ? "#FFFFFF" : "#17181B",
-                initial: String(domain.prefix(1)).uppercased(),
-                contentType: domain.contains("youtube") ? .video : .article,
-                collectionId: inboxID, tags: [], size: .M, status: .ready,
-                createdAt: item.meta.savedAt ?? Date().formatted(.iso8601),
-                source: item.source, importMeta: item.meta
-            ))
-        }
+        let added = LibraryRules.imported(items, existing: links + trashed, inbox: inboxID)
         links.append(contentsOf: added)
         return ImportResult(links: added, skipped: items.count - added.count)
     }
 
-    /// Port of the web `groupByMetadata` fallback: deepest folder (or Telegram context), else domain; groups of 3+.
+    /// `LibraryRules.metadataGroups`, the web's fallback when the AI doesn't answer.
     public func groupInbox(_ priorities: GroupingPriorities) async throws -> [GroupedResult] {
         try maybeThrow(); await delay()
         let inbox = inboxID
-        let alive = links.filter { $0.collectionId == inbox && ![0, 1, 404, 410].contains($0.httpStatus ?? 200) }
-        var buckets: [(String, [String])] = []
-        for l in alive {
-            let note = l.importMeta?.folder ?? l.importMeta?.context
-            let k = note?.split(separator: "/").last.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 } ?? l.domain
-            if let i = buckets.firstIndex(where: { $0.0 == k }) { buckets[i].1.append(l.id) } else { buckets.append((k, [l.id])) }
-        }
-        let avoid = priorities.avoid.lowercased()
-        let groups = buckets.filter { $0.1.count >= 3 && (avoid.isEmpty || !$0.0.lowercased().contains(avoid)) }
-            .sorted { $0.1.count > $1.1.count }
-        let colors = ["#FF5A1F", "#D6F24B", "#7C8CFF", "#9AA3AD", "#E0855A"]
-        var results: [GroupedResult] = []
-        for (n, g) in groups.enumerated() {
-            let reasoning = "Grouped because \(g.1.count) links came from the same place."
-            let name = g.0.prefix(1).uppercased() + g.0.dropFirst()
-            let c = LinkCollection(id: UUID().uuidString, name: name, color: colors[n % colors.count], reasoning: reasoning, createdBy: "system")
-            collections.append(c)
-            for i in links.indices where g.1.contains(links[i].id) { links[i].collectionId = c.id }
-            results.append(GroupedResult(collection: c, linkIds: g.1, reasoning: reasoning))
+        let results = LibraryRules.metadataGroups(links.filter { $0.collectionId == inbox }, priorities: priorities)
+        for r in results {
+            collections.append(r.collection)
+            for i in links.indices where r.linkIds.contains(links[i].id) { links[i].collectionId = r.collection.id }
         }
         return results
     }

@@ -118,16 +118,18 @@ and write to its user in app code: the server talks to Postgres directly, so RLS
 `public.users` gets its row from a trigger on `auth.users` (same id). `deleteAccount` deletes the user, their
 library and their stored images (App Store 5.1.1(v)).
 
-**Guests.** Skip on Welcome opens the sample library on its own on-device store (`AppEnvironment.guest()`), with
-`guestLimit` (2) saves of their own; the next save shows the sign-up sheet. Signing in queues the guest's saves as
-`PendingSave`s, which the signed-in app saves on its first run. The web app does the same with `localStorage`.
+**Local library.** Signed out, or signed in on Free, the app keeps a local library (ADR 0002, D28,
+`AppEnvironment.local()`): `LocalAPI` over `LocalStore`, synced through the user's iCloud, with no account calls.
+`LibraryMode(signedIn:plan:)` picks it. Signing in asks the server for the plan (`AppEnvironment.serverPlan()`): Pro
+switches to that account's server library; Free keeps the local one. Moving a local library into the server library
+is Pro phase 5 (Upgrade).
 
 **Installs without an account** sign their server calls with Apple's App Attest instead of a session
 (`AppAttestClient`, one per process: `AppEnvironment.attest`). It registers one key per install, keeps the key id in
-the shared keychain, and signs each call's body. Guest previews (`LiveCrawler` with no token) crawl on that key's daily
-cap; `LocalServices` signs the import's link check and grouping the same way. Where the device can't attest, a crawl
-goes out signed out and gets the per-IP limit. The contract is in `../../docs/ios/03-api.md` § Installs without an
-account.
+the shared keychain, and signs each call's body. A local library's crawls (`LiveCrawler` with no token) run on that
+key's daily cap; `LocalServices` signs the import's link check and grouping the same way. Where the device can't
+attest, a crawl goes out signed out and gets the per-IP limit. The contract is in `../../docs/ios/03-api.md`
+§ Installs without an account.
 
 ## 4. Sync and offline
 
