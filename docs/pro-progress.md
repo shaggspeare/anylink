@@ -457,6 +457,14 @@ sandbox run on a real iPhone is waiting on you.
 - Resubscribing runs the same upgrade. Only what was added during the lapse is created.
 - Decision D29: on a lapse, the server copy wins the fields that aren't merged.
 
+### Follow-up: account deletion (App Store guideline 5.1.1(v))
+- Delete account now shows whenever someone is signed in, also on a local library and after a lapse.
+- On a local library it deletes the account and its web library through the server, then signs out. The library on
+  the iPhone stays, and the confirmation says so.
+- There's a new unit test and a new UI test.
+- Known quirk: deleting while offline shows the generic offline toast ("Changes are saved and will sync"). That reads
+  wrong for a deletion. It was the same before in server mode.
+
 ### Deviations
 - An image travels as base64, one image per call. Images above about 2.25 MB are re-encoded at 1600 px. A link whose
   JSON is over 3 MB goes up without its article text.
