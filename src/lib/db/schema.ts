@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -120,6 +121,10 @@ export const links = pgTable(
     productData: jsonb("product_data"),
     // What the link's template shows beyond the card: TemplateData in src/lib/types.ts. Null for older links.
     templateData: jsonb("template_data"),
+    // Its id in an iOS local library before uploadLibrary moved it here: uploading again matches on it. Null otherwise.
+    clientId: text("client_id"),
+    // Saved without the AI step (a free crawl, or an upload): enrichLink adds the summary and tags when Pro opens it.
+    aiPending: boolean("ai_pending").notNull().default(false),
     // Where the link came in from: 'manual' | 'chrome' | 'safari' | 'telegram' | 'whatsapp' | 'text'. Text, not an enum,
     // so the next import source is a parser and nothing else.
     source: text("source").notNull().default("manual"),
@@ -142,6 +147,7 @@ export const links = pgTable(
     index("links_user_id_idx").on(t.userId),
     index("links_collection_id_idx").on(t.collectionId),
     index("links_domain_idx").on(t.domain),
+    uniqueIndex("links_user_id_client_id_idx").on(t.userId, t.clientId).where(sql`${t.clientId} is not null`),
   ]
 ).enableRLS();
 
