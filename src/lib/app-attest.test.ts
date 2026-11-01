@@ -34,6 +34,15 @@ test("an attestation is refused for another challenge, key, app or root", () => 
   assert.throws(() => attest(development, {}, appId, otherRoot), /certificate chain/);
 });
 
+test("a leaf certificate changed after Apple signed it is refused", () => {
+  const bytes = Buffer.from(development.attestation, "base64");
+  // The leaf's subject is the hex of the key id, and x5c[0] comes before the receipt's copy, so this lands in the leaf.
+  const at = bytes.indexOf(Buffer.from(Buffer.from(development.keyId, "base64").toString("hex")));
+  assert.ok(at > 0);
+  bytes[at] ^= 0x01; // still a printable character, so the certificate still parses
+  assert.throws(() => checkAttestation(bytes, development.challenge, development.keyId, appId), /certificate chain/);
+});
+
 test("garbage and truncated attestations throw instead of crashing", () => {
   const bytes = Buffer.from(development.attestation, "base64");
   for (const bad of [Buffer.alloc(0), Buffer.from("not cbor"), bytes.subarray(0, 900), Buffer.from([0x9b, 0xff])]) {
