@@ -48,6 +48,8 @@ public enum LibraryMove {
     /// The lapse: copies the server library into the local one (`LibraryRules.union`, the server's copy winning a
     /// match), deleting nothing, so this device keeps everything when the app falls back to a local library. Forgets
     /// which records the last upgrade sent, so going Pro again sends everything and the server merges it.
+    // ponytail: an image saved on the web comes down as its stored URL, not its bytes; download them into the local store
+    // if they need to open offline or outlive the web copy.
     public static func lapse(_ server: LibrarySnapshot, into local: LocalStore, account: String, defaults: UserDefaults = .standard) {
         let theirs = server.links + server.trashed.map { var l = $0; l.deleted = true; return l }
         let (links, collections) = LibraryRules.union(theirs, collections: server.collections, into: local.links(),

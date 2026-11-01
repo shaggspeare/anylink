@@ -60,6 +60,9 @@ struct UpgradeView: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background { ZStack { AL.canvas; Orbs(.sheet) }.ignoresSafeArea() }
+        // The library underneath can't be touched meanwhile, so VoiceOver stays here too.
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
     }
 }
 

@@ -53,7 +53,7 @@ struct AppEnvironment {
         }
     }
 
-    /// The sample library, as a Pro account unless `plan` says otherwise (previews use `-free`'s "free").
+    /// The sample library, as a Pro account unless `plan` says otherwise (previews of a free account).
     static func mock(api: MockAPI? = nil, latency: Bool = true, plan: String = "pro") -> AppEnvironment {
         let cache = LocalCache.appGroup()
         var library = Fixtures.library
