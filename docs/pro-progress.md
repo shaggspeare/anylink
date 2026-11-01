@@ -64,6 +64,8 @@ only the user can do.
 | 2026-10-31 night | Migration `20261105000000_templates.sql` applied | `content_type` gains `recipe`; `links.template_data` added |
 | 2026-10-31 night | Production deploy of Phase 6 (`main` at `7a15a5e`) | Smoke test passed. A live crawl of a recipe page answers `article` without `X-AnyLink-Types` and `recipe` with it, ingredients included |
 | 2026-11-01 early | Migration `20261104000000_plan_expiry.sql` applied | `users.plan_product` and `users.plan_expires_at` added. All 6 accounts are Pro with no expiry (lifetime) |
+| 2026-11-01 early | Migration `20261104010000_plan_transactions.sql` applied | `users.plan_transaction` and `users.plan_revoked` added |
+| 2026-11-01 early | Production deploy of Phases 3, 4 (with its security fixes) and 9 (`main` at `5643460`) | Smoke test passed. Signed-out billing gets 403 `signed-out` and forged notifications get 403 `invalid`. The pricing section is hidden while `APP_STORE_URL` is null, and the new privacy policy is live |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
@@ -291,6 +293,18 @@ App Store Connect are waiting on you.
     transaction to the server, then finishes it. It also restores.
   - The paywall signs the user in first when needed. Every Pro refusal opens it.
   - Settings has AnyLink Pro, Sync with web and Manage Subscription.
+
+### Security review
+An independent review found three highs and one medium. All are fixed and merged:
+- A refunded purchase can never grant Pro again. `plan_revoked` keeps Apple's last word on each refund, with the time
+  Apple signed it.
+- Pro is bound to the purchase that granted it (`plan_transaction`). Notifications only change that purchase.
+- Sandbox purchases are stored as `sandbox:<product>`, and a sandbox lifetime ends after 7 days.
+- Unsigned Xcode transactions are accepted only under `next dev`, never on a deployment.
+- An unreachable revocation check answers 503 `retry`.
+
+One limit remains: a refund that Apple never manages to deliver can't be known. Querying the App Store Server API
+would close that gap later.
 
 ### Deviations
 - `ProStore` lives in the app target, with a new hosted test target `AnyLinkTests`, because StoreKitTest needs an app
