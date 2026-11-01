@@ -544,7 +544,8 @@ Free accounts see the generic layout (S15) instead.
     the paywall (S19). On web the buttons and the footer open the Pro dialog.
   - Offline shows `error.exportOffline`; anything else, `error.generic`.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
-  deleted from every device. This can't be undone." Required by the App Store.
+  deleted from every device. This can't be undone. Deleting your account doesn't stop App Store billing: cancel a Pro
+  subscription in Settings → Apple Account → Subscriptions." Required by the App Store (guideline 5.1.1(v)).
 - Footer: version and build.
 
 **Local library** (signed out, or signed in on Free: `LibraryMode.local`, ADR 0002):
