@@ -6,14 +6,20 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { VerificationException, VerificationStatus } from "@apple/app-store-server-library";
 import { appleVerifier, handleNotification, PRODUCTS, purchaseEvent, type Verifier } from "./apple.ts";
-import type { PlanEvent } from "../plan";
+import { isPro, planAfter, type PlanEvent, type StoredPlan } from "../plan.ts";
 
 const USER = "0b6f4a1e-9c2d-4f7a-8e3b-5d1c2a9f7e60";
 const OTHER = "7f3e2d1c-0b9a-4c8d-9e7f-6a5b4c3d2e1f";
+const PURCHASE = "2000000000000001";
+const TRANSACTION = "2000000000000002";
 const bought = Date.UTC(2026, 10, 1);
 const expires = Date.UTC(2026, 11, 1);
 const grace = Date.UTC(2026, 11, 17);
 const refunded = Date.UTC(2026, 10, 9);
+/** When Apple signed the transaction, and when it signed the notification carrying it. */
+const signed = Date.UTC(2026, 10, 1, 12);
+const sent = Date.UTC(2026, 10, 20);
+const week = 7 * 24 * 60 * 60 * 1000;
 
 /** The stub's "signed" data is plain JSON: verifying it is parsing it. */
 const stub = (fail?: VerificationStatus): Verifier => ({
@@ -26,9 +32,21 @@ const stub = (fail?: VerificationStatus): Verifier => ({
 });
 
 const tx = (fields: object = {}) =>
-  JSON.stringify({ productId: PRODUCTS.monthly, appAccountToken: USER, purchaseDate: bought, expiresDate: expires, ...fields });
+  JSON.stringify({
+    transactionId: TRANSACTION,
+    originalTransactionId: PURCHASE,
+    productId: PRODUCTS.monthly,
+    appAccountToken: USER,
+    purchaseDate: bought,
+    expiresDate: expires,
+    signedDate: signed,
+    environment: "Production",
+    ...fields,
+  });
+const lifetimeTx = (fields: object = {}) =>
+  tx({ transactionId: PURCHASE, productId: PRODUCTS.lifetime, expiresDate: undefined, ...fields });
 const notification = (notificationType: string, data: object = {}, subtype?: string) =>
-  JSON.stringify({ notificationType, subtype, data: { signedTransactionInfo: tx(), ...data } });
+  JSON.stringify({ notificationType, subtype, signedDate: sent, data: { signedTransactionInfo: tx(), ...data } });
 const renewal = JSON.stringify({ gracePeriodExpiresDate: grace });
 
 async function deliver(payload: string, verifier: Verifier | null = stub()) {
@@ -37,35 +55,64 @@ async function deliver(payload: string, verifier: Verifier | null = stub()) {
   return { status, applied };
 }
 
-const monthly = PRODUCTS.monthly;
-const grant = (until: number, product: string = monthly): PlanEvent => ({
-  kind: "grant",
-  product,
-  until: new Date(until),
-  purchasedAt: new Date(bought),
+type From = PlanEvent["from"];
+type Extra = { product?: string; refundKey?: string; signedAt?: number; reversal?: boolean; refund?: boolean; purchasedAt?: Date };
+const about = (from: From, extra: Extra) => ({
+  from,
+  purchase: PURCHASE,
+  refundKey: extra.refundKey ?? TRANSACTION,
+  product: extra.product ?? PRODUCTS.monthly,
+  signedAt: extra.signedAt ?? signed,
 });
-const end = (covered: number | null, at: number, product: string = monthly): PlanEvent => ({
+const grant = (from: From, until: number | null, extra: Extra = {}): PlanEvent => ({
+  ...about(from, extra),
+  kind: "grant",
+  until: until === null ? null : new Date(until),
+  purchasedAt: extra.purchasedAt ?? new Date(bought),
+  ...(extra.reversal ? { reversal: true } : {}),
+});
+const end = (from: From, covered: number | null, at: number, extra: Extra = {}): PlanEvent => ({
+  ...about(from, extra),
   kind: "end",
-  product,
   covered: covered === null ? null : new Date(covered),
   at: new Date(at),
+  ...(extra.refund ? { refund: true } : {}),
 });
+const lifetime = { product: PRODUCTS.lifetime, refundKey: PURCHASE };
 
-test("notifications: each handled type updates the account in appAccountToken", async () => {
+test("notifications: each handled type is Apple's news about the purchase in the transaction", async () => {
   const table: [string, string, PlanEvent][] = [
-    ["subscribed", notification("SUBSCRIBED", {}, "INITIAL_BUY"), grant(expires)],
-    ["renewed", notification("DID_RENEW"), grant(expires)],
-    ["auto-renew turned off", notification("DID_CHANGE_RENEWAL_STATUS", {}, "AUTO_RENEW_DISABLED"), grant(expires)],
-    ["upgraded", notification("DID_CHANGE_RENEWAL_PREF", { signedTransactionInfo: tx({ productId: PRODUCTS.yearly }) }, "UPGRADE"), grant(expires, PRODUCTS.yearly)],
-    ["billing failed, in grace", notification("DID_FAIL_TO_RENEW", { signedRenewalInfo: renewal }, "GRACE_PERIOD"), grant(grace)],
-    ["expired", notification("EXPIRED", {}, "VOLUNTARY"), end(expires, expires)],
-    ["grace ran out", notification("GRACE_PERIOD_EXPIRED", { signedRenewalInfo: renewal }), end(grace, grace)],
-    ["refunded", notification("REFUND", { signedTransactionInfo: tx({ revocationDate: refunded }) }), end(expires, refunded)],
-    ["family sharing revoked", notification("REVOKE", { signedTransactionInfo: tx({ revocationDate: refunded }) }), end(expires, refunded)],
+    ["subscribed", notification("SUBSCRIBED", {}, "INITIAL_BUY"), grant("apple", expires)],
+    ["renewed", notification("DID_RENEW"), grant("apple", expires)],
+    ["auto-renew turned off", notification("DID_CHANGE_RENEWAL_STATUS", {}, "AUTO_RENEW_DISABLED"), grant("apple", expires)],
     [
-      "lifetime refunded",
-      notification("REFUND", { signedTransactionInfo: tx({ productId: PRODUCTS.lifetime, expiresDate: undefined, revocationDate: refunded }) }),
-      end(null, refunded, PRODUCTS.lifetime),
+      "upgraded: the same purchase, a new product",
+      notification("DID_CHANGE_RENEWAL_PREF", { signedTransactionInfo: tx({ productId: PRODUCTS.yearly }) }, "UPGRADE"),
+      grant("apple", expires, { product: PRODUCTS.yearly }),
+    ],
+    ["billing failed, in grace", notification("DID_FAIL_TO_RENEW", { signedRenewalInfo: renewal }, "GRACE_PERIOD"), grant("apple", grace)],
+    ["expired", notification("EXPIRED", {}, "VOLUNTARY"), end("apple", expires, expires)],
+    ["grace ran out", notification("GRACE_PERIOD_EXPIRED", { signedRenewalInfo: renewal }), end("apple", grace, grace)],
+    [
+      "refunded: recorded under the transaction, signed when Apple sent it",
+      notification("REFUND", { signedTransactionInfo: tx({ revocationDate: refunded }) }),
+      end("apple", expires, refunded, { signedAt: sent, refund: true }),
+    ],
+    [
+      "family sharing revoked",
+      notification("REVOKE", { signedTransactionInfo: tx({ revocationDate: refunded }) }),
+      end("apple", expires, refunded, { signedAt: sent, refund: true }),
+    ],
+    [
+      "lifetime refunded: recorded under the purchase",
+      notification("REFUND", { signedTransactionInfo: lifetimeTx({ revocationDate: refunded }) }),
+      end("apple", null, refunded, { ...lifetime, signedAt: sent, refund: true }),
+    ],
+    ["refund reversed", notification("REFUND_REVERSED"), grant("apple", expires, { signedAt: sent, reversal: true })],
+    [
+      "a sandbox renewal is labelled",
+      notification("DID_RENEW", { signedTransactionInfo: tx({ environment: "Sandbox" }) }),
+      grant("apple", expires, { product: `sandbox:${PRODUCTS.monthly}` }),
     ],
   ];
   for (const [why, payload, event] of table) {
@@ -73,15 +120,6 @@ test("notifications: each handled type updates the account in appAccountToken", 
     assert.equal(status, 200, why);
     assert.deepEqual(applied, [[USER, event]], why);
   }
-});
-
-test("notifications: a reversed refund grants Pro as of now", async () => {
-  const before = Date.now();
-  const { applied } = await deliver(notification("REFUND_REVERSED"));
-  const [[userId, event]] = applied;
-  assert.equal(userId, USER);
-  assert.equal(event.kind, "grant");
-  assert.ok(event.kind === "grant" && event.purchasedAt.getTime() >= before);
 });
 
 test("notifications: other types, missing data and foreign products are a 200 that changes nothing", async () => {
@@ -92,6 +130,7 @@ test("notifications: other types, missing data and foreign products are a 200 th
     ["bought without an account token", notification("DID_RENEW", { signedTransactionInfo: tx({ appAccountToken: undefined }) })],
     ["a token that isn't a user id", notification("DID_RENEW", { signedTransactionInfo: tx({ appAccountToken: "not-a-uuid" }) })],
     ["another app's product", notification("DID_RENEW", { signedTransactionInfo: tx({ productId: "com.example.coins" }) })],
+    ["a transaction without ids", notification("DID_RENEW", { signedTransactionInfo: tx({ originalTransactionId: undefined }) })],
   ];
   for (const [why, payload] of table) assert.deepEqual(await deliver(payload), { status: 200, applied: [] }, why);
 });
@@ -104,22 +143,102 @@ test("notifications: unverified is a 403, an unreachable revocation check a 503,
   await assert.rejects(failing, /database down/);
 });
 
-test("purchases: only the account in appAccountToken gets Pro", async () => {
+test("purchases: only the account in appAccountToken gets Pro, and the app may move it onto the purchase", async () => {
   const verify = () => stub();
-  assert.deepEqual(await purchaseEvent(tx(), USER, verify), grant(expires));
-  assert.deepEqual(await purchaseEvent(tx(), USER.toUpperCase(), verify), grant(expires), "token case doesn't matter");
+  assert.deepEqual(await purchaseEvent(tx(), USER, verify), grant("app", expires));
+  assert.deepEqual(await purchaseEvent(tx(), USER.toUpperCase(), verify), grant("app", expires), "token case doesn't matter");
   assert.equal(await purchaseEvent(tx(), OTHER, verify), "account");
   assert.equal(await purchaseEvent(tx({ appAccountToken: undefined }), USER, verify), "account");
   assert.equal(await purchaseEvent(tx({ productId: "com.example.coins" }), USER, verify), "product");
   assert.equal(await purchaseEvent(tx({ expiresDate: undefined }), USER, verify), "product", "a subscription needs an expiry");
+  assert.equal(await purchaseEvent(tx({ transactionId: undefined }), USER, verify), "product", "a transaction needs its ids");
+  assert.deepEqual(await purchaseEvent(lifetimeTx(), USER, verify), grant("app", null, lifetime));
   assert.deepEqual(
-    await purchaseEvent(tx({ productId: PRODUCTS.lifetime, expiresDate: undefined }), USER, verify),
-    { kind: "grant", product: PRODUCTS.lifetime, until: null, purchasedAt: new Date(bought) }
+    await purchaseEvent(tx({ revocationDate: refunded }), USER, verify),
+    end("app", expires, refunded, { refund: true }),
+    "a refunded transaction the app saw ends Pro and goes on the log"
   );
-  assert.deepEqual(await purchaseEvent(tx({ revocationDate: refunded }), USER, verify), end(expires, refunded));
-  const tampered: Verifier = { ...stub(), verifyAndDecodeTransaction: async () => { throw new VerificationException(VerificationStatus.VERIFICATION_FAILURE); } };
-  assert.equal(await purchaseEvent(tx(), USER, () => tampered), "invalid");
+  const failing = (status: VerificationStatus): Verifier => ({
+    ...stub(),
+    verifyAndDecodeTransaction: async () => {
+      throw new VerificationException(status);
+    },
+  });
+  assert.equal(await purchaseEvent(tx(), USER, () => failing(VerificationStatus.VERIFICATION_FAILURE)), "invalid");
+  assert.equal(await purchaseEvent(tx(), USER, () => failing(VerificationStatus.RETRYABLE_VERIFICATION_FAILURE)), "retry");
   assert.equal(await purchaseEvent(tx(), USER, () => null), "environment");
+});
+
+test("purchases: sandbox is labelled, and a sandbox lifetime lasts a week from its purchase", async () => {
+  const verify = () => stub();
+  assert.deepEqual(
+    await purchaseEvent(tx({ environment: "Sandbox" }), USER, verify),
+    grant("app", expires, { product: `sandbox:${PRODUCTS.monthly}` })
+  );
+  const sandboxLifetime = grant("app", bought + week, { ...lifetime, product: `sandbox:${PRODUCTS.lifetime}` });
+  assert.deepEqual(await purchaseEvent(lifetimeTx({ environment: "Sandbox" }), USER, verify), sandboxLifetime);
+  // Posting it again later, newly signed, can't stretch the week.
+  assert.deepEqual(await purchaseEvent(lifetimeTx({ environment: "Sandbox", signedDate: sent }), USER, verify), {
+    ...sandboxLifetime,
+    signedAt: sent,
+  });
+});
+
+/** One account's plan, changed the way the routes change it: the app's posts and Apple's notifications, in order. */
+function account() {
+  let row: StoredPlan = { plan: "free", planProduct: null, planExpiresAt: null, planTransaction: null, planRevoked: [] };
+  const apply = async (_userId: string, event: PlanEvent) => {
+    row = planAfter(row, event) ?? row;
+  };
+  return {
+    row: () => row,
+    post: async (jws: string) => {
+      const event = await purchaseEvent(jws, USER, () => stub());
+      assert.notEqual(typeof event, "string", String(event));
+      await apply(USER, event as PlanEvent);
+    },
+    notify: async (payload: string) => assert.equal(await handleNotification(payload, apply, () => stub()), 200),
+  };
+}
+
+test("end to end (H1): a refunded lifetime's old receipt never brings Pro back", async () => {
+  const a = account();
+  const receipt = lifetimeTx();
+  await a.post(receipt);
+  assert.equal(isPro(a.row(), new Date(bought)), true);
+  await a.notify(notification("REFUND", { signedTransactionInfo: lifetimeTx({ revocationDate: refunded }) }));
+  assert.equal(isPro(a.row(), new Date(refunded)), false);
+  // Any monthly purchase, even a lapsed one, moves the account onto it; then the lifetime's receipt is sent again.
+  await a.post(tx({ transactionId: "3000000000000002", originalTransactionId: "3000000000000001", expiresDate: bought + week }));
+  await a.post(receipt);
+  assert.equal(a.row().planTransaction, "3000000000000001");
+  assert.equal(isPro(a.row(), new Date(bought + 2 * week)), false);
+  // Refunded before the app ever posted it: the receipt grants nothing either.
+  const b = account();
+  await b.notify(notification("REFUND", { signedTransactionInfo: lifetimeTx({ revocationDate: refunded }) }));
+  await b.post(receipt);
+  assert.equal(isPro(b.row(), new Date(refunded)), false);
+});
+
+test("end to end (M1): Apple's news only touches the purchase the account is on", async () => {
+  const a = account();
+  // The first notification can beat the app's post; it's ignored, and the post then grants.
+  await a.notify(notification("SUBSCRIBED", {}, "INITIAL_BUY"));
+  assert.equal(a.row().plan, "free");
+  await a.post(tx());
+  assert.deepEqual([a.row().plan, a.row().planTransaction], ["pro", PURCHASE]);
+  // A renewal of the same purchase keeps Pro going.
+  const renewal = { transactionId: "2000000000000003", purchaseDate: expires, expiresDate: expires + 4 * week };
+  await a.notify(notification("DID_RENEW", { signedTransactionInfo: tx(renewal) }));
+  assert.equal(isPro(a.row(), new Date(expires + week)), true);
+  // Someone else's purchase, sent under this account's id, can't end it: expiry and refund alike.
+  const theirs = { transactionId: "9000000000000002", originalTransactionId: "9000000000000001" };
+  await a.notify(notification("EXPIRED", { signedTransactionInfo: tx(theirs) }));
+  await a.notify(notification("REFUND", { signedTransactionInfo: tx({ ...theirs, revocationDate: refunded }) }));
+  assert.equal(isPro(a.row(), new Date(expires + week)), true);
+  // Its own refund does.
+  await a.notify(notification("REFUND", { signedTransactionInfo: tx({ ...renewal, revocationDate: expires + 1 }) }));
+  assert.equal(a.row().plan, "free");
 });
 
 /** A JWS shaped like a StoreKit transaction, with `chain` in its header and a signature nobody made. */
@@ -152,7 +271,7 @@ function withEnv(vars: Record<string, string | undefined>, run: () => Promise<vo
 }
 
 test("the real verifier: which environments are accepted", () =>
-  withEnv({ APPLE_APP_ID: undefined, APP_STORE_ALLOW_XCODE: undefined }, async () => {
+  withEnv({ APPLE_APP_ID: undefined, APP_STORE_ALLOW_XCODE: undefined, NODE_ENV: undefined }, async () => {
     assert.ok(appleVerifier(forged("Sandbox")), "Sandbox always");
     assert.equal(appleVerifier(forged("Production")), null, "Production needs APPLE_APP_ID");
     assert.equal(appleVerifier(forged("Xcode")), null, "Xcode needs APP_STORE_ALLOW_XCODE=1");
@@ -160,12 +279,22 @@ test("the real verifier: which environments are accepted", () =>
     assert.equal(appleVerifier("garbage"), null);
     await withEnv({ APPLE_APP_ID: "6740000000", APP_STORE_ALLOW_XCODE: "1" }, async () => {
       assert.ok(appleVerifier(forged("Production")));
-      // Nothing checks Xcode's signature: that's why it needs the flag, which production never sets.
+      // Nothing checks Xcode's signature, so a development server takes it only with the flag, labelled, for a week.
       assert.deepEqual(await purchaseEvent(forged("Xcode"), USER), {
+        from: "app",
+        purchase: PURCHASE,
+        refundKey: PURCHASE,
+        product: `xcode:${PRODUCTS.lifetime}`,
+        signedAt: bought,
         kind: "grant",
-        product: PRODUCTS.lifetime,
-        until: null,
+        until: new Date(bought + week),
         purchasedAt: new Date(bought),
+      });
+      // A production build (any deployment, previews included) never takes it, flag or not.
+      await withEnv({ NODE_ENV: "production" }, async () => {
+        assert.equal(appleVerifier(forged("Xcode")), null);
+        assert.equal(appleVerifier(forged("LocalTesting")), null);
+        assert.equal(await purchaseEvent(forged("Xcode"), USER), "environment");
       });
     });
   }));

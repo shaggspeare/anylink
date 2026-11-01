@@ -3,9 +3,10 @@ import { currentUser } from "@/lib/db/current-user";
 import { applyPlanEvent } from "@/lib/db/plan";
 
 /** `{ jws }`: a StoreKit transaction from the iOS app, after a purchase, for a renewal it saw, or on Restore. Answers
- * `{ ok: true }` once it's on the account. A refusal is a 403 with `{ ok: false, reason }`, never a 401, which signs
- * iOS out: `signed-out`, `environment` (not accepted here), `invalid` (didn't verify), `account` (bought by another
- * account) or `product` (not Pro). */
+ * `{ ok: true }` once it's on the account; only this signed-in call can move an account onto a purchase. A refusal is
+ * never a 401, which signs iOS out: 403 `{ ok: false, reason }` with `signed-out`, `environment` (not accepted here),
+ * `invalid` (didn't verify), `account` (bought by another account) or `product` (not Pro), or 503 `retry` when Apple's
+ * revocation check couldn't be reached. */
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return refuse("signed-out");
@@ -17,5 +18,5 @@ export async function POST(request: Request) {
 }
 
 function refuse(reason: string) {
-  return Response.json({ ok: false, reason }, { status: 403 });
+  return Response.json({ ok: false, reason }, { status: reason === "retry" ? 503 : 403 });
 }

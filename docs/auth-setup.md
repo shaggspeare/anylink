@@ -1,6 +1,6 @@
 # Sign-in setup: Google, Apple and email
 
-The code for all three sign-in methods is done on web and iOS. This guide covers the setup in the Supabase, Google, Apple, Resend and Vercel dashboards. Work through it top to bottom; each step depends on the ones above it.
+The code for all three sign-in methods is done on web and iOS. This guide covers the setup in the Supabase, Google, Apple, Resend and Vercel dashboards, plus what Pro needs: App Attest, iCloud, App Store Connect and their environment variables. Work through it top to bottom; each step depends on the ones above it.
 
 ## The values you'll paste
 
@@ -15,6 +15,10 @@ The code for all three sign-in methods is done on web and iOS. This guide covers
 | Apple Team ID | `376HNWM383` |
 | iOS bundle ID | `com.shaggspeare.anylink` |
 | Apple Services ID (web) | `com.shaggspeare.anylink.web` |
+| iCloud container | `iCloud.com.shaggspeare.anylink` |
+| Pro products | `com.shaggspeare.anylink.pro.monthly`, `com.shaggspeare.anylink.pro.yearly`, `com.shaggspeare.anylink.pro.lifetime` |
+| App Store Server Notifications URL | `https://www.anylink.space/api/billing/apple/notifications` |
+| Chrome extension, loaded unpacked | `naiejkkikjnpbfhdppghkehemjlmocjk` |
 
 ---
 
@@ -43,8 +47,10 @@ Open **Authentication → URL Configuration**.
    - `http://localhost:3000/**`
    - `anylink://**` (the iOS app: account confirmation and password-reset links)
    - `https://*.vercel.app/**` (so sign-in also works on Vercel preview deployments)
-   - `https://naiejkkikjnpbfhdppghkehemjlmocjk.chromiumapp.org/**` (the Chrome extension loaded unpacked; the store
-     build has its own id, see `extension/README.md`)
+   - `https://naiejkkikjnpbfhdppghkehemjlmocjk.chromiumapp.org/**` (the Chrome extension loaded unpacked)
+   - `https://<store id>.chromiumapp.org/**` (the Chrome Web Store build), once the store has given the extension its
+     id: upload `build/anylink-extension.zip` (`npm run zip:extension`) without publishing, and the id shows in the
+     Developer Dashboard. `extension/README.md` explains how to give both builds the same id.
 
 Use the `/**` wildcards, not exact callback URLs. The app returns to `/auth/callback?next=…`, and that `?next=…` part fails an exact match. When an address isn't on the list, Supabase sends you to the Site URL instead. The app recovers from that, but you land on the home page instead of `/app`.
 
@@ -170,7 +176,16 @@ This needs a paid Apple Developer account. Everything below is under **developer
 1. Open **Identifiers** and select `com.shaggspeare.anylink`. If it doesn't exist, create it under **App IDs → App**.
 2. Turn on **Sign In with Apple** (Enable as a primary App ID).
 3. Turn on **Associated Domains**. This lets `https://www.anylink.space/links/…` links open in the app.
-4. Click **Save**. If Xcode asks, let it regenerate the provisioning profiles.
+4. Turn on **App Attest**. An install without an account signs its calls to the server with it (crawl, import link
+   checks and grouping).
+5. Turn on **iCloud** with CloudKit, click **Configure**, and tick the container `iCloud.com.shaggspeare.anylink`
+   (create it under **Identifiers → iCloud Containers** if it isn't there). Free libraries sync through it. Turn on
+   **Push Notifications** as well: CloudKit uses silent pushes to bring in changes from other devices.
+6. Click **Save**. If Xcode asks, let it regenerate the provisioning profiles.
+
+Automatic signing usually turns on items 4 and 5 by itself the first time Xcode builds to a device; check that they're
+on afterwards. App Attest doesn't run in the simulator, so test it on a real iPhone. Debug builds use App Attest's
+development environment and CloudKit's development database; TestFlight and App Store builds use production for both.
 
 ### 5b. Services ID (the website)
 
@@ -217,6 +232,28 @@ Apple users who hide their email get an `@privaterelay.appleid.com` address. Sup
 1. Open **Services → Sign in with Apple for Email Communication**.
 2. Register `anylink.space` and `login@anylink.space`.
 
+### 5g. App Store Connect (Pro)
+
+Pro is sold only in the iOS app. Everything here is in App Store Connect.
+
+1. **Agreements, Tax, and Banking:** accept the Paid Apps agreement, and fill in the tax forms and the bank account.
+   Nothing can be sold until it's active.
+2. Join the **App Store Small Business Program** at developer.apple.com/app-store/small-business-program.
+3. **Apps → + → New App:** iOS, the name from `docs/app-store-listing.md`, the bundle ID `com.shaggspeare.anylink`,
+   and any SKU, such as `anylink-ios`.
+4. **Monetization → Subscriptions:** create the group **AnyLink Pro**, and add to it, at the same level:
+   - `com.shaggspeare.anylink.pro.monthly`: 1 month, $2.99
+   - `com.shaggspeare.anylink.pro.yearly`: 1 year, $19.99
+5. **Monetization → In-App Purchases:** add a **Non-Consumable**, `com.shaggspeare.anylink.pro.lifetime`, at $49.99.
+6. Give each product the display name, description and review screenshot from `docs/app-store-listing.md`
+   § In-app purchases. The ids must match `src/lib/billing/apple.ts` and `ios/AnyLink/AnyLink.storekit` exactly.
+7. **App Information → App Store Server Notifications:** set both the **Production Server URL** and the **Sandbox
+   Server URL** to `https://www.anylink.space/api/billing/apple/notifications`, with Version 2 notifications.
+8. **Users and Access → Sandbox:** add a sandbox tester, with an email address that isn't anyone's Apple Account.
+9. Copy the app's **Apple ID**, a number, from **App Information**. It goes into `APPLE_APP_ID` in step 7.
+
+**Test:** follow the purchase section of `docs/pro-qa.md` on a real iPhone with the sandbox tester.
+
 ---
 
 ## 6. JWT signing keys
@@ -237,10 +274,21 @@ The server then verifies each request itself instead of calling Supabase every t
 2. In **Settings → Environment Variables**:
    - Delete `CURRENT_USER_ID` and `API_TOKEN`.
    - Keep `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `DATABASE_URL`.
+   - Add `APP_ATTEST_SECRET` and `APPLE_APP_ID` to **Production**, as described in the table below.
 3. Redeploy.
 4. Check that `https://www.anylink.space/.well-known/apple-app-site-association` returns JSON containing `376HNWM383.com.shaggspeare.anylink`.
+5. Check that `https://www.anylink.space/api/attest/challenge` returns `{ "challenge": … }`, not a 503.
 
 In your local `.env.local`, also delete `CURRENT_USER_ID` and `API_TOKEN`.
+
+### The variables Pro added
+
+| Variable | Where it's set | What it does |
+| --- | --- | --- |
+| `APP_ATTEST_SECRET` | Vercel → Production, and `.env.local` if you test locally | Signs the App Attest registration challenges, so they need no table. Use any long random string, such as the output of `openssl rand -base64 48`. Until it's set, `/api/attest/*` answer 503: iOS installs without an account fall back to the per-IP crawl limit, and their import link checks and grouping fail. |
+| `APP_ATTEST_DEV_SECRET` | Only `.env.local`, or a server you point the simulator at. **Never Production.** | The simulator can't attest, so Debug builds there send this value in an `X-AnyLink-Dev` header instead. It must be 32 characters or more, and the same as `APP_ATTEST_DEV_SECRET` in `ios/Config.xcconfig` (step 8). Vercel's production deployment ignores the header whatever the variable says. |
+| `APPLE_APP_ID` | Vercel → Production | The app's numeric Apple ID (step 5g, item 9). Purchases and notifications from the Production App Store are verified against it, and refused while it's missing. Sandbox purchases, which TestFlight and App Review use, work without it. |
+| `APP_STORE_ALLOW_XCODE` | Only `.env.local`, as `1`, while you test purchases from Xcode's StoreKit configuration against `npm run dev`. **Never on Vercel.** | Accepts transactions signed by Xcode instead of Apple. Nothing can check those, so anyone could forge one, and a production build (`next start`, every Vercel deployment) ignores the variable. |
 
 ---
 
@@ -253,9 +301,13 @@ ANYLINK_API_BASE = https:/$()/www.anylink.space
 SUPABASE_URL = https:/$()/xcljmzxsbepvcskjfadg.supabase.co
 SUPABASE_ANON_KEY = <the same anon key as NEXT_PUBLIC_SUPABASE_ANON_KEY>
 DEVELOPMENT_TEAM = 376HNWM383
+APP_ATTEST_DEV_SECRET =
 ```
 
 Keep the `$()`. Xcode config files treat `//` as the start of a comment, so without it the URL gets cut off.
+
+`APP_ATTEST_DEV_SECRET` is only for Debug builds on the simulator, against a server with the same value (step 7). Leave
+it empty otherwise. Release builds blank it, and production ignores it.
 
 After changing it, run `xcodegen generate` in `ios/`.
 
@@ -271,6 +323,7 @@ After changing it, run `xcodegen generate` in `ios/`.
 | iPhone, "Skip for now" | After 2 saves, a sign-up sheet appears. Sign up, and your saves upload. |
 | iPhone, universal links | Tapping `https://www.anylink.space/links/<id>` in Notes opens the app. |
 | Supabase | Each test account appears under **Authentication → Users**, with a matching row in **Table Editor → users**. |
+| Pro, App Attest, iCloud and the extension | The TestFlight script in `docs/pro-qa.md`. |
 
 ## Common errors
 
@@ -282,6 +335,10 @@ After changing it, run `xcodegen generate` in `ios/`.
 | You land on `/login?error=1`, or on the home page with `?code=…` in the address | The site's `/**` entry is missing from **Redirect URLs** in step 2. |
 | No email arrives | Custom SMTP isn't set up (step 3c), or you've hit the rate limit. |
 | iOS build: "Associated Domains capability" signing error | Step 5a, item 3 hasn't been done yet. |
+| iOS build: an App Attest, iCloud or Push Notifications signing error | Step 5a, items 4 and 5 haven't been done yet. |
+| `/api/attest/challenge` answers 503 | `APP_ATTEST_SECRET` isn't set in Vercel, or the deploy after setting it hasn't happened (step 7). |
+| A purchase leaves the account free, and `POST /api/v1/billing/apple` answered 403 `environment` | A Production purchase while `APPLE_APP_ID` is missing, or an Xcode StoreKit purchase anywhere but `npm run dev` with `APP_STORE_ALLOW_XCODE=1` (step 7). |
+| Renewals and expiries don't reach the account | The notification URL in step 5g, item 7, is missing or not set to Version 2. |
 
 ## Rollout order
 
