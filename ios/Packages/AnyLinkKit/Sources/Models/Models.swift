@@ -113,7 +113,8 @@ public struct ImportMeta: Codable, Hashable, Sendable {
 // MARK: - LinkItem
 
 public struct LinkItem: Codable, Identifiable, Hashable, Sendable {
-    public let id: String
+    /// A `var` so a lapse can keep this device's id on the server's copy of a link (`LibraryRules.union`).
+    public var id: String
     public var url: String
     public var domain: String
     public var title: String
@@ -142,9 +143,13 @@ public struct LinkItem: Codable, Identifiable, Hashable, Sendable {
     public var highlights: [Highlight]?
     public var product: ProductDetails?
     public var templateData: TemplateData?
+    /// Saved without the AI step (a free crawl, or an upload). Opening it on Pro runs `enrichLink`.
+    public var aiPending: Bool?
+    /// The id it had in a local library before the upgrade uploaded it. Set by the server.
+    public var clientId: String?
 
-    public init(id: String, url: String, domain: String, title: String, excerpt: String, articleText: [String]? = nil, heroImage: String? = nil, tint: String, stripe: String, initial: String, contentType: ContentType, readingTimeMinutes: Int? = nil, collectionId: String, tags: [String], size: CardSize, position: Int? = nil, status: LinkStatus, createdAt: String, source: String? = nil, importMeta: ImportMeta? = nil, note: String? = nil, favorite: Bool? = nil, pinned: Bool? = nil, httpStatus: Int? = nil, archived: Bool? = nil, deleted: Bool? = nil, highlights: [Highlight]? = nil, product: ProductDetails? = nil, templateData: TemplateData? = nil) {
-        self.id = id; self.url = url; self.domain = domain; self.title = title; self.excerpt = excerpt; self.articleText = articleText; self.heroImage = heroImage; self.tint = tint; self.stripe = stripe; self.initial = initial; self.contentType = contentType; self.readingTimeMinutes = readingTimeMinutes; self.collectionId = collectionId; self.tags = tags; self.size = size; self.position = position; self.status = status; self.createdAt = createdAt; self.source = source; self.importMeta = importMeta; self.note = note; self.favorite = favorite; self.pinned = pinned; self.httpStatus = httpStatus; self.archived = archived; self.deleted = deleted; self.highlights = highlights; self.product = product; self.templateData = templateData
+    public init(id: String, url: String, domain: String, title: String, excerpt: String, articleText: [String]? = nil, heroImage: String? = nil, tint: String, stripe: String, initial: String, contentType: ContentType, readingTimeMinutes: Int? = nil, collectionId: String, tags: [String], size: CardSize, position: Int? = nil, status: LinkStatus, createdAt: String, source: String? = nil, importMeta: ImportMeta? = nil, note: String? = nil, favorite: Bool? = nil, pinned: Bool? = nil, httpStatus: Int? = nil, archived: Bool? = nil, deleted: Bool? = nil, highlights: [Highlight]? = nil, product: ProductDetails? = nil, templateData: TemplateData? = nil, aiPending: Bool? = nil, clientId: String? = nil) {
+        self.id = id; self.url = url; self.domain = domain; self.title = title; self.excerpt = excerpt; self.articleText = articleText; self.heroImage = heroImage; self.tint = tint; self.stripe = stripe; self.initial = initial; self.contentType = contentType; self.readingTimeMinutes = readingTimeMinutes; self.collectionId = collectionId; self.tags = tags; self.size = size; self.position = position; self.status = status; self.createdAt = createdAt; self.source = source; self.importMeta = importMeta; self.note = note; self.favorite = favorite; self.pinned = pinned; self.httpStatus = httpStatus; self.archived = archived; self.deleted = deleted; self.highlights = highlights; self.product = product; self.templateData = templateData; self.aiPending = aiPending; self.clientId = clientId
     }
 }
 
@@ -381,6 +386,28 @@ extension LinkCheckEvent: Decodable {
             dead = nil; deadCount = try? c.decodeIfPresent(Int.self, forKey: .dead)
         }
     }
+}
+
+/// One `uploadLibrary` call (the upgrade): every collection of a local library, and a batch of its links.
+public struct LibraryUpload: Encodable, Sendable {
+    public var collections: [LinkCollection]
+    public var links: [Link]
+
+    /// A link as the server takes it: the `LinkItem`, and an image item's JPEG, sent as base64.
+    public struct Link: Encodable, Sendable {
+        public var item: LinkItem
+        public var image: Data?
+        public init(item: LinkItem, image: Data? = nil) { self.item = item; self.image = image }
+
+        private enum K: String, CodingKey { case image }
+        public func encode(to encoder: Encoder) throws {
+            try item.encode(to: encoder)
+            var c = encoder.container(keyedBy: K.self)
+            try c.encodeIfPresent(image?.base64EncodedString(), forKey: .image)
+        }
+    }
+
+    public init(collections: [LinkCollection], links: [Link]) { self.collections = collections; self.links = links }
 }
 
 /// One link from an export file. Matches the backend's `ImportedLink`.

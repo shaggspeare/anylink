@@ -9,12 +9,17 @@ public actor MockAPI: AnyLinkAPI {
     private var nextError: AppError?
     private let latency: Bool
     private var displayName: String?
+    /// The account's plan, "pro" or "free". A purchase sets it (`ProStore` without a backend).
+    public private(set) var plan: String
 
-    public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection], crawlLines: [String: [String]] = [:], latency: Bool = true) {
+    public init(links: [LinkItem], trashed: [LinkItem], collections: [LinkCollection], crawlLines: [String: [String]] = [:],
+                latency: Bool = true, plan: String = "pro") {
         self.links = links; self.trashed = trashed; self.collections = collections; self.crawlLines = crawlLines; self.latency = latency
+        self.plan = plan
     }
 
     public func failNext(_ error: AppError) { nextError = error }
+    public func setPlan(_ plan: String) { self.plan = plan }
 
     private func maybeThrow() throws {
         if let e = nextError { nextError = nil; throw e }
@@ -128,8 +133,32 @@ public actor MockAPI: AnyLinkAPI {
 
     public func library(since: Date?) async throws -> LibrarySnapshot {
         try maybeThrow()
-        // A Pro account: the mock shares and sets price alerts without asking.
-        return LibrarySnapshot(links: links, trashed: trashed, collections: collections, displayName: displayName, plan: "pro")
+        // Pro unless told otherwise: the mock shares and sets price alerts without asking either way.
+        return LibrarySnapshot(links: links, trashed: trashed, collections: collections, displayName: displayName, plan: plan)
+    }
+
+    /// Merged the way the server merges (`LibraryRules.union`), except that new links keep the phone's ids.
+    public func uploadLibrary(_ upload: LibraryUpload) async throws {
+        try maybeThrow(); await delay()
+        guard plan == "pro" else { throw AppError.proRequired }
+        let known = Set((links + trashed).map(\.id))
+        let (written, added) = LibraryRules.union(upload.links.map(\.item), collections: upload.collections, into: links + trashed,
+                                                  collections: collections, inbox: inboxID, theirsWin: false)
+        collections += added
+        for var link in written {
+            if !known.contains(link.id) { link.aiPending = LibraryRules.isPage(link) }
+            links.removeAll { $0.id == link.id }
+            trashed.removeAll { $0.id == link.id }
+            if link.deleted == true { trashed.append(link) } else { links.append(link) }
+        }
+    }
+
+    /// No model here: the link just stops waiting.
+    public func enrichLink(_ id: LinkItem.ID) async throws -> LinkItem? {
+        try maybeThrow(); await delay()
+        guard let i = links.firstIndex(where: { $0.id == id }), links[i].aiPending == true else { return nil }
+        links[i].aiPending = false
+        return links[i]
     }
 
     public func createLink(_ draft: LinkDraft) async throws -> LinkItem {

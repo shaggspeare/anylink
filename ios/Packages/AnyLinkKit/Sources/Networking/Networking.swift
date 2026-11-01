@@ -37,6 +37,11 @@ public protocol AnyLinkAPI: Sendable {
     func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare
     /// Pro: the library as an HTML, JSON or CSV file in the temp directory (`GET /api/v1/export`).
     func export(format: ExportFormat) async throws -> URL
+    /// Pro: a batch of a local library into the server library (the upgrade). What's already there merges, so sending a
+    /// batch again creates nothing.
+    func uploadLibrary(_ upload: LibraryUpload) async throws
+    /// Pro: the AI step for a link saved without it (`aiPending`). The link as it is now, or nil when there's nothing to do.
+    func enrichLink(_ id: LinkItem.ID) async throws -> LinkItem?
 }
 
 public extension AnyLinkAPI {
@@ -50,6 +55,10 @@ public extension AnyLinkAPI {
     func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare { throw AppError.server(501) }
     /// Export is Pro and reads the server library, so a client without one says it's Pro.
     func export(format: ExportFormat) async throws -> URL { throw AppError.proRequired }
+    /// Only a server library takes an upload.
+    func uploadLibrary(_ upload: LibraryUpload) async throws { throw AppError.server(501) }
+    /// Only a server library runs the AI step.
+    func enrichLink(_ id: LinkItem.ID) async throws -> LinkItem? { nil }
 }
 
 // MARK: - NDJSON decoder

@@ -81,4 +81,128 @@ public enum LibraryRules {
             createdAt: Date().formatted(.iso8601), source: "ios"
         )
     }
+
+    // MARK: - Upgrade and lapse (src/lib/library-merge.ts)
+
+    /// Query parameters that only say where a click came from: `cleanUrl`'s in src/lib/crawler/url.ts.
+    static let trackingParams: Set = ["fbclid", "gclid", "gbraid", "wbraid", "msclkid", "yclid", "ttclid", "igshid", "mc_cid",
+                                      "mc_eid", "_openstat", "ref_src", "si"]
+
+    /// One page, one key, as `urlKey` on the server: tracking parameters, the scheme, a leading "www." and trailing
+    /// slashes don't make a new URL. Anything that isn't a URL is its own key.
+    public static func urlKey(_ raw: String) -> String {
+        let raw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard var c = URLComponents(string: raw), let host = c.host?.lowercased(), !host.isEmpty else { return raw }
+        let kept = c.percentEncodedQueryItems?.filter { !$0.name.hasPrefix("utm_") && !trackingParams.contains($0.name) }
+        if kept?.count != c.percentEncodedQueryItems?.count { c.percentEncodedQueryItems = kept?.isEmpty == true ? nil : kept }
+        var key = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        if let port = c.port, port != (c.scheme?.lowercased() == "http" ? 80 : 443) { key += ":\(port)" }
+        var path = c.percentEncodedPath
+        while path.hasSuffix("/") { path.removeLast() }
+        key += path
+        if let q = c.percentEncodedQuery, !q.isEmpty { key += "?\(q)" }
+        if let f = c.percentEncodedFragment, !f.isEmpty { key += "#\(f)" }
+        return key
+    }
+
+    /// One link from two libraries, as `mergeLinks` on the server: `other`'s tags, highlights (by quote) and note join
+    /// `base`'s, the earlier save wins, and pinned or favourite on either side stays on. Everything else is `base`'s.
+    public static func merge(_ base: LinkItem, _ other: LinkItem) -> LinkItem {
+        var m = base
+        for t in other.tags where !m.tags.contains(t) { m.tags.append(t) }
+        var highlights = base.highlights ?? []
+        for h in other.highlights ?? [] where !highlights.contains(where: { $0.quote == h.quote }) { highlights.append(h) }
+        if !highlights.isEmpty { m.highlights = highlights }
+        m.note = mergedNote(base.note, other.note)
+        if let earlier = date(other.createdAt), let later = date(base.createdAt), earlier < later { m.createdAt = other.createdAt }
+        if other.pinned == true { m.pinned = true }
+        if other.favorite == true { m.favorite = true }
+        return m
+    }
+
+    /// Appended, unless one note already holds the other.
+    static func mergedNote(_ a: String?, _ b: String?) -> String? {
+        let a = a?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let b = b?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        guard let b, a?.contains(b) != true else { return a }
+        guard let a, !b.contains(a) else { return b }
+        return a + "\n\n" + b
+    }
+
+    static func date(_ iso: String) -> Date? {
+        (try? Date(iso, strategy: .iso8601)) ?? (try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(iso))
+    }
+
+    /// Where a collection from another library lands, as `matchCollection` on the server: a smart collection on one with
+    /// the same name and query, any other on one with the same name, ignoring case. The inbox is the caller's to map.
+    static func matchCollection(_ c: LinkCollection, in existing: [LinkCollection]) -> LinkCollection? {
+        let name = c.name.trimmingCharacters(in: .whitespaces).lowercased()
+        return existing.first { e in
+            e.isInbox != true && (e.isSmart == true) == (c.isSmart == true)
+                && e.name.trimmingCharacters(in: .whitespaces).lowercased() == name
+                && (c.isSmart != true || (e.smartQuery ?? "") == (c.smartQuery ?? ""))
+        }
+    }
+
+    /// A link with a page behind it. Notes and images have no URL to match on.
+    static func isPage(_ l: LinkItem) -> Bool { !l.isNote && !l.isImage && !l.url.isEmpty }
+
+    /// What copying `theirs` into `ours` writes, deleting nothing (CONTEXT.md: Upgrade and Lapse). Collections match by
+    /// id, the inbox to `inbox`, then by name (`matchCollection`). Links match by id, by `clientId` either way, then by
+    /// `urlKey`; a match merges (`merge`), keeping our id, with `theirsWin` deciding whose other fields stay. Anything
+    /// else is added under its own id, in the collection it maps to. No more than two live links end up pinned. Returns
+    /// only new and changed records, for the caller to upsert.
+    public static func union(_ theirs: [LinkItem], collections theirCollections: [LinkCollection], into ours: [LinkItem],
+                             collections ourCollections: [LinkCollection], inbox: LinkCollection.ID,
+                             theirsWin: Bool) -> (links: [LinkItem], collections: [LinkCollection]) {
+        var collections = ourCollections
+        var added: [LinkCollection] = []
+        var collectionIDs: [LinkCollection.ID: LinkCollection.ID] = [:]
+        for c in theirCollections {
+            if c.isInbox == true {
+                collectionIDs[c.id] = inbox
+            } else if let mine = collections.first(where: { $0.id == c.id }) ?? matchCollection(c, in: collections) {
+                collectionIDs[c.id] = mine.id
+            } else {
+                var copy = c
+                copy.shareToken = nil
+                added.append(copy)
+                collections.append(copy)
+            }
+        }
+
+        var links = ours
+        var byID: [String: Int] = [:]
+        var byURL: [String: Int] = [:]
+        func index(_ i: Int) {
+            for key in [links[i].id, links[i].clientId].compactMap({ $0 }) where byID[key] == nil { byID[key] = i }
+            if isPage(links[i]), byURL[urlKey(links[i].url)] == nil { byURL[urlKey(links[i].url)] = i }
+        }
+        links.indices.forEach(index)
+        var pins = links.filter { $0.pinned == true && $0.deleted != true && $0.archived != true }.count
+        var written: Set<Int> = []
+        for var link in theirs {
+            let filed = collectionIDs[link.collectionId] ?? link.collectionId
+            link.collectionId = collections.contains { $0.id == filed } ? filed : inbox
+            let found = byID[link.id] ?? link.clientId.flatMap { byID[$0] } ?? (isPage(link) ? byURL[urlKey(link.url)] : nil)
+            var merged = link
+            if let i = found {
+                merged = theirsWin ? merge(link, links[i]) : merge(links[i], link)
+                merged.id = links[i].id
+            }
+            if merged.pinned == true, found.map({ links[$0].pinned != true }) ?? true {
+                if merged.deleted != true, merged.archived != true, pins < 2 { pins += 1 } else { merged.pinned = false }
+            }
+            if let i = found {
+                guard merged != links[i] else { continue }
+                links[i] = merged
+                written.insert(i)
+            } else {
+                links.append(merged)
+                written.insert(links.count - 1)
+                index(links.count - 1)
+            }
+        }
+        return (written.sorted().map { links[$0] }, added)
+    }
 }

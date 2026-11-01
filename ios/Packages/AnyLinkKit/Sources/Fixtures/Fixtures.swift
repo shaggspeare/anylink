@@ -33,7 +33,7 @@ public enum Fixtures {
 }
 
 extension MockAPI {
-    public static func fixtures(latency: Bool = true) -> MockAPI {
+    public static func fixtures(latency: Bool = true, plan: String = "pro") -> MockAPI {
         MockAPI(
             links: Fixtures.links, trashed: Fixtures.trashed, collections: Fixtures.collections,
             crawlLines: [
@@ -41,7 +41,7 @@ extension MockAPI {
                 "excerpt-only": Fixtures.crawlExcerptOnlyLines,
                 "failed": Fixtures.crawlFailedLines,
             ],
-            latency: latency
+            latency: latency, plan: plan
         )
     }
 }
