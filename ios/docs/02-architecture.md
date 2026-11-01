@@ -163,7 +163,17 @@ Two SwiftData stores in the App Group container, both owned by `Persistence`. Vi
 
 - **Which library**: `LibraryMode(signedIn:plan:)` in Store. Signed in with Pro → the server library. Anything else
   (signed out, or signed in on Free) → the local library (ADR 0002, D28). `AppEnvironment.make(_:)` builds the
-  environment for a mode; RootView swaps it when the mode changes. Upgrade and lapse (Pro phase 5) hook in there.
+  environment for a mode; RootView swaps it when the mode changes.
+- **Upgrade and lapse** (`LibraryMove` in Store, run by RootView, D29). The stored `plan` is the plan of the library
+  on screen, so it changes only once a move has finished.
+  - Upgrade: signed in on a local library, the server says Pro (after a purchase, a sign-in, or any return to the
+    app). `LibraryMove.upgrade` sends the local library through `uploadLibrary` in batches (200 links or about 3 MB,
+    an image on its own) and keeps the ids that arrived in `UserDefaults`, per account, so it resumes after a kill or
+    a failure. Then RootView switches to the server library. `Local.store` is left as it was.
+  - Lapse: on the server library, a refresh says `plan: free`. `LibraryMove.lapse` copies the server library into
+    `Local.store` with `LibraryRules.union` (match by id, `clientId`, then URL; the server's copy wins a match; nothing
+    is deleted), forgets the upload record so going Pro again sends everything, and RootView switches to the local
+    library, still signed in.
 - **Server library cache** (`LocalCache`, `AnyLink.store`, D21): the last library snapshot and the outbox as JSON
   blobs (`CacheBlob`). Launch loads it into `LibraryStore` (instant UI), then `refresh()`.
 - **Local library** (`LocalStore`, `Local.store`, D28): the free library itself, mirrored to the user's private

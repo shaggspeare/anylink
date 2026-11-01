@@ -23,9 +23,13 @@ enum AppConfig {
     static var isUITesting: Bool {
         CommandLine.arguments.contains("-ui-testing")
     }
-    /// UI tests and screenshots: the sample library as a free account.
+    /// UI tests and screenshots: the sample library as a free account, kept on this device.
     static var isFree: Bool {
         CommandLine.arguments.contains("-free")
+    }
+    /// UI tests: Pro has just ended on the server, so the next refresh of the Pro library is a lapse (S20).
+    static var proEnds: Bool {
+        CommandLine.arguments.contains("-pro-ends")
     }
     static var showGallery: Bool {
         CommandLine.arguments.contains("-gallery")

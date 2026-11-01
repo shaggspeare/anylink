@@ -64,16 +64,17 @@ public struct LiveAPI: AnyLinkAPI {
 
     /// `POST /api/v1/actions/<name>` with `args` as a JSON array. A Pro-only action answers a free account with
     /// `{ "ok": false, "reason": "pro" }` (a 200, so nobody is signed out), which throws `.proRequired`.
-    func action(_ name: String, _ args: [any Encodable]) async throws -> Data {
+    func action(_ name: String, _ args: [any Encodable], timeout: TimeInterval = 30) async throws -> Data {
         let enc = JSONEncoder()
         let parts = try args.map { String(decoding: try enc.encode($0), as: UTF8.self) }
-        let data = try await send(await request("api/v1/actions/\(name)", body: Data("[\(parts.joined(separator: ","))]".utf8)))
+        let body = Data("[\(parts.joined(separator: ","))]".utf8)
+        let data = try await send(await request("api/v1/actions/\(name)", body: body, timeout: timeout))
         if (try? JSONDecoder().decode(Refusal.self, from: data))?.reason == "pro" { throw AppError.proRequired }
         return data
     }
 
-    func action<T: Decodable>(_ name: String, _ args: [any Encodable], as: T.Type) async throws -> T {
-        let data = try await action(name, args)
+    func action<T: Decodable>(_ name: String, _ args: [any Encodable], timeout: TimeInterval = 30, as: T.Type) async throws -> T {
+        let data = try await action(name, args, timeout: timeout)
         do { return try JSONDecoder().decode(T.self, from: data) } catch { throw AppError.decoding }
     }
 
@@ -259,6 +260,18 @@ public struct LiveAPI: AnyLinkAPI {
 
     public func deleteAccount() async throws {
         _ = try await action("deleteAccount", [])
+    }
+
+    // MARK: - Upgrade
+
+    /// A few MB a call, so it gets as long as an image upload.
+    public func uploadLibrary(_ upload: LibraryUpload) async throws {
+        _ = try await action("uploadLibrary", [upload], timeout: 120)
+    }
+
+    /// The model, or a fresh read of the page, can take a while.
+    public func enrichLink(_ id: LinkItem.ID) async throws -> LinkItem? {
+        try await action("enrichLink", [id], timeout: 60, as: LinkItem?.self)
     }
 
     // MARK: - Billing

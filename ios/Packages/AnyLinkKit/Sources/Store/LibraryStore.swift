@@ -36,6 +36,8 @@ public final class LibraryStore {
     /// A card shows before its save returns, under a "local-…" id. Each save's server id (nil if it failed),
     /// so a change made to the card meanwhile reaches the server under the right id.
     @ObservationIgnored private var creating: [LinkItem.ID: Task<LinkItem.ID?, Never>] = [:]
+    /// Links sent to `enrichLink` this launch.
+    @ObservationIgnored private var enriching: Set<LinkItem.ID> = []
     public private(set) var syncState: SyncState = .idle
     public private(set) var lastSynced: Date?
     public var clipboardHasURL = false
@@ -529,6 +531,19 @@ public final class LibraryStore {
 
     func syncPriceAlert(id: LinkItem.ID, threshold: Double, currency: String, before: [LinkItem]) {
         sync(.priceAlert(id, threshold: threshold, currency: currency)) { [weak self] in self?.put(before) }
+    }
+
+    /// Opening a link saved without its AI step, on Pro: the server runs it (`enrichLink`) and the link shows the
+    /// summary, type and tags. One try per link per launch, and nothing to say if it fails. Edits made meanwhile stay.
+    public func enrichIfPending(_ id: LinkItem.ID) async {
+        guard isPro, links[id]?.aiPending == true, enriching.insert(id).inserted else { return }
+        guard let done = try? await api.enrichLink(id), var link = links[id] else { return }
+        link.excerpt = done.excerpt
+        link.contentType = done.contentType
+        link.product = link.product ?? done.product
+        for tag in done.tags where !link.tags.contains(tag) { link.tags.append(tag) }
+        link.aiPending = false
+        links[id] = link
     }
 
     // MARK: - Collection intents

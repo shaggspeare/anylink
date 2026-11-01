@@ -68,9 +68,13 @@ export function DetailPane({ split }: { split: SplitView }) {
 /** Header actions, note and reader/product panel. `onClose` means it's in the side pane:
  * no breadcrumb or back button, a close and an expand-to-full-page instead. */
 function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void }) {
-  const { collections, moveLinks, setFavorite, setNote, plan } = useLibrary();
+  const { collections, moveLinks, setFavorite, setNote, plan, enrichLink } = useLibrary();
   const router = useRouter();
   const [noteOpen, setNoteOpen] = useState(Boolean(link.note));
+  // Saved without its AI step: Pro gets the summary and tags now (the store skips Free).
+  useEffect(() => {
+    if (link.aiPending) enrichLink(link.id);
+  }, [link.id, link.aiPending, enrichLink]);
   const collection = collections.find((c) => c.id === link.collectionId);
   const isProduct = link.contentType === "product";
   const isNote = link.contentType === "note";

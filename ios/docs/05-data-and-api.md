@@ -56,6 +56,8 @@ public protocol AnyLinkAPI: Sendable {
     func logSignal(_ signal: Signal) async                                              // logSignal [action, { linkId?, linkIds?, collectionId?, payload? }] (never throws)
     func deleteAccount() async throws                                                   // BACKEND: no endpoint yet; Mock only
     func export(format: ExportFormat) async throws -> URL                               // GET /api/v1/export?format=html|json|csv → a temp file; 403 { reason: "pro" } → .proRequired
+    func uploadLibrary(_ upload: LibraryUpload) async throws                            // uploadLibrary [{ collections, links }] → { ok, created, merged }; Pro (the upgrade)
+    func enrichLink(_ id: LinkItem.ID) async throws -> LinkItem?                        // enrichLink [id] → the link, or null; Pro opens an `aiPending` link
 }
 
 public enum BulkAction: Sendable { case move(to: LinkCollection.ID), tag(String), archive, trash, restore, purge }

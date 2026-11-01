@@ -99,6 +99,11 @@ export type LinkItem = {
   highlights?: Highlight[];
   product?: ProductDetails;
   templateData?: TemplateData;
+  /** Saved without the AI step (a free crawl, or an upload from an iOS local library). A Pro account opening it runs
+   * `enrichLink`, which adds the summary and tags. */
+  aiPending?: boolean;
+  /** The id it had in an iOS local library before the upgrade uploaded it (`uploadLibrary`). */
+  clientId?: string;
 };
 
 export type Collection = {

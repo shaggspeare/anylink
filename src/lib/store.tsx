@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, startTransition, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ALL_COLLECTION_ID } from "./mock-data";
 import * as actions from "./db/actions";
 import { searchLinks } from "./search";
@@ -10,7 +10,7 @@ import type { CardSize, Collection, LinkItem } from "./types";
 import { linkCount } from "./format";
 import { noteTitle } from "./linkify";
 import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
-import { isProRefusal, proAware, type Plan } from "./plan";
+import { isPro, isProRefusal, proAware, type Plan } from "./plan";
 import { AuthDialog } from "@/components/auth-panel";
 import { ProDialog } from "@/components/pro-dialog";
 
@@ -53,6 +53,9 @@ type LibraryContextValue = {
   countForCollection: (collectionId: string) => number;
   addHighlight: (linkId: string, quote: string) => void;
   setAlertThreshold: (linkId: string, threshold: number) => void;
+  /** A Pro account opened a link still waiting for its AI step (`aiPending`): run it, then show the result. Once per
+   * link per visit. */
+  enrichLink: (id: string) => void;
   /** Bulk import from an export file — no crawl, so the whole file lands at once. */
   importLinks: (items: ImportedLink[]) => Promise<actions.ImportLinksResult>;
   /** Onboarding's payoff: files everything unsorted into named collections. */
@@ -294,6 +297,7 @@ export function LibraryProvider({
   // Undo runs seconds later; it must act on the library as it is then, not as it was.
   const latest = useRef<LibraryContextValue>(null!);
   const pinPending = useRef(false);
+  const enriched = useRef(new Set<string>());
 
   const value = useMemo<LibraryContextValue>(
     () => ({
@@ -525,6 +529,15 @@ export function LibraryProvider({
             );
           })
           .catch(console.error);
+      },
+      enrichLink: (id) => {
+        if (demo || guest || !isPro(plan) || enriched.current.has(id)) return;
+        enriched.current.add(id);
+        // Not through `api`: a refusal here means the plan changed, which isn't worth a dialog over a link opening.
+        startTransition(async () => {
+          const link = await actions.enrichLink(id).catch(() => null);
+          if (link && !isProRefusal(link)) setLinks((prev) => prev.map((l) => (l.id === id ? (link as LinkItem) : l)));
+        });
       },
       importLinks: async (items) => {
         const result = await api.importLinks(items);

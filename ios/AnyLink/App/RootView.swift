@@ -14,12 +14,19 @@ struct RootView: View {
     @Environment(\.undoManager) private var undoManager
     @AppStorage("appearance") private var appearance: Appearance = .system
     @AppStorage("signedIn") private var signedIn = false
-    /// The signed-in account's plan, as the server last said. Empty until it has.
+    /// The plan of the library on screen, as the server said: empty until it has. A move (S20) changes it once it's
+    /// done, which switches the library.
     @AppStorage("plan") private var plan = ""
     @AppStorage("onboarded") private var onboarded = false
+    /// Pro ended: the notice shows until it's been seen (S20).
+    @AppStorage("lapseNotice") private var lapseNotice = false
     /// A password-reset link signed them in; ask for the new password.
     @State private var choosingPassword = false
     @State private var checkingPlan = false
+    /// Asked while a check was under way, maybe for a purchase the server has only just recorded: ask once more.
+    @State private var checkAgain = false
+    /// The upgrade on screen (S20).
+    @State private var upgrade: UpgradeView.Phase?
     /// Once per cold launch. The clip is all motion, so Reduce Motion skips it.
     @State private var splashing = !UIAccessibility.isReduceMotionEnabled && !AppConfig.isUITesting
 
@@ -29,6 +36,12 @@ struct RootView: View {
         // No sign-in wall (S0): every mode has a library. A new environment starts its screens afresh.
         main(env)
             .id(ObjectIdentifier(env.store))
+            .overlay {
+                if let upgrade {
+                    UpgradeView(phase: upgrade, retry: { Task { await checkPlan() } }, later: { self.upgrade = nil })
+                        .transition(.opacity)
+                }
+            }
             .overlay {
                 if splashing { SplashView { withAnimation(AL.Motion.sheet) { splashing = false } }.transition(.opacity) }
             }
@@ -49,21 +62,84 @@ struct RootView: View {
                 WidgetCenter.shared.reloadAllTimelines()
             }
             .task(id: signedIn) { await checkPlan() }
+            // A purchase the server has confirmed (ProStore).
+            .task { for await _ in NotificationCenter.default.notifications(named: .proConfirmed).map({ _ in }) { await checkPlan() } }
+            // Every refresh of a server library says which plan it has: Free means Pro ended.
+            .onChange(of: env.store.lastSynced) { _, synced in if synced != nil { lapseIfFree() } }
+            .alert("Pro has ended", isPresented: $lapseNotice) {
+                Button("OK", role: .cancel) {}
+                Button("Get Pro again") { env.router.sheet = .paywall }
+            } message: {
+                Text("Your library stays on this iPhone, and the web keeps its own copy. They stay separate until you go Pro again.")
+            }
     }
 
-    /// Signed in, the server says which library the account has (S1): Pro switches to it, Free keeps the local one.
-    /// Offline, it asks again the next time the app becomes active.
+    /// Signed in on a local library, the server says which plan the account has (S1, S20): Pro moves the library there,
+    /// Free keeps it here. Asked after signing in, after a purchase and on every return to the app; offline, the next
+    /// return asks again.
     private func checkPlan() async {
-        guard signedIn, plan.isEmpty, !checkingPlan else { return }
+        guard signedIn, env.mode == .local else { return }
+        guard !checkingPlan else { checkAgain = true; return }
         checkingPlan = true
-        defer { checkingPlan = false }
+        await askForPlan()
+        checkingPlan = false
+        if checkAgain {
+            checkAgain = false
+            await checkPlan()
+        }
+    }
+
+    private func askForPlan() async {
+        if upgrade != nil { upgrade = .moving(done: 0, total: 0) }
         do {
             let answer = try await AppEnvironment.serverPlan()
+            if answer == "pro" { return await moveToServer() }
+            if plan.isEmpty { env.store.toasts.show("Signed in. On Free, your iPhone and web libraries stay separate.") }
             plan = answer
-            if answer != "pro" { env.store.toasts.show("Signed in. On Free, your iPhone and web libraries stay separate.") }
+            upgrade = nil
+        } catch AppError.unauthorized {
+            upgrade = nil
+            signedIn = false
+        } catch {
+            if upgrade != nil { upgrade = .failed }
+        }
+    }
+
+    /// The upgrade (S20): sends the local library to the account's server library, then switches to that. The local
+    /// store stays as it was. A failure offers Try again, and a kill carries on at the next launch.
+    private func moveToServer() async {
+        guard let local = env.local else { return }
+        upgrade = .moving(done: 0, total: 0)
+        let server = AppEnvironment.server
+        var moved = 0
+        do {
+            try await LibraryMove.upgrade(local, account: AppEnvironment.account, send: { try await server.uploadLibrary($0) }) {
+                upgrade = .moving(done: $0, total: $1)
+                moved = $1
+            }
+            env = .make(.server)
+            plan = "pro"
+            await env.store.refresh()
+            if moved > 0 { env.store.toasts.show("Your library is on AnyLink Pro") }
         } catch AppError.unauthorized {
             signedIn = false
-        } catch {}
+        } catch AppError.proRequired {
+            plan = "free"
+        } catch {
+            upgrade = .failed
+            return
+        }
+        withAnimation(AL.Motion.sheet) { upgrade = nil }
+    }
+
+    /// The lapse (S20): the server library says Free. It's copied into the local library, which deletes nothing, then
+    /// the app switches to that, still signed in, and says why once.
+    private func lapseIfFree() {
+        guard env.mode == .server, env.store.plan == "free", let local = AppEnvironment.localStore else { return }
+        LibraryMove.lapse(env.store.snapshot, into: local, account: AppEnvironment.account)
+        env = .make(.local)
+        plan = "free"
+        lapseNotice = true
     }
 
     /// Saves what the share extension left behind and tells it which collections to offer.

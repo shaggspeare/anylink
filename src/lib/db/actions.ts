@@ -11,13 +11,14 @@ import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
-import { crawlUrl } from "../crawler";
+import { crawlUrl, enrichWithLLM, type CrawlResult } from "../crawler";
 import { IMAGE_IDENTITY, NOTE_IDENTITY, identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
 import { GROUP_LIMIT, groupByMetadata, groupLinks, SYSTEM_COLORS, type Priorities } from "../rank/group-links";
-import { ensureInbox, sharedCollectionRows, toLinkItem } from "./queries";
+import { ensureInbox, getLink, sharedCollectionRows, toLinkItem } from "./queries";
+import { linkMatcher, matchCollection, mergeLinks, type MergeFields } from "../library-merge";
 import type { ImportedLink } from "../import/parse";
-import type { CardSize, Collection, LinkItem, ProductDetails } from "../types";
+import { CARD_SIZES, type CardSize, type Collection, type ImportMeta, type LinkItem, type ProductDetails, type TemplateData } from "../types";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
   status?: LinkItem["status"];
@@ -100,6 +101,8 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
   const url = cleanUrl(input.url);
   // Saved before anything read the page: the iOS share sheet, or "Save now" mid-read.
   const unread = !input.excerpt && !input.articleText?.length;
+  // The crawl behind this save ran with this plan, so a free one skipped the AI step: enrichLink adds it later.
+  const full = await fullCrawls();
 
   const [row] = await db
     .insert(schema.links)
@@ -123,16 +126,14 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       templateData: input.templateData ?? null,
       source: input.source || undefined,
       note: input.note?.trim() || null,
+      aiPending: !full,
     })
     .returning();
 
   await savePrice(row.id, input.product);
   await addTags(uid, row.id, input.tags);
-  if (unread) {
-    // Read now: after() runs outside the request.
-    const full = await fullCrawls();
-    after(() => fillFromPage(uid, row.id, url, input.title, full));
-  }
+  // Read now: after() runs outside the request.
+  if (unread) after(() => fillFromPage(uid, row.id, url, input.title, full));
 
   // Download/resize/upload runs after the response: the card shows the hotlinked
   // image now and picks up the re-hosted copy on the next load.
@@ -157,12 +158,14 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
     status: row.status,
     heroImage,
     pinned: row.pinned,
+    aiPending: row.aiPending,
   };
 }
 
 /** Reads a link saved unread and fills in its card after the response — the same crawl the add-link
  * form runs first. A title the client sent stays, unless it's only the URL or domain. Ends "ready"
- * either way: a page that can't be read keeps what it was saved with. Without `full` (`fullCrawls`) it's a free crawl. */
+ * either way: a page that can't be read keeps what it was saved with. Without `full` (`fullCrawls`) it's a free crawl,
+ * which leaves the link `aiPending`; with it, the AI step was the one try it gets. */
 async function fillFromPage(uid: string, id: string, url: string, sentTitle: string, full: boolean) {
   let patch: Partial<typeof schema.links.$inferInsert> = {};
   try {
@@ -190,9 +193,58 @@ async function fillFromPage(uid: string, id: string, url: string, sentTitle: str
   } finally {
     await db
       .update(schema.links)
-      .set({ ...patch, status: "ready", updatedAt: new Date() })
+      .set({ ...patch, status: "ready", aiPending: !full, updatedAt: new Date() })
       .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
   }
+}
+
+/** The AI step for a link saved without it (`aiPending`: a free crawl, or an upload), the first time a Pro account opens
+ * it. Run on what the link has stored, it answers the link as it is now; a link with nothing stored is read again after
+ * the response, as an unread save is, and answers null like a link with nothing to do. Lifetime past its fair use
+ * waits for next month. Pro only.
+ * ponytail: lazy backfill bounds AI cost; backfill in bulk if users ask. */
+export async function enrichLink(id: string): Promise<LinkItem | null | typeof PRO_REQUIRED> {
+  const uid = await currentUserId();
+  if (!isPro(await currentPlan())) return PRO_REQUIRED;
+  const [row] = await db
+    .select()
+    .from(schema.links)
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
+  if (!row?.aiPending || !(await fullCrawls())) return null;
+  if (!row.articleText?.length && !row.excerpt) {
+    // Long enough to hold up every other action the web app sends meanwhile: they go one at a time.
+    after(() => fillFromPage(uid, row.id, row.url, row.title, true));
+    return null;
+  }
+  const result: CrawlResult = {
+    domain: row.domain,
+    canonicalUrl: row.canonicalUrl ?? row.url,
+    title: row.title,
+    excerpt: row.excerpt,
+    articleText: row.articleText ?? [],
+    tint: row.tint,
+    stripe: row.stripe,
+    initial: row.initial,
+    contentType: row.contentType,
+    suggestedTags: [],
+  };
+  // The model didn't answer: it's asked again the next time the link opens.
+  if (!(await enrichWithLLM(result))) return null;
+  // The summary is the excerpt. A page that turns out to be a product gets the card a Pro save would have made.
+  const product = result.contentType === "product" && !row.productData ? result.product : undefined;
+  await db
+    .update(schema.links)
+    .set({
+      excerpt: result.excerpt,
+      contentType: result.contentType,
+      ...(product ? { productData: productJson(product) } : {}),
+      aiPending: false,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
+  await addTags(uid, id, result.suggestedTags);
+  await savePrice(id, product);
+  return getLink(id);
 }
 
 const MAX_NOTE_CHARS = 20_000;
@@ -579,6 +631,8 @@ export async function saveFromShare(
         status: "ready" as const,
         productData: r.productData,
         templateData: r.templateData,
+        // A copy of a link still waiting for its AI step is waiting too.
+        aiPending: r.aiPending,
         source: "shared",
       };
     })
@@ -728,6 +782,276 @@ export async function importLinks(items: ImportedLink[]): Promise<ImportLinksRes
       importMeta: (row.importMeta as ImportedLink["meta"] | null) ?? undefined,
     })),
     skipped: items.length - rows.length,
+  };
+}
+
+/** The most links one `uploadLibrary` call takes. */
+const UPLOAD_BATCH = 200;
+
+/** A collection of an iOS local library, as `uploadLibrary` takes it. */
+export type UploadedCollection = Pick<
+  Collection,
+  "id" | "name" | "color" | "icon" | "isSmart" | "smartQuery" | "isInbox" | "reasoning" | "createdBy"
+>;
+/** A link of an iOS local library: its `LinkItem`, plus an image item's picture in base64. */
+export type UploadedLink = LinkItem & { image?: string };
+
+/** The upgrade (CONTEXT.md): an iOS local library moves into this account's server library, up to UPLOAD_BATCH links a
+ * call and every collection each time. Collections match by name (`matchCollection`), links by the id they had on the
+ * phone or by URL (`linkMatcher`), and a match merges (`mergeLinks`). Anything new goes in as the phone had it, keyed by
+ * that id (`client_id`) and waiting for its AI step (`enrichLink`), so sending the same links again creates nothing. An
+ * image item's picture comes along in base64, like `createImage`'s. Pro only. */
+export async function uploadLibrary(upload: { collections: UploadedCollection[]; links: UploadedLink[] }) {
+  const uid = await currentUserId();
+  if (!isPro(await currentPlan())) return PRO_REQUIRED;
+  if (!Array.isArray(upload?.links) || upload.links.length > UPLOAD_BATCH) {
+    throw new Error(`Send up to ${UPLOAD_BATCH} links at a time.`);
+  }
+  const items = upload.links.map(cleanUploadedLink);
+  const inboxId = await ensureInbox();
+
+  // The phone's collection ids → this library's. A link in a collection that didn't come along goes to the inbox.
+  const owned = await db.select().from(schema.collections).where(eq(schema.collections.userId, uid));
+  const collectionIds = new Map<string, string>();
+  for (const c of (Array.isArray(upload.collections) ? upload.collections : []).map(cleanUploadedCollection)) {
+    if (!c) continue;
+    let id = c.isInbox ? inboxId : matchCollection(c, owned)?.id;
+    if (!id) {
+      const [made] = await db
+        .insert(schema.collections)
+        .values({
+          userId: uid,
+          name: c.name,
+          color: c.color,
+          icon: c.icon ?? null,
+          isSmart: Boolean(c.isSmart),
+          smartQuery: c.smartQuery ?? null,
+          reasoning: c.reasoning ?? null,
+          createdBy: c.createdBy ?? "user",
+        })
+        .returning();
+      owned.push(made);
+      id = made.id;
+    }
+    collectionIds.set(c.id, id);
+  }
+
+  // Each row this upload touches, with its copies from the phone. Rows it creates get their ids up front, so a second
+  // copy of one page in the same upload joins the first.
+  const matcher = linkMatcher(
+    await db
+      .select({ id: schema.links.id, url: schema.links.url, clientId: schema.links.clientId, contentType: schema.links.contentType })
+      .from(schema.links)
+      .where(eq(schema.links.userId, uid))
+  );
+  const copies = new Map<string, UploadedLink[]>();
+  const fresh = new Set<string>();
+  for (const item of items) {
+    let id = matcher.match(item);
+    if (!id) {
+      id = randomUUID();
+      fresh.add(id);
+      matcher.add(id, item);
+    }
+    copies.set(id, [...(copies.get(id) ?? []), item]);
+  }
+
+  const matchedIds = [...copies.keys()].filter((id) => !fresh.has(id));
+  const [existing, quotes, [{ pinned }]] = await Promise.all([
+    matchedIds.length ? db.select().from(schema.links).where(inArray(schema.links.id, matchedIds)) : [],
+    matchedIds.length
+      ? db
+          .select({ linkId: schema.highlights.linkId, quote: schema.highlights.quote })
+          .from(schema.highlights)
+          .where(inArray(schema.highlights.linkId, matchedIds))
+      : [],
+    db
+      .select({ pinned: sql<number>`count(*)::int` })
+      .from(schema.links)
+      .where(and(eq(schema.links.userId, uid), eq(schema.links.pinned, true), isNull(schema.links.deletedAt), isNull(schema.links.archivedAt))),
+  ]);
+  const rows = new Map(existing.map((r) => [r.id, r]));
+  // The pin limit holds across the merge too: two live pinned links.
+  let pinSlots = Math.max(0, 2 - pinned);
+
+  const now = new Date();
+  const inserts: (typeof schema.links.$inferInsert)[] = [];
+  const updates: Promise<unknown>[] = [];
+  const tagged: { linkId: string; name: string }[] = [];
+  const highlights: (typeof schema.highlights.$inferInsert)[] = [];
+  const images: { id: string; base64: string; created: boolean }[] = [];
+  for (const [id, [first, ...rest]] of copies) {
+    const row = rows.get(id);
+    const known = new Set(quotes.filter((q) => q.linkId === id).map((q) => q.quote));
+    // A row already here keeps everything but what merging adds; its tags join below whatever they are.
+    const merged: MergeFields = row
+      ? [first, ...rest].reduce((m, c) => mergeLinks(m, c), {
+          tags: [],
+          highlights: [...known].map((quote) => ({ quote })),
+          note: row.note,
+          createdAt: row.createdAt.toISOString(),
+          pinned: row.pinned,
+          favorite: row.favorite,
+        } as MergeFields)
+      : rest.reduce((m, c) => mergeLinks(m, c), first);
+    const live = row ? !row.deletedAt && !row.archivedAt : !first.deleted && !first.archived;
+    if (merged.pinned && !row?.pinned) {
+      if (live && pinSlots > 0) pinSlots -= 1;
+      else merged.pinned = false;
+    }
+
+    for (const h of merged.highlights ?? []) {
+      if (!known.has(h.quote)) highlights.push({ linkId: id, userId: uid, quote: h.quote, note: h.note ?? null });
+    }
+    for (const name of merged.tags) tagged.push({ linkId: id, name });
+    const picture = [first, ...rest].find((c) => c.image)?.image;
+    if (first.contentType === "image" && picture && !row?.url) images.push({ id, base64: picture, created: !row });
+
+    const fields = { note: merged.note || null, createdAt: new Date(merged.createdAt), pinned: Boolean(merged.pinned), favorite: Boolean(merged.favorite) };
+    if (row) {
+      if (
+        fields.note !== row.note ||
+        fields.createdAt.getTime() !== row.createdAt.getTime() ||
+        fields.pinned !== row.pinned ||
+        fields.favorite !== row.favorite
+      ) {
+        updates.push(db.update(schema.links).set({ ...fields, updatedAt: now }).where(eq(schema.links.id, id)));
+      }
+      continue;
+    }
+    const page = first.contentType !== "note" && first.contentType !== "image";
+    inserts.push({
+      ...fields,
+      id,
+      userId: uid,
+      clientId: first.id,
+      collectionId: collectionIds.get(first.collectionId) ?? inboxId,
+      url: page ? cleanUrl(first.url) : first.url,
+      domain: first.domain,
+      title: first.title,
+      excerpt: first.excerpt,
+      articleText: first.articleText ?? null,
+      heroImage: first.heroImage ?? null,
+      tint: first.tint,
+      stripe: first.stripe,
+      initial: first.initial,
+      contentType: first.contentType,
+      readingTimeMinutes: first.readingTimeMinutes ?? null,
+      size: first.size,
+      // Nothing here would finish a read the phone hadn't: enrichLink reads the page when Pro opens it.
+      status: "ready",
+      productData: productJson(first.product),
+      templateData: first.templateData ?? null,
+      source: first.source,
+      importMeta: first.importMeta ?? null,
+      httpStatus: first.httpStatus ?? null,
+      archivedAt: first.archived ? now : null,
+      deletedAt: first.deleted ? now : null,
+      aiPending: page && first.url !== "",
+    });
+  }
+
+  if (inserts.length) await db.insert(schema.links).values(inserts);
+  await Promise.all(updates);
+  const names = [...new Set(tagged.map((t) => t.name))];
+  if (names.length) {
+    const tagRows = await db
+      .insert(schema.tags)
+      .values(names.map((name) => ({ userId: uid, name })))
+      .onConflictDoUpdate({ target: [schema.tags.userId, schema.tags.name], set: { name: sql`excluded.name` } })
+      .returning({ id: schema.tags.id, name: schema.tags.name });
+    const tagIds = new Map(tagRows.map((t) => [t.name, t.id]));
+    await db
+      .insert(schema.linkTags)
+      .values(tagged.map((t) => ({ linkId: t.linkId, tagId: tagIds.get(t.name)! })))
+      .onConflictDoNothing();
+  }
+  if (highlights.length) await db.insert(schema.highlights).values(highlights);
+  await Promise.all([...fresh].map((id) => savePrice(id, copies.get(id)![0].product)));
+  for (const { id, base64, created } of images) {
+    try {
+      const url = await uploadImage(Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64"), id);
+      await db.update(schema.links).set({ url, heroImage: url }).where(eq(schema.links.id, id));
+    } catch (err) {
+      // No half-saved card: the next upload of it starts this one again.
+      if (created) await db.delete(schema.links).where(eq(schema.links.id, id));
+      throw err;
+    }
+  }
+  return { ok: true as const, created: fresh.size, merged: matchedIds.length };
+}
+
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+const object = <T>(v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as T) : undefined);
+
+/** A phone's link, typed field by field: a bad value can't fail the insert or the library that reads it later. */
+function cleanUploadedLink(raw: unknown): UploadedLink {
+  const l = object<Partial<Record<keyof UploadedLink, unknown>>>(raw) ?? {};
+  if (typeof l.id !== "string" || !l.id || l.id.length > 100) throw new Error("Every uploaded link needs its id.");
+  const created = new Date(text(l.createdAt, 40));
+  const type = schema.contentTypeEnum.enumValues.find((t) => t === l.contentType) ?? "article";
+  const product = object<ProductDetails>(l.product);
+  return {
+    id: l.id,
+    url: text(l.url, 8_000),
+    domain: text(l.domain, 500),
+    title: text(l.title, 2_000).trim() || (type === "image" ? "Image" : "Untitled"),
+    excerpt: text(l.excerpt, 100_000),
+    articleText: Array.isArray(l.articleText) ? l.articleText.filter((p) => typeof p === "string") : undefined,
+    heroImage: text(l.heroImage, 8_000) || undefined,
+    tint: text(l.tint, 20) || "#9aa3ad",
+    stripe: text(l.stripe, 20) || "#ffffff",
+    initial: text(l.initial, 8) || "?",
+    contentType: type,
+    readingTimeMinutes: Number.isInteger(l.readingTimeMinutes) ? (l.readingTimeMinutes as number) : undefined,
+    collectionId: text(l.collectionId, 100),
+    tags: Array.isArray(l.tags)
+      ? [...new Set(l.tags.filter((t): t is string => typeof t === "string" && t.trim() !== "").map((t) => t.trim().slice(0, 100)))]
+      : [],
+    size: CARD_SIZES.find((s) => s === l.size) ?? "M",
+    status: "ready",
+    createdAt: Number.isNaN(created.getTime()) ? new Date().toISOString() : created.toISOString(),
+    source: text(l.source, 40) || "ios",
+    importMeta: object<ImportMeta>(l.importMeta),
+    note: text(l.note, MAX_NOTE_CHARS).trim() || undefined,
+    favorite: l.favorite === true,
+    pinned: l.pinned === true,
+    httpStatus: Number.isInteger(l.httpStatus) ? (l.httpStatus as number) : undefined,
+    archived: l.archived === true,
+    deleted: l.deleted === true,
+    highlights: Array.isArray(l.highlights)
+      ? l.highlights.flatMap((h) => {
+          const quote = text(object<{ quote?: unknown }>(h)?.quote, 20_000);
+          const note = text(object<{ note?: unknown }>(h)?.note, MAX_NOTE_CHARS);
+          return quote ? [{ id: "", quote, note: note || undefined }] : [];
+        })
+      : [],
+    // The price becomes a snapshot row, which needs a number and a currency.
+    product: product && {
+      ...product,
+      price: Number.isFinite(product.price) ? product.price : undefined,
+      currency: text(product.currency, 10) || "$",
+    },
+    templateData: object<TemplateData>(l.templateData),
+    image: text(l.image, 40_000_000) || undefined,
+  };
+}
+
+function cleanUploadedCollection(raw: unknown): UploadedCollection | null {
+  const c = object<Partial<Record<keyof UploadedCollection, unknown>>>(raw);
+  const name = text(c?.name, 200).trim();
+  if (!c || typeof c.id !== "string" || !name) return null;
+  const icon = text(c.icon, 40);
+  return {
+    id: c.id,
+    name,
+    color: text(c.color, 20) || "#9aa3ad",
+    icon: icon && [...icon].length <= 8 ? icon : undefined,
+    isSmart: c.isSmart === true,
+    smartQuery: text(c.smartQuery, 2_000) || undefined,
+    isInbox: c.isInbox === true,
+    reasoning: text(c.reasoning, 2_000) || undefined,
+    createdBy: c.createdBy === "system" ? "system" : "user",
   };
 }
 

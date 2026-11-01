@@ -58,7 +58,7 @@ Apply `supabase/migrations/20261013000000_shared_collections.sql` before deployi
 
 A Pro-only action called by a free account does nothing and answers `200` with `{ "ok": false, "reason": "pro" }`,
 never a 401, so nobody is signed out. Today that's `setCollectionShared` with `true` (turning sharing off always
-works) and `setAlertThreshold`. iOS maps it to `AppError.proRequired`.
+works), `setAlertThreshold`, `uploadLibrary` and `enrichLink`. iOS maps it to `AppError.proRequired`.
 
 `POST /api/crawl` and a save without content (`createLink` with no excerpt) run a free crawl for a free account or a
 signed-out caller: no AI summary or tags, and no headless-browser retry. A page that refuses the plain fetch falls
@@ -168,3 +168,32 @@ then finishes it and refreshes the library. A transaction the server didn't take
 it again at the next launch.
 
 Apply `supabase/migrations/20261104000000_plan_expiry.sql` and `20261104010000_plan_transactions.sql` before deploying.
+
+### Upgrade and lapse
+
+Going Pro moves an iOS local library into the account's server library (the upgrade, `CONTEXT.md`). iOS uploads it
+in batches; the server merges it with whatever the account already has.
+
+| Call | What it does |
+|---|---|
+| `POST /api/v1/actions/uploadLibrary [{ collections, links }]` | Pro only. `collections` is every local collection (the inbox with `isInbox: true`), sent with each batch. `links` is up to 200 `LinkItem`s as the phone stores them; an image item adds its JPEG as `image` (base64), one image a call so a request stays under 4.5 MB. Answers `{ "ok": true, created, merged }`. |
+| `POST /api/v1/actions/enrichLink ["<linkId>"]` | Pro only. The AI step for a link saved without it: the summary (`excerpt`), tags and type, from the text it has stored. Answers the updated `LinkItem`, or `null` when there's nothing to do: not `aiPending`, a lifetime account past its fair use this month, or a link with no text stored, which is read again in the background. |
+
+How `uploadLibrary` matches (`src/lib/library-merge.ts`):
+- A collection lands on one with the same name, ignoring case; a smart collection needs the same query too; the inbox
+  lands on the inbox. Anything else is created.
+- A link matches the row it was uploaded as before (the row's `clientId` is the link's id), the row it came down from in
+  a lapse (the row's id is the link's id), or, for a page, a row with the same URL ignoring the scheme, `www.`,
+  tracking parameters and trailing slashes. Notes and images match by id only.
+- A match keeps the server's copy and adds the phone's tags, its highlights (by quote) and its note (unless one note
+  already holds the other), takes the earlier save date, and keeps pinned or favourite from either side, still at
+  most two pinned links.
+- Anything else is inserted as the phone had it, with `clientId` set to its id and `aiPending: true`. Sending a batch
+  again creates nothing.
+
+`LinkItem` gains two fields: `aiPending` (saved without the AI step: a free crawl or an upload; iOS and web call
+`enrichLink` when a Pro account opens it) and `clientId` (the id it had on the phone). When the library says
+`plan: "free"` again, iOS copies it into the local library, matching by id, `clientId` and URL, and deletes nothing
+(the lapse).
+
+Apply `supabase/migrations/20261106000000_upload_library.sql` before deploying.
