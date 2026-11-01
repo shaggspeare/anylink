@@ -117,7 +117,7 @@ filename="anylink-<yyyy-mm-dd>.<format>"`). Trash isn't in it. The writers are i
   mark.
 
 Pro only. A free account gets `403` with `{ "ok": false, "reason": "pro" }`, never a 401, and iOS maps it to
-`AppError.proRequired`. A missing or unknown `format` gets 400.
+`AppError.proRequired`, which opens the paywall. A missing or unknown `format` gets 400.
 
 ### Templates
 

@@ -10,8 +10,8 @@ import { clockLabel, hasProse, minutesLabel, readableParagraphs } from "@/lib/re
 import { videoEmbedUrl } from "@/lib/crawler/url";
 import { isPro } from "@/lib/plan";
 
-/** The generic layout's last line: what Pro shows for this type (ios/docs/04-screens.md S15).
- * Phase 4: make it open the Pro dialog. */
+/** The generic layout's last line: what Pro shows for this type (ios/docs/04-screens.md S15). It opens the Pro
+ * dialog. */
 const UPSELL: Partial<Record<ContentType, string>> = {
   article: "Pro adds the summary, the author and the date here.",
   video: "Pro plays the video right here.",
@@ -54,7 +54,7 @@ export function ReaderPanel({
   link: LinkItem;
   onOpenCollection: () => void;
 }) {
-  const { links, addHighlight, plan } = useLibrary();
+  const { links, addHighlight, plan, openPro } = useLibrary();
   const articleRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<{ x: number; y: number; text: string } | null>(null);
 
@@ -169,7 +169,15 @@ export function ReaderPanel({
             ))
           )}
 
-          {upsell && <p className="mt-6 rounded-[14px] bg-ink/6 px-4 py-3 text-[13px] leading-[1.5] text-ink/60">{upsell}</p>}
+          {upsell && (
+            <button
+              type="button"
+              onClick={openPro}
+              className="mt-6 w-full rounded-[14px] bg-ink/6 px-4 py-3 text-left text-[13px] leading-[1.5] text-ink/60"
+            >
+              {upsell}
+            </button>
+          )}
 
           {popover && (
             <button

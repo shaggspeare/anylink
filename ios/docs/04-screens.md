@@ -449,7 +449,7 @@ Notes and images keep their own screens on both plans.
   - video: "Pro plays the video right here."
   - recipe: "Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."
   - product: "Pro tracks this price for you and charts its history."
-- The line doesn't open anything yet. Phase 4 points it at the paywall.
+- Tapping the line opens the paywall (S19); on web, the Pro dialog.
 
 **States (previews, light and dark):** Article, Video, Recipe and Product, each for Pro and for Free; Summary only;
 Large type.
@@ -512,8 +512,8 @@ Free accounts see the generic layout (S15) instead.
   label to two lines at the largest text sizes. Picking one downloads the file (`GET /api/v1/export`).
   - States: ready; preparing (the row reads "Preparing your file…" with a spinner and can't be tapped); free.
   - When the file is ready, the Files save sheet opens with `anylink-{date}.{ext}`.
-  - Pro only. On a free account the footer reads "Export is a Pro feature.", and picking a format shows
-    `error.proRequired`.
+  - Pro only. On a free account the footer reads "Export is a Pro feature.", and picking a format opens the
+    paywall (S19). On web the buttons and the footer open the Pro dialog.
   - Offline shows `error.exportOffline`; anything else, `error.generic`.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
   deleted from every device. This can't be undone." Required by the App Store.
@@ -521,9 +521,9 @@ Free accounts see the generic layout (S15) instead.
 
 ## S19 · Paywall (`SheetRoute.paywall`)
 
-Pro is sold only here (`docs/adr/0002`). It opens from any Pro refusal (`AppError.proRequired`: turning on sharing or
-setting a price alert on Free) and from Settings › AnyLink Pro and Sync with web. Later phases add their own entry
-points.
+Pro is sold only here (`docs/adr/0002`). It opens from any Pro refusal (`AppError.proRequired`: turning on sharing,
+setting a price alert or exporting on Free), from the generic layout's upsell line (S15), and from Settings › AnyLink
+Pro and Sync with web.
 
 **Layout** (a large sheet, Close in the toolbar):
 - Eyebrow "AnyLink Pro", then the title "Your library on iPhone and the web".
@@ -568,7 +568,8 @@ install, and a Pro refusal anywhere opens this sheet instead of a toast.
 - Title "AnyLink Pro", then "Pro is sold in the AnyLink iOS app." and the benefits above.
 - "Get AnyLink on the App Store", linking to the App Store page. Until that page exists: "AnyLink for iPhone is
   coming to the App Store."
-- It opens from every `{ ok: false, reason: "pro" }`, the share switch, and the price alert on Free.
+- It opens from every `{ ok: false, reason: "pro" }`, and on Free from the share switch, the price alert, the export
+  buttons and the generic layout's upsell line.
 - Web Settings › Account shows "Plan: Pro" with "Manage your subscription in the iOS app.", or "Plan: Free" with
   **See what Pro adds**, which opens the dialog.
 
