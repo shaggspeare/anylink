@@ -191,6 +191,11 @@ export default function PrivacyPolicyPage() {
               pages for price changes.
             </li>
             <li>
+              <b>Videos:</b> YouTube and Vimeo videos play in place, in YouTube&apos;s privacy-enhanced mode or with
+              Vimeo&apos;s do-not-track setting. The player loads from YouTube or Vimeo, under their own privacy
+              policies. On iPhone, it loads only when you tap play, and keeps no cookies.
+            </li>
+            <li>
               <b>Share links:</b> anyone with a collection&apos;s share link can see its name, its links with their
               titles, images and notes, and your display name if you set one. Turning sharing off breaks the link for
               good. While you&apos;re not on Pro, it reads as not found.
