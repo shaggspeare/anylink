@@ -342,7 +342,7 @@ public final class LibraryStore {
             contentType: cr?.contentType ?? .article, readingTimeMinutes: cr?.readingTimeMinutes,
             collectionId: draft.collectionId ?? inboxID, tags: draft.tags, size: draft.size,
             status: cr == nil ? .crawling : .ready, createdAt: Date().formatted(.iso8601),
-            source: "ios", note: draft.note, product: cr?.product
+            source: "ios", note: draft.note, product: cr?.product, templateData: cr?.templateData
         )
         return await insert(temp, suffix: stillReading ? " — still reading the page" : "") { try await self.api.createLink(draft) }
     }

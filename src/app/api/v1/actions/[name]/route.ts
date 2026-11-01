@@ -1,4 +1,5 @@
 import * as actions from "@/lib/db/actions";
+import { iosJson } from "@/lib/ios-types";
 import { unauthorized } from "../../auth";
 
 /** Every server action the web app uses, over HTTP for the iOS app:
@@ -17,7 +18,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/v1/actions/
 
   try {
     const result = await (action as (...a: unknown[]) => Promise<unknown>)(...args);
-    return Response.json(result ?? null);
+    return iosJson(request, result ?? null);
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Failed" }, { status: 400 });
   }

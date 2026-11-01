@@ -36,6 +36,7 @@ export const FILTERS: { label: string; query: string }[] = [
   { label: "Articles", query: "type:article" },
   { label: "Videos", query: "type:video" },
   { label: "Products", query: "type:product" },
+  { label: "Recipes", query: "type:recipe" },
   { label: "Notes", query: "type:note" },
   { label: "Images", query: "type:image" },
   { label: "With a note", query: "is:noted" },

@@ -16,9 +16,10 @@ struct LinkDetailView: View {
                 NoteView(link: link)
             } else if link.isImage {
                 ImageDetailView(link: link)
-            } else if link.contentType == .product, link.product != nil {
+            } else if store.isPro, link.contentType == .product, link.product != nil {
                 ProductView(link: link)
             } else {
+                // The generic layout for a free account, and Pro's other templates.
                 ReaderView(link: link)
             }
         } else {
@@ -100,17 +101,26 @@ struct ProductView: View {
     }
 
     private var priceRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let current = summary.current {
-                Text(PriceSummary.format(current, product.currency))
-                    .font(AL.Font.price).tracking(-1.4).monospacedDigit()
-                    .foregroundStyle(AL.ink)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if let current = summary.current {
+                    Text(PriceSummary.format(current, product.currency))
+                        .font(AL.Font.price).tracking(-1.4).monospacedDigit()
+                        .foregroundStyle(AL.ink)
+                }
+                if let pct = summary.percentSinceSaved {
+                    Text("−\(pct)% since saved")
+                        .font(AL.Font.chip).foregroundStyle(AL.onAccent)
+                        .padding(.horizontal, 10).frame(height: 26)
+                        .background(AL.lime, in: Capsule())
+                }
             }
-            if let pct = summary.percentSinceSaved {
-                Text("−\(pct)% since saved")
+            // Its own line, so the price row doesn't overflow at large text sizes.
+            if summary.isUnderAlert {
+                Text("Under your price")
                     .font(AL.Font.chip).foregroundStyle(AL.onAccent)
-                    .padding(.horizontal, 10).frame(height: 26)
-                    .background(AL.lime, in: Capsule())
+                    .padding(.horizontal, 10).frame(minHeight: 26)
+                    .background(AL.signal, in: Capsule())
             }
         }
         .accessibilityElement(children: .combine)
@@ -162,10 +172,6 @@ struct ProductView: View {
                     .padding(.horizontal, 12).frame(height: 40)
                     .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .accessibilityLabel("Alert price in \(product.currency)")
-            }
-            if FeatureFlags.pricePush {
-                // BACKEND: price push notifications (APNs) aren't built yet; flag stays off until they ship.
-                Toggle("Push notification", isOn: .constant(false)).tint(AL.inStock)
             }
             if let last = summary.latest?.day {
                 Text("Checked twice a day · last check \(last.formatted(.relative(presentation: .named)))")
@@ -278,12 +284,16 @@ struct ProductView: View {
     }
 }
 
-#Preview("Product") {
-    let env = AppEnvironment.mock(latency: false)
-    NavigationStack { LinkDetailView(id: "iph") }.environment(env.store).environment(env.router)
+@MainActor
+private func productPreview(plan: String = "pro", alert: Double? = nil) -> some View {
+    let env = AppEnvironment.mock(latency: false, plan: plan)
+    if let alert { env.store.setPriceAlert("iph", threshold: alert) }
+    return NavigationStack { LinkDetailView(id: "iph") }.environment(env.store).environment(env.router)
 }
 
-#Preview("Product — Dark") {
-    let env = AppEnvironment.mock(latency: false)
-    NavigationStack { LinkDetailView(id: "iph") }.environment(env.store).environment(env.router).preferredColorScheme(.dark)
-}
+#Preview("Product") { productPreview() }
+#Preview("Product — Dark") { productPreview().preferredColorScheme(.dark) }
+#Preview("Under your price") { productPreview(alert: 56000) }
+#Preview("Under your price — Dark") { productPreview(alert: 56000).preferredColorScheme(.dark) }
+#Preview("Product — Free") { productPreview(plan: "free") }
+#Preview("Product — Free, Dark") { productPreview(plan: "free").preferredColorScheme(.dark) }

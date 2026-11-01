@@ -40,6 +40,13 @@ import Fixtures
         #expect(ids(for: "type:video") == ["ytrt", "ytprod"])
     }
 
+    @Test func queryTypeRecipe() {
+        #expect(ids(for: "type:recipe") == ["ramen"])
+        #expect(ids(for: "#recipe -type:recipe") == ["dough"])
+        #expect(Query("type:Recipe").string == "type:recipe")
+        #expect(SearchToken(term: .type(.recipe, negated: false)).label == "Recipes")
+    }
+
     @Test func queryIsFavorite() {
         #expect(ids(for: "is:favorite") == ["nasa", "glass", "book"])
     }

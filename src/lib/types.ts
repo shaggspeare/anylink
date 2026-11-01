@@ -2,7 +2,7 @@ export const CARD_SIZES = ["S", "M", "L"] as const;
 export type CardSize = (typeof CARD_SIZES)[number];
 /** `note` and `image` aren't pages: their `url` is empty (note) or the stored file (image),
  * `domain` is empty, and a note's text lives in `excerpt`. */
-export type ContentType = "article" | "video" | "product" | "note" | "image";
+export type ContentType = "article" | "video" | "product" | "note" | "image" | "recipe";
 export type LinkStatus = "crawling" | "ready" | "failed";
 
 export type Highlight = {
@@ -34,6 +34,28 @@ export type ProductDetails = {
   totalSpecCount: number;
   priceHistory: PriceSnapshot[];
   alertThreshold?: number;
+};
+
+/** What a template shows beyond the card (`links.template_data`), read from the page itself, never from AI.
+ * Which fields are set depends on the content type. Counts are whole numbers: iOS decodes them as Int. */
+export type TemplateData = {
+  // article
+  author?: string;
+  /** ISO 8601. */
+  publishedAt?: string;
+  // video
+  /** "youtube" | "vimeo" | the site's domain */
+  provider?: string;
+  videoId?: string;
+  channel?: string;
+  durationSeconds?: number;
+  // recipe
+  ingredients?: string[];
+  steps?: string[];
+  prepMinutes?: number;
+  cookMinutes?: number;
+  totalMinutes?: number;
+  yield?: string;
 };
 
 export type ImportMeta = {
@@ -76,6 +98,7 @@ export type LinkItem = {
   deleted?: boolean;
   highlights?: Highlight[];
   product?: ProductDetails;
+  templateData?: TemplateData;
 };
 
 export type Collection = {

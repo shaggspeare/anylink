@@ -29,7 +29,7 @@ quoted   := '"' [^"]* '"'
 | `#tag` | some tag **starts with** `tag` (`#des` matches `design`) |
 | `title:x` `excerpt:x` `note:x` | substring of that field |
 | `link:x` | substring of domain or url |
-| `type:article\|video\|product` | `contentType` equals |
+| `type:article\|video\|product\|recipe\|note\|image` | `contentType` equals |
 | `is:favorite` `is:noted` `is:untagged` `is:duplicate` `is:broken` `is:archived` | flag (duplicate = same URL lowercased, trailing `/` removed, appears more than once; broken = httpStatus ∈ {0,1,404,410}) |
 | `created:2026-01` | `createdAt` ISO string has that prefix |
 | `created:>2026-01-15`, `created:<2026-01` | string comparison on the ISO date |
@@ -74,6 +74,7 @@ public struct SearchToken: Identifiable, Hashable { let id: String; let label: S
 | `type:video` | Videos |
 | `type:article` | Articles |
 | `type:product` | Products |
+| `type:recipe` | Recipes |
 | `is:favorite` | Favorites |
 | `is:noted` | With a note |
 | `is:untagged` | Untagged |
@@ -95,6 +96,7 @@ public struct SearchToken: Identifiable, Hashable { let id: String; let label: S
 | Articles | `type:article` |
 | Videos | `type:video` |
 | Products | `type:product` |
+| Recipes | `type:recipe` |
 | With a note | `is:noted` |
 | Untagged | `is:untagged` |
 | Duplicates | `is:duplicate` |
@@ -112,6 +114,7 @@ Fixture library: `docs/fixtures/library.json`.
 | `#des` | glass, verge, figma |
 | `-#rust type:video` | empty (both fixture videos are tagged rust) |
 | `type:video` | ytrt, ytprod |
+| `type:recipe` | ramen |
 | `is:favorite` | nasa, glass, book |
 | `is:untagged` | none (every fixture link has tags); add one untagged link in the test and expect it |
 | `"space suit"` | nasa |

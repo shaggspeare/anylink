@@ -13,10 +13,13 @@ export function ProductPanel({ link }: { link: LinkItem }) {
   const [showAllSpecs, setShowAllSpecs] = useState(false);
   const [threshold, setThreshold] = useState(product.alertThreshold ?? product.price ?? 0);
 
-  const changePct =
-    product.previousPrice && product.price
-      ? Math.round(((product.price - product.previousPrice) / product.previousPrice) * 100)
+  // Only a drop is shown, struck through with its size, as on iOS: a rise isn't a deal.
+  const dropPct =
+    product.previousPrice && product.price !== undefined && product.price < product.previousPrice
+      ? Math.round(((product.previousPrice - product.price) / product.previousPrice) * 100)
       : 0;
+  const underAlert =
+    product.price !== undefined && product.alertThreshold !== undefined && product.price <= product.alertThreshold;
   const specsToShow = showAllSpecs ? product.specs : product.specs.slice(0, 8);
 
   return (
@@ -47,20 +50,25 @@ export function ProductPanel({ link }: { link: LinkItem }) {
               {link.title}
             </div>
             {product.price !== undefined && (
-              <div className="flex items-baseline gap-3">
+              <div className="flex flex-wrap items-baseline gap-3">
                 <span className="text-[28px] font-semibold tracking-[-.04em] text-ink sm:text-[30px]">
                   {product.currency}
                   {product.price.toLocaleString()}
                 </span>
-                {product.previousPrice && (
+                {dropPct > 0 && (
                   <span className="text-[15px] text-ink/40 line-through">
                     {product.currency}
-                    {product.previousPrice.toLocaleString()}
+                    {product.previousPrice?.toLocaleString()}
                   </span>
                 )}
-                {changePct !== 0 && (
+                {dropPct > 0 && (
                   <span className="rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-bold text-on-accent">
-                    {changePct}% since saved
+                    −{dropPct}% since saved
+                  </span>
+                )}
+                {underAlert && (
+                  <span className="rounded-full bg-signal px-2.5 py-1 text-[11.5px] font-bold text-on-accent">
+                    Under your price
                   </span>
                 )}
               </div>
