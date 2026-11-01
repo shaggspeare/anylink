@@ -153,7 +153,7 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <b>Grouping:</b> the titles, domains and folder names of links you import (for a chat, the words written
-              around each link), and your answers about what matters to you. These go to OpenAI to suggest collections
+              around each link), and your answers about what matters to you. These go to Anthropic to suggest collections
               (section 6).
             </li>
           </Ul>
@@ -179,7 +179,7 @@ export default function PrivacyPolicyPage() {
               (section 1). The copy on your device and in iCloud isn&apos;t deleted.
             </li>
             <li>
-              <b>AI summaries and tags:</b> when you save a link, the text of the page goes to OpenAI, which writes a
+              <b>AI summaries and tags:</b> when you save a link, the text of the page goes to Anthropic, which writes a
               summary and suggests tags (section 6).
             </li>
             <li>
@@ -256,11 +256,11 @@ export default function PrivacyPolicyPage() {
               <b>Vercel</b> hosts the website and the servers that respond to the web and iOS apps.
             </li>
             <li>
-              <b>OpenAI</b>, with Pro, receives the text of web pages you save, so it can write a summary, suggest tags
-              and structure the card. When you ask AnyLink to group your links, on any plan, OpenAI also receives the
+              <b>Anthropic</b>, with Pro, receives the text of web pages you save, so it can write a summary, suggest tags
+              and structure the card. When you ask AnyLink to group your links, on any plan, Anthropic also receives the
               titles, domains and folder names of those links (for a chat, the words written around each link), and
-              your answers about what matters to you. Your notes, images and account details are not sent to OpenAI.
-              Under OpenAI&apos;s API terms, data sent through the API is not used to train its models.
+              your answers about what matters to you. Your notes, images and account details are not sent to Anthropic.
+              Under Anthropic&apos;s commercial terms, data sent through the API is not used to train its models.
             </li>
             <li>
               <b>Microlink</b> receives the address of a page that won&apos;t let our servers read it, so it can fetch

@@ -155,7 +155,7 @@ Full steps are in `extension/README.md`.
    - The share switch is disabled and says "Share links are a Pro feature."
    - A product page says "Price alerts are a Pro feature."
    - A save gets a title, image and reading time, with no AI tags.
-   - In Vercel Logs, that `POST /api/crawl` makes no call to api.openai.com.
+   - In Vercel Logs, that `POST /api/crawl` makes no call to api.anthropic.com.
 3. Check iOS as the free account: turning on sharing shows the toast "That's a Pro feature.", and you stay signed in.
 4. Check that share links pause:
    - As Pro, share a collection.

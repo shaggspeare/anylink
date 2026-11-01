@@ -119,7 +119,7 @@ Start these early. The phase that needs each one is in brackets.
    and is safe to rerun.
 
 **Gate:**
-- A free account's save makes no OpenAI call and launches no Chromium (check the logs). It still gets a title, image
+- A free account's save makes no Anthropic call and launches no Chromium (check the logs). It still gets a title, image
   and reading time.
 - A free account can't turn on sharing or set a price alert, on web or iOS. It sees a Pro notice and stays signed in.
 - The crons skip a free account's links and include a Pro account's.

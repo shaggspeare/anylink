@@ -61,9 +61,9 @@ export async function structureContent(input: StructureInput): Promise<Structure
       existingProduct: input.existingProduct,
       rawText: input.rawText.slice(0, MAX_INPUT_CHARS),
     },
-    // Labelling, not reasoning: with the default effort the model burned its whole
-    // token budget thinking and returned nothing on long articles.
-    { maxTokens: 600, timeoutMs: 8_000, reasoningEffort: "none" });
+    // Labelling, not reasoning: low effort keeps it inside the save's time budget. Thinking
+    // can't be switched off and counts against maxTokens, hence the headroom.
+    { maxTokens: 2_000, timeoutMs: 8_000, effort: "low" });
     if (!parsed) return null;
 
     const contentType: ContentType =

@@ -121,7 +121,7 @@ async function callBatch(
           : undefined,
       links: batch,
     },
-    { maxTokens: 4000, timeoutMs: 60_000 }
+    { timeoutMs: 60_000 }
   );
 
   const collections = parsed?.collections;

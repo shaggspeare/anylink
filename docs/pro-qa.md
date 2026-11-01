@@ -172,7 +172,7 @@ From earlier phases' "Check by hand":
 - [ ] Call `/api/cron/price-check` with `Authorization: Bearer $CRON_SECRET`. Only Pro accounts' products get new price
       snapshots (Phase 1).
 - [ ] Export the JSON of a big library, and check the hosting size limit doesn't cut it off (Phase 7).
-- [ ] In Vercel Logs, a free account's `POST /api/crawl` makes no call to api.openai.com (Phase 1).
+- [ ] In Vercel Logs, a free account's `POST /api/crawl` makes no call to api.anthropic.com (Phase 1).
 
 ---
 
