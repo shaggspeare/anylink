@@ -308,7 +308,7 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Saved to Unsorted"].waitForExistence(timeout: 3))
         app.tabBars.buttons["Profile"].tap()
         XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["Delete account…"].exists, "a local library has no account to delete")
+        XCTAssertFalse(app.buttons["Delete account…"].exists, "signed out, there's no account to delete")
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Sign in")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Paste anything.\nWe read the rest."].waitForExistence(timeout: 3))
         app.buttons["Continue with Apple"].tap()
@@ -356,6 +356,33 @@ final class AnyLinkUITests: XCTestCase {
         app.swipeUp()
         app.swipeUp()
         XCTAssertTrue(app.buttons["Sign out"].waitForExistence(timeout: 3), "still signed in, so the web keeps working")
+        XCTAssertTrue(app.buttons["Delete account…"].exists, "a signed-in local library can delete the account")
+    }
+
+    /// App Store 5.1.1(v): a signed-in account on a local library deletes itself from Settings too (S18). The account
+    /// and its web library go; the library on this iPhone stays.
+    @MainActor
+    func testFreeAccountDeletesItselfAndKeepsTheLocalLibrary() throws {
+        let app = launch(["-free"])
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3), "a local library")
+        app.swipeUp()
+        app.swipeUp()
+        let delete = app.buttons["Delete account…"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        delete.tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "The library on this iPhone stays.")).firstMatch
+            .waitForExistence(timeout: 3))
+        app.buttons["Delete account"].tap()
+        XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5), "the library on this iPhone stays")
+        app.tabBars.buttons["Library"].tap()   // scrolling Settings collapsed the tab bar; this opens it again
+        app.tabBars.buttons["Profile"].tap()
+        // Profile kept its place near the bottom; the account card is at the top.
+        app.swipeDown()
+        app.swipeDown()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Sign in")).firstMatch.waitForExistence(timeout: 3),
+                      "signed out")
     }
 
     @MainActor

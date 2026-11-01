@@ -131,8 +131,8 @@ struct SettingsView: View {
             if signedIn {
                 Section {
                     Button("Sign out") { Task { await signOut(store, mode: mode) } }
-                    // A local library has no server copy to delete (S18).
-                    if mode == .server { Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount } }
+                    // App Store 5.1.1(v): whoever is signed in can delete the account, on a local library too (S18).
+                    Button("Delete account…", role: .destructive) { router.confirm = .deleteAccount(localLibrary: mode == .local) }
                 }
             }
             Section {

@@ -243,7 +243,8 @@ private struct ConfirmDialogs: ViewModifier {
         case .dissolve: "Dissolving moves its links back to Unsorted and deletes the collection."
         case .emptyTrash(let n): "\(n.linkCount) will be deleted for good."
         case .deleteForever: "This link and its saved image are removed for good."
-        case .deleteAccount: "Your library, collections and notes are deleted from every device. This can't be undone. Deleting your account doesn't stop App Store billing: cancel a Pro subscription in Settings → Apple Account → Subscriptions."
+        case .deleteAccount(localLibrary: false): "Your library, collections and notes are deleted from every device. This can't be undone. Deleting your account doesn't stop App Store billing: cancel a Pro subscription in Settings → Apple Account → Subscriptions."
+        case .deleteAccount(localLibrary: true): "Your AnyLink account and its web library are deleted. The library on this iPhone stays. Deleting your account doesn't stop App Store billing: cancel a Pro subscription in Settings → Apple Account → Subscriptions."
         }
     }
 
@@ -269,13 +270,15 @@ private struct ConfirmDialogs: ViewModifier {
             store.emptyTrash()
         case .deleteForever(let ids):
             store.purge(ids)
-        case .deleteAccount:
+        case .deleteAccount(let localLibrary):
             Task {
-                guard await store.deleteAccount() else { return }
+                // A local library is the device's, not the account's: the account goes through the server, and the
+                // app stays on this library once signed out.
+                guard await store.deleteAccount(on: localLibrary ? AppEnvironment.server : nil) else { return }
                 try? await AuthService.client?.signOut(scope: .local)
                 router.setPath(router.tab, [])
                 router.tab = .library
-                UserDefaults.standard.set(false, forKey: "onboarded")
+                if !localLibrary { UserDefaults.standard.set(false, forKey: "onboarded") }
                 UserDefaults.standard.set(false, forKey: "signedIn")
             }
         }

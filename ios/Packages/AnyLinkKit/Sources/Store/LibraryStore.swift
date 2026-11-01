@@ -660,11 +660,12 @@ public final class LibraryStore {
         }
     }
 
-    /// Mock only until the backend adds `DELETE /api/account`.
-    public func deleteAccount() async -> Bool {
+    /// Deletes the account on the server (`deleteAccount`), and this library with it. A local library isn't the
+    /// account's: pass the account's `server` library, which goes, and this one stays on screen (S18).
+    public func deleteAccount(on server: (any AnyLinkAPI)? = nil) async -> Bool {
         do {
-            try await api.deleteAccount()
-            reset()
+            try await (server ?? api).deleteAccount()
+            if server == nil { reset() }
             return true
         } catch {
             report(error)
