@@ -258,4 +258,12 @@ public struct LiveAPI: AnyLinkAPI {
     public func deleteAccount() async throws {
         _ = try await action("deleteAccount", [])
     }
+
+    // MARK: - Billing
+
+    /// `POST /api/v1/billing/apple`: the server verifies a StoreKit transaction (its JWS) and records Pro on this
+    /// account. A refusal is a 403 (`.server(403)`), never a 401, so it never signs anyone out.
+    public func verifyPurchase(_ jws: String) async throws {
+        _ = try await send(await request("api/v1/billing/apple", body: try JSONEncoder().encode(["jws": jws])))
+    }
 }
