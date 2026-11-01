@@ -167,7 +167,7 @@ Release it is a fatal configuration error.
 | Edit title/excerpt, `library(since:)` | Not editable; full snapshot on each sync | An update action; a `since` filter |
 | Save mid-crawl / share-extension save before enrichment | App keeps the stream alive and PATCHes on `done` | Server-side enrichment job keyed by link id |
 | Enrichment of imported links | "Plain" cards with HeroFallback, no excerpt | Backfill job |
-| Price-drop push | Toggle hidden (`FeatureFlags.pricePush = false`) | Compare and send APNs; device-token endpoint |
+| Price-drop push | No toggle; an "Under your price" badge shows in the app instead | Compare and send APNs; device-token endpoint |
 | "% since saved" | Computed from `priceHistory.first` vs last | — (fine) |
 | Unarchive | Archived filter is read-only | `bulk(restoreArchive)` |
 | Delete/annotate highlights | Add only | Endpoints |
