@@ -31,6 +31,8 @@ only the user can do.
 | 2026-10-31 night | Migration `20261102000000_grandfather_pro.sql` applied | All 6 accounts are now `pro` |
 | 2026-10-31 night | Production deploy of Phases 1 and 8 (`main` fast-forwarded to `pro` at `a478877`) | Smoke test passed: `/`, `/app` and `/privacy-policy` return 200, `/api/v1/library` returns 401, and a signed-out crawl gets no AI tags |
 | 2026-10-31 night | Migration `20261103000000_app_attest_keys.sql` applied | Empty table, row-level security on |
+| 2026-10-31 night | Migration `20261103010000_app_attest_daily.sql` applied | Daily ceiling of 300 account-less groupings across all keys |
+| 2026-10-31 night | Production deploy of Phases 2 and 7, plus the security fixes (`main` at `2fb7176`) | Smoke test passed. `/api/attest/challenge` answers 503 until `APP_ATTEST_SECRET` is set, and production ignores `X-AnyLink-Dev` |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
@@ -134,6 +136,16 @@ Full steps are in `extension/README.md`.
   entitlement is development in Debug and production in Release.
   - On the simulator, DEBUG builds send `X-AnyLink-Dev`. The server accepts it only where `APP_ATTEST_DEV_SECRET` is
     set.
+
+### Security review
+An independent review of the App Attest code found nothing critical or high. Its fixes are merged:
+- A version check on the key row, so racing calls can't get past the daily cap.
+- A daily ceiling of 300 account-less groupings across all keys.
+- The dev bypass is off on Vercel production and needs a secret of 32 or more characters.
+- A test that fails if the leaf certificate isn't checked.
+
+Development keys are still accepted in production, so a Debug build on a real iPhone can be tested. Refuse them
+before the App Store launch (Phase 9).
 
 ### Deviations
 - The local check takes `{ id, url, title }`, not bare URLs, so dead links can be listed by title.
