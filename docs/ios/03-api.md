@@ -69,3 +69,25 @@ answer 404, and `saveFromShare` refuses. The token is kept, so the same link wor
 
 Apply `supabase/migrations/20261102000000_grandfather_pro.sql` right before deploying: it makes every existing
 account Pro.
+
+### Billing
+
+Pro is bought only in the iOS app, through StoreKit 2: `com.shaggspeare.anylink.pro.monthly` and `.yearly` (the
+subscription group "AnyLink Pro") and `com.shaggspeare.anylink.pro.lifetime`. Every purchase sets `appAccountToken`
+to the signed-in Supabase user id, and that's how the server ties a purchase to an account.
+
+| Call | What it does |
+|---|---|
+| `POST /api/v1/billing/apple { "jws": "<Transaction.jwsRepresentation>" }` | Signed in. Verifies the transaction against Apple's root certificates and records it: `{ "ok": true }`. A refusal is a 403 (never a 401) with `{ "ok": false, "reason" }`: `signed-out`, `environment` (Production without `APPLE_APP_ID` on the server, or Xcode/LocalTesting without `APP_STORE_ALLOW_XCODE=1`), `invalid` (didn't verify), `account` (its `appAccountToken` is another user's) or `product`. A refunded or revoked transaction ends Pro. |
+| `POST /api/billing/apple/notifications` | **From Apple:** App Store Server Notifications V2, for production and sandbox. Renewals, expiry, billing grace periods, refunds and revokes update the account in the transaction's `appAccountToken`. Any other verified type is logged and answered 200. |
+
+The plan is `users.plan`, `plan_product` and `plan_expires_at`: an account is Pro while `plan` is `pro` and
+`plan_expires_at` is empty (lifetime, or grandfathered) or still ahead. `GET /api/v1/library`'s `plan` already has the
+expiry applied. A lifetime account that has saved 1,000 links this calendar month gets free crawls until the month
+turns.
+
+The app posts each verified transaction after a purchase, on Restore, and for every `Transaction.updates` from launch,
+then finishes it and refreshes the library. A transaction the server didn't take stays unfinished, so StoreKit offers
+it again at the next launch.
+
+Apply `supabase/migrations/20261104000000_plan_expiry.sql` before deploying.
