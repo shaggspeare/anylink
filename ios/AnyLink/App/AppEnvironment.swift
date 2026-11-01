@@ -46,14 +46,17 @@ struct AppEnvironment {
     /// The environment for a library mode. Pro phase 5 adds the upgrade and lapse moves between them.
     static func make(_ mode: LibraryMode) -> AppEnvironment {
         switch mode {
-        case .server: FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting)
+        case .server: FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting, plan: AppConfig.isFree ? "free" : "pro")
         case .local: local()
         }
     }
 
-    static func mock(latency: Bool = true) -> AppEnvironment {
+    /// The sample library, as a Pro account unless `plan` says otherwise (previews and UI tests use `-free`).
+    static func mock(latency: Bool = true, plan: String = "pro") -> AppEnvironment {
         let cache = LocalCache.appGroup()
-        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: Fixtures.library, shared: cache)
+        var library = Fixtures.library
+        library.plan = plan
+        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: library, shared: cache)
     }
 
     /// The backend at `ANYLINK_API_BASE`, as the signed-in Supabase user. The App Group cache shows the last

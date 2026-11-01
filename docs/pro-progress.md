@@ -24,6 +24,10 @@ only the user can do.
       first build to a device (Phase 2).
 - [ ] Run Phase 2's real-iPhone checks below (Phase 2).
 
+- [ ] Ship a new iOS build (TestFlight) soon. Builds from before Phase 6 can't read the `recipe` type, so the server
+      sends them `article` instead. Once no older build is installed, delete `src/lib/ios-types.ts` and the
+      `X-AnyLink-Types` header; its `ponytail:` comment marks them (Phase 6).
+
 ## Deploys and database changes
 
 | When (UTC) | What | Notes |
@@ -31,6 +35,10 @@ only the user can do.
 | 2026-10-31 night | Migration `20261102000000_grandfather_pro.sql` applied | All 6 accounts are now `pro` |
 | 2026-10-31 night | Production deploy of Phases 1 and 8 (`main` fast-forwarded to `pro` at `a478877`) | Smoke test passed: `/`, `/app` and `/privacy-policy` return 200, `/api/v1/library` returns 401, and a signed-out crawl gets no AI tags |
 | 2026-10-31 night | Migration `20261103000000_app_attest_keys.sql` applied | Empty table, row-level security on |
+| 2026-10-31 night | Migration `20261103010000_app_attest_daily.sql` applied | Daily ceiling of 300 account-less groupings across all keys |
+| 2026-10-31 night | Production deploy of Phases 2 and 7, plus the security fixes (`main` at `2fb7176`) | Smoke test passed. `/api/attest/challenge` answers 503 until `APP_ATTEST_SECRET` is set, and production ignores `X-AnyLink-Dev` |
+| 2026-10-31 night | Migration `20261105000000_templates.sql` applied | `content_type` gains `recipe`; `links.template_data` added |
+| 2026-10-31 night | Production deploy of Phase 6 (`main` at `7a15a5e`) | Smoke test passed. A live crawl of a recipe page answers `article` without `X-AnyLink-Types` and `recipe` with it, ingredients included |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
@@ -135,6 +143,16 @@ Full steps are in `extension/README.md`.
   - On the simulator, DEBUG builds send `X-AnyLink-Dev`. The server accepts it only where `APP_ATTEST_DEV_SECRET` is
     set.
 
+### Security review
+An independent review of the App Attest code found nothing critical or high. Its fixes are merged:
+- A version check on the key row, so racing calls can't get past the daily cap.
+- A daily ceiling of 300 account-less groupings across all keys.
+- The dev bypass is off on Vercel production and needs a secret of 32 or more characters.
+- A test that fails if the leaf certificate isn't checked.
+
+Development keys are still accepted in production, so a Debug build on a real iPhone can be tested. Refuse them
+before the App Store launch (Phase 9).
+
 ### Deviations
 - The local check takes `{ id, url, title }`, not bare URLs, so dead links can be listed by title.
 - The local group route creates the collection ids itself. `GROUP_LIMIT` and `SYSTEM_COLORS` moved to
@@ -178,3 +196,48 @@ These are on a real iPhone, after the secret and a deploy.
    inside their cells.
 3. Export the JSON of a big library. Article text is included, so check the response isn't cut off by the hosting
    size limit.
+
+## Phase 6 · Detail templates
+
+**Status:** done on web and iOS, and the checks pass, apart from the known accessibility failure on the Search
+screen.
+
+### Done
+- iOS reads an unknown content type as an article. `TemplateData` decodes one field at a time.
+- Builds from before this phase don't send the `X-AnyLink-Types` header. For them, `src/lib/ios-types.ts` turns
+  `recipe` into `article` in the library, shared collections, action results and crawl events.
+- The `recipe` type:
+  - `type:recipe` works on both platforms.
+  - There's a Recipes filter in the web sidebar and the iOS Collections tab, shown only when it has links.
+- `links.template_data` is filled without AI, on every save path:
+  - Article: byline and date.
+  - Video: provider, id, channel and duration.
+  - Recipe: ingredients, steps, times and yield.
+- The e-commerce template:
+  - `previousPrice` is the price when the link was saved.
+  - An "Under your price" badge shows when the price is at or below the alert.
+  - `pricePush` and its placeholder toggle are gone.
+- Pro templates on both platforms:
+  - Article: byline, date and summary.
+  - Video: YouTube from youtube-nocookie.com, or Vimeo with `dnt=1`. On iOS it plays in a WKWebView that keeps no
+    cookies.
+  - Recipe: a checkable ingredient list, the steps, the times and the yield.
+- Free accounts get the generic layout, with an upsell line for each type.
+- The new UI test `testTemplatesForProGenericLayoutForFree` passes. The `-free` launch argument runs the mock as a
+  free account.
+
+### Deviations
+- Recipe detection runs before VideoObject, because recipe pages often embed a video.
+- Older links get no `template_data` until they're saved again. A video still plays, because its id comes from the
+  URL.
+- Unlisted Vimeo videos won't play inline, because they need an `h=` hash that isn't stored.
+
+### Check by hand
+1. Check web as Pro:
+   - A YouTube link and a Vimeo link play in place.
+   - A page with Recipe JSON-LD shows the recipe card.
+   - An article shows its byline and date.
+   - A product with an alert set above its price shows "Under your price".
+2. Check web as free: each type shows the generic layout and its upsell line.
+3. Run the same checks on a new iOS build, for Pro and for free.
+4. Point an older iOS build at the new server. The library should still load, with recipes shown as articles.

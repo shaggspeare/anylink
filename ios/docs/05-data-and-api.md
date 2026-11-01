@@ -172,7 +172,8 @@ These are exposed through Info.plist keys and read by `AppConfig`. A missing val
 Release it is a fatal configuration error.
 
 `APP_ATTEST_DEV_SECRET` is for DEBUG builds on the simulator, which can't use App Attest: they send it instead of an
-assertion, and only a server with the same `APP_ATTEST_DEV_SECRET` accepts it. Release builds blank it.
+assertion. Only a server with the same `APP_ATTEST_DEV_SECRET`, at least 32 characters long, accepts it, and Vercel's
+production deployment never does. Release builds blank it.
 
 ## 7. Backend gaps: what the app does meanwhile
 
@@ -181,7 +182,7 @@ assertion, and only a server with the same `APP_ATTEST_DEV_SECRET` accepts it. R
 | Edit title/excerpt, `library(since:)` | Not editable; full snapshot on each sync | An update action; a `since` filter |
 | Save mid-crawl / share-extension save before enrichment | App keeps the stream alive and PATCHes on `done` | Server-side enrichment job keyed by link id |
 | Enrichment of imported links | "Plain" cards with HeroFallback, no excerpt | Backfill job |
-| Price-drop push | Toggle hidden (`FeatureFlags.pricePush = false`) | Compare and send APNs; device-token endpoint |
+| Price-drop push | No toggle; an "Under your price" badge shows in the app instead | Compare and send APNs; device-token endpoint |
 | "% since saved" | Computed from `priceHistory.first` vs last | — (fine) |
 | Unarchive | Archived filter is read-only | `bulk(restoreArchive)` |
 | Delete/annotate highlights | Add only | Endpoints |

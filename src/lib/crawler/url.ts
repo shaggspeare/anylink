@@ -56,6 +56,39 @@ export function cleanUrl(raw: string): string {
   }
 }
 
+/** Ids go into a player URL (and an HTML string on iOS), so only these characters pass. */
+const VIDEO_ID = /^[\w-]{1,64}$/;
+
+/** A YouTube or Vimeo video's provider and id, from its URL alone: watch, youtu.be, shorts, embed and player links. */
+export function videoFromUrl(raw: unknown): { provider: "youtube" | "vimeo"; videoId: string } | undefined {
+  let u: URL;
+  try {
+    u = new URL(String(raw));
+  } catch {
+    return undefined;
+  }
+  const host = u.hostname.replace(/^(www|m|music)\./, "");
+  const path = u.pathname.split("/").filter(Boolean);
+  const youtube =
+    host === "youtu.be" ? path[0]
+    : host === "youtube.com" || host === "youtube-nocookie.com"
+      ? (u.searchParams.get("v") ?? (["embed", "shorts", "live", "v"].includes(path[0]) ? path[1] : undefined))
+      : undefined;
+  if (youtube && VIDEO_ID.test(youtube)) return { provider: "youtube", videoId: youtube };
+  // The last all-digit segment: vimeo.com/123, /channels/staffpicks/123, /showcase/9/video/123.
+  const vimeo = host === "vimeo.com" || host === "player.vimeo.com" ? path.findLast((p) => /^\d+$/.test(p)) : undefined;
+  return vimeo ? { provider: "vimeo", videoId: vimeo } : undefined;
+}
+
+/** The privacy-enhanced player for a YouTube or Vimeo video; undefined for anything else.
+ * ponytail: unlisted Vimeo videos also need their `h=` hash, so those don't play inline. */
+export function videoEmbedUrl(t?: { provider?: string; videoId?: string }): string | undefined {
+  if (!t?.videoId || !VIDEO_ID.test(t.videoId)) return undefined;
+  if (t.provider === "youtube") return `https://www.youtube-nocookie.com/embed/${t.videoId}`;
+  if (t.provider === "vimeo") return `https://player.vimeo.com/video/${t.videoId}?dnt=1`;
+  return undefined;
+}
+
 /** "…/ua/apple-macbook-air-m4/p123456/" -> "Apple macbook air m4". Falls back to
  * the domain when the path carries nothing readable. */
 export function titleFromUrl(raw: string): string {

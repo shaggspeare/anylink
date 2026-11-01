@@ -15,7 +15,7 @@ import {
   date,
 } from "drizzle-orm/pg-core";
 
-export const contentTypeEnum = pgEnum("content_type", ["article", "video", "product", "note", "image"]);
+export const contentTypeEnum = pgEnum("content_type", ["article", "video", "product", "note", "image", "recipe"]);
 export const linkStatusEnum = pgEnum("link_status", ["crawling", "ready", "failed"]);
 export const cardSizeEnum = pgEnum("card_size", ["S", "M", "L"]);
 export const crawlJobStatusEnum = pgEnum("crawl_job_status", [
@@ -114,6 +114,8 @@ export const links = pgTable(
     // normalized table given how much they vary per site — see PLAN.md's product-parsing
     // risk note. Price itself stays relational, in price_snapshots/price_alerts below.
     productData: jsonb("product_data"),
+    // What the link's template shows beyond the card: TemplateData in src/lib/types.ts. Null for older links.
+    templateData: jsonb("template_data"),
     // Where the link came in from: 'manual' | 'chrome' | 'safari' | 'telegram' | 'whatsapp' | 'text'. Text, not an enum,
     // so the next import source is a parser and nothing else.
     source: text("source").notNull().default("manual"),
@@ -250,4 +252,11 @@ export const appAttestKeys = pgTable("app_attest_keys", {
   groupCount: integer("group_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+}).enableRLS();
+
+/** Groupings by installs without an account per UTC day, across every key: one device can register many keys, so this
+ * is the ceiling on the day's AI spend (src/lib/db/attest-keys.ts). */
+export const appAttestDaily = pgTable("app_attest_daily", {
+  day: date("day").primaryKey(),
+  groups: integer("groups").notNull().default(0),
 }).enableRLS();

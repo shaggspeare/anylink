@@ -26,7 +26,7 @@ function link(partial: Partial<LinkItem> & { id: string }): LinkItem {
 const library: LinkItem[] = [
   link({ id: "a", title: "CSS grid guide", tags: ["design", "css"], favorite: true }),
   link({ id: "b", title: "Superman review", contentType: "video", excerpt: "a film about css" }),
-  link({ id: "c", title: "Pasta recipe", note: "try the css of cooking", createdAt: "2025-11-02T10:00:00.000Z" }),
+  link({ id: "c", title: "Pasta recipe", contentType: "recipe", note: "try the css of cooking", createdAt: "2025-11-02T10:00:00.000Z" }),
   link({ id: "d", title: "Dead page", httpStatus: 404 }),
   link({ id: "e", title: "Dupe one", url: "https://dup.com/x/" }),
   link({ id: "f", title: "Dupe two", url: "https://DUP.com/x" }),
@@ -62,6 +62,8 @@ test("terms are ANDed unless match:or is present", () => {
 
 test("type, flags, and dates", () => {
   assert.deepEqual(ids("type:video"), ["b"]);
+  assert.deepEqual(ids("type:recipe"), ["c"]);
+  assert.deepEqual(ids("css -type:recipe"), ["a", "b"]);
   assert.deepEqual(ids("is:favorite"), ["a"]);
   assert.deepEqual(ids("is:noted"), ["c"]);
   assert.deepEqual(ids("is:untagged"), ["b", "c", "d", "e", "f"]);

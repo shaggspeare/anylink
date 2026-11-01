@@ -149,7 +149,7 @@ public actor MockAPI: AnyLinkAPI {
             createdAt: ISO8601DateFormatter().string(from: Date()),
             source: "manual", importMeta: nil, note: draft.note,
             favorite: false, httpStatus: 200, archived: false, deleted: false,
-            highlights: [], product: cr?.product
+            highlights: [], product: cr?.product, templateData: cr?.templateData
         )
         links.insert(link, at: 0)
         return link

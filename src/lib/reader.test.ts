@@ -1,7 +1,7 @@
 // Run: node --test src/lib/reader.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readableParagraphs } from "./reader.ts";
+import { clockLabel, minutesLabel, readableParagraphs } from "./reader.ts";
 
 const sentence = "This is a real sentence with more than eight words in it.";
 
@@ -19,4 +19,9 @@ test("real prose is kept, short headings included", () => {
 
 test("no text and no excerpt shows nothing", () => {
   assert.deepEqual(readableParagraphs(undefined, ""), []);
+});
+
+test("recipe times and video lengths read the same as on iOS", () => {
+  assert.deepEqual([5, 45, 60, 75, 135].map(minutesLabel), ["5 min", "45 min", "1 h", "1 h 15 min", "2 h 15 min"]);
+  assert.deepEqual([7, 253, 3600, 7262].map(clockLabel), ["0:07", "4:13", "1:00:00", "2:01:02"]);
 });

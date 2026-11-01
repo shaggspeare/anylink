@@ -92,12 +92,14 @@ Refusals are never a 401:
   counter didn't go up, usually two calls arriving out of order: sign again and retry once), `invalid`, or, at
   registration, `challenge`.
 - `429 { "reason": "daily-cap" }`: per key and UTC day, 200 crawls, 5,000 checked links and 10 groupings
-  (`DAILY_CAPS`).
+  (`DAILY_CAPS`). Groupings also stop at 300 a day across all keys together (`DAILY_GROUPS_ALL_KEYS`, counted in
+  `app_attest_daily`; apply `supabase/migrations/20261103010000_app_attest_daily.sql` too).
 - `503`: the server has no `APP_ATTEST_SECRET`.
 
 The simulator can't attest, so DEBUG builds there send `X-AnyLink-Dev: <APP_ATTEST_DEV_SECRET from Config.xcconfig>`
-instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is set and matches. Never set that in
-production.
+instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is at least 32 characters and matches, and
+never on Vercel's production deployment (`VERCEL_ENV=production`), whatever the variable says. Don't set it in
+production anyway.
 
 The server reads `APP_ATTEST_SECRET` (a long random string that signs the challenges) and, in development only,
 `APP_ATTEST_DEV_SECRET`. Apply `supabase/migrations/20261103000000_app_attest_keys.sql` before deploying.
@@ -116,3 +118,21 @@ filename="anylink-<yyyy-mm-dd>.<format>"`). Trash isn't in it. The writers are i
 
 Pro only. A free account gets `403` with `{ "ok": false, "reason": "pro" }`, never a 401, and iOS maps it to
 `AppError.proRequired`. A missing or unknown `format` gets 400.
+
+### Templates
+
+`contentType` can also be `"recipe"`. Builds from before Phase 6 decode it strictly, so the server sends them
+`"article"` instead: `/api/v1/library`, `/api/v1/shared/<token>`, `/api/v1/actions/*` results and the `/api/crawl`
+events all name only the types listed in the request's `X-AnyLink-Types` header (comma-separated; `src/lib/ios-types.ts`).
+iOS sends every case of `ContentType`, and reads a type it doesn't know as `article`.
+
+`LinkItem.templateData` and the crawl result's `templateData` carry what the Pro templates show, read from the page
+without AI (`TemplateData` in `src/lib/types.ts`). Which fields are set depends on the type:
+
+- article: `author`, `publishedAt` (ISO 8601)
+- video: `provider` (`"youtube"`, `"vimeo"` or the site's domain), `videoId`, `channel`, `durationSeconds`. Videos
+  saved before Phase 6 get `provider` and `videoId` from their URL.
+- recipe: `ingredients`, `steps`, `prepMinutes`, `cookMinutes`, `totalMinutes`, `yield`
+
+Numbers are whole. Pass the crawl's `templateData` back in `createLink`. Apply
+`supabase/migrations/20261105000000_templates.sql` before deploying.

@@ -18,6 +18,7 @@ public struct LiveCrawler: Sendable {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        req.setValue(ContentType.header, forHTTPHeaderField: "X-AnyLink-Types")
         req.httpBody = try? JSONEncoder().encode(["url": url.absoluteString])
         let session = session
         let request = req

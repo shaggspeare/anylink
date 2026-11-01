@@ -71,7 +71,7 @@ public final class LocalAPI: AnyLinkAPI {
             contentType: cr?.contentType ?? .article, readingTimeMinutes: cr?.readingTimeMinutes,
             collectionId: collectionOrInbox(draft.collectionId), tags: draft.tags, size: draft.size,
             status: unread ? .crawling : .ready, createdAt: Date().formatted(.iso8601), source: "ios",
-            note: draft.note?.nilIfEmpty, product: cr?.product
+            note: draft.note?.nilIfEmpty, product: cr?.product, templateData: cr?.templateData
         )
         store.save([link])
         if unread { readUnread() }
@@ -295,6 +295,7 @@ public final class LocalAPI: AnyLinkAPI {
             now.contentType = r.contentType
             now.readingTimeMinutes = r.readingTimeMinutes
             now.product = r.product
+            now.templateData = r.templateData
             for tag in r.suggestedTags where !now.tags.contains(tag) { now.tags.append(tag) }
         }
         now.status = .ready
