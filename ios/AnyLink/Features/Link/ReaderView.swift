@@ -6,16 +6,19 @@ import Networking
 import Fixtures
 import Store
 
-/// S15: articles and videos.
+/// S15: the generic layout (free), and Pro's article, video and recipe templates inside it.
 struct ReaderView: View {
     let link: LinkItem
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
     @State private var editingNote = false
     @State private var noteDraft = ""
+    @State private var playing = false
     @FocusState private var noteFocused: Bool
 
     private var url: URL? { URL(string: link.url) }
+    /// What the templates read. Free accounts get none of it.
+    private var template: TemplateData? { store.isPro ? link.templateData : nil }
 
     var body: some View {
         ScrollView {
@@ -71,8 +74,12 @@ struct ReaderView: View {
     }
 
     private var eyebrow: String {
-        [link.domain, link.contentType == .video ? "Video" : link.readingTimeMinutes.map { "\($0) min read" }]
-            .compactMap { $0 }.joined(separator: " · ")
+        let kind: String? = switch link.contentType {
+        case .video: "Video"
+        case .recipe: "Recipe"
+        default: link.readingTimeMinutes.map { "\($0) min read" }
+        }
+        return [link.domain, kind].compactMap { $0 }.joined(separator: " · ")
     }
 
     // MARK: Chips
@@ -161,29 +168,86 @@ struct ReaderView: View {
     @ViewBuilder
     private var content: some View {
         if link.contentType == .video {
-            Button { router.openOriginal = url } label: {
-                HeroImage(link: link)
-                    .frame(height: 190)
-                    .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-                    .overlay {
+            video
+        } else if link.contentType == .recipe, let template, template.hasRecipe {
+            RecipeCard(data: template)
+        } else {
+            if link.contentType == .article, store.isPro { articleHeader(link.templateData) }
+            if ArticleBody.hasEnoughProse(link.articleText) {
+                HighlightableText(
+                    blocks: link.articleText ?? [],
+                    highlights: (link.highlights ?? []).map(\.quote)
+                ) { store.addHighlight(link.id, quote: $0) }
+            } else {
+                if !link.excerpt.isEmpty { lead(link.excerpt) }
+                // Only an article is missing something without its text; a product or recipe page never had prose to give.
+                if link.contentType == .article {
+                    Notice("The site wouldn't give up the full page, so this is the summary only. Open the original to read the rest.")
+                }
+            }
+        }
+        if let upsell { Notice(upsell) }
+    }
+
+    /// The article template's byline, and the summary when the full text follows it.
+    @ViewBuilder
+    private func articleHeader(_ t: TemplateData?) -> some View {
+        if let byline = t?.byline {
+            Text(byline).font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+        }
+        if ArticleBody.hasEnoughProse(link.articleText), !link.excerpt.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("SUMMARY").font(AL.Font.eyebrow).tracking(1.47).foregroundStyle(AL.ink.opacity(AL.Ink.a45))
+                Text(link.excerpt).font(AL.Font.lead).foregroundStyle(AL.ink.opacity(AL.Ink.a85))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(AL.ink.opacity(AL.Ink.a06), in: RoundedRectangle(cornerRadius: AL.Radius.tile, style: .continuous))
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// The video variant, or with Pro and a YouTube or Vimeo id, the player behind the same poster.
+    @ViewBuilder
+    private var video: some View {
+        let embed = template?.embedURL
+        Group {
+            if playing, let embed {
+                VideoWebView(url: embed).accessibilityLabel("Video player")
+            } else {
+                Button { if embed == nil { router.openOriginal = url } else { playing = true } } label: {
+                    HeroImage(link: link).overlay {
                         Image(systemName: "play.fill")
                             .font(.title2.weight(.semibold)).foregroundStyle(.white)
                             .frame(width: 56, height: 56)
                             .background(.black.opacity(0.45), in: Circle())
                     }
+                }
+                .buttonStyle(TilePressStyle())
+                .accessibilityLabel(embed == nil ? "Play on \(link.domain)" : "Play video")
             }
-            .buttonStyle(TilePressStyle())
-            .accessibilityLabel("Play on \(link.domain)")
-            if !link.excerpt.isEmpty { lead(link.excerpt) }
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(16 / 9, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+        if let meta = template?.videoMeta {
+            Text(meta).font(.footnote).foregroundStyle(AL.ink.opacity(AL.Ink.a55))
+        }
+        if !link.excerpt.isEmpty { lead(link.excerpt) }
+        if embed == nil {
             Notice("Video — open the original to watch. AnyLink stores the description and thumbnail only.")
-        } else if ArticleBody.hasEnoughProse(link.articleText) {
-            HighlightableText(
-                blocks: link.articleText ?? [],
-                highlights: (link.highlights ?? []).map(\.quote)
-            ) { store.addHighlight(link.id, quote: $0) }
-        } else {
-            if !link.excerpt.isEmpty { lead(link.excerpt) }
-            Notice("The site wouldn't give up the full page, so this is the summary only. Open the original to read the rest.")
+        }
+    }
+
+    /// The generic layout's last line (S15). Phase 4: make it open the paywall.
+    private var upsell: String? {
+        guard !store.isPro else { return nil }
+        return switch link.contentType {
+        case .article: "Pro adds the summary, the author and the date here."
+        case .video: "Pro plays the video right here."
+        case .recipe: "Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."
+        case .product: "Pro tracks this price for you and charts its history."
+        case .note, .image: nil
         }
     }
 
@@ -267,8 +331,8 @@ struct MiniCard: View {
 
 
 @MainActor
-private func readerPreview(_ id: String) -> some View {
-    let env = AppEnvironment.mock(latency: false)
+private func readerPreview(_ id: String, plan: String = "pro") -> some View {
+    let env = AppEnvironment.mock(latency: false, plan: plan)
     return NavigationStack { LinkDetailView(id: id) }
         .environment(env.store)
         .environment(env.router)
@@ -276,6 +340,15 @@ private func readerPreview(_ id: String) -> some View {
 
 #Preview("Article") { readerPreview("nasa") }
 #Preview("Article — Dark") { readerPreview("nasa").preferredColorScheme(.dark) }
-#Preview("Summary only") { readerPreview("glass") }
+#Preview("Article — Free") { readerPreview("nasa", plan: "free") }
+#Preview("Article — Free, Dark") { readerPreview("nasa", plan: "free").preferredColorScheme(.dark) }
 #Preview("Video") { readerPreview("ytrt") }
+#Preview("Video — Dark") { readerPreview("ytrt").preferredColorScheme(.dark) }
+#Preview("Video — Free") { readerPreview("ytrt", plan: "free") }
+#Preview("Video — Free, Dark") { readerPreview("ytrt", plan: "free").preferredColorScheme(.dark) }
+#Preview("Recipe") { readerPreview("ramen") }
+#Preview("Recipe — Dark") { readerPreview("ramen").preferredColorScheme(.dark) }
+#Preview("Recipe — Free") { readerPreview("ramen", plan: "free") }
+#Preview("Recipe — Free, Dark") { readerPreview("ramen", plan: "free").preferredColorScheme(.dark) }
+#Preview("Summary only") { readerPreview("glass") }
 #Preview("Large type") { readerPreview("nasa").dynamicTypeSize(.accessibility2) }

@@ -441,7 +441,8 @@ Notes and images keep their own screens on both plans.
 - No ingredients and no steps (the page had no recipe card): the article text, as for an article.
 
 **Generic layout (Free):** this screen without the template blocks.
-- Articles, recipes and products: the article text, or the excerpt plus the notice.
+- Articles: the article text, or the excerpt plus the notice.
+- Recipes and products: the article text when it has real prose, otherwise the excerpt, without the notice.
 - Videos: the video variant.
 - The last thing in the body is a `Notice` with the upsell line for the type:
   - article: "Pro adds the summary, the author and the date here."

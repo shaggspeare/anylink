@@ -584,6 +584,28 @@ import Fixtures
         #expect(PriceSummary(up).percentSinceSaved == 25)
     }
 
+    @Test func templateLines() throws {
+        let video = try #require(Fixtures.links.first { $0.id == "ytrt" }?.templateData)
+        #expect(video.embedURL?.absoluteString == "https://www.youtube-nocookie.com/embed/rt-demo-01?playsinline=1&autoplay=1")
+        #expect(video.videoMeta == "Systems Live · 2:01:02")
+        var other = video
+        other.provider = "vimeo"; other.videoId = "76979871"
+        #expect(other.embedURL?.host() == "player.vimeo.com")
+        other.videoId = #"x" onload="alert(1)"#
+        #expect(other.embedURL == nil, "an id that could break the player page never reaches it")
+        other.provider = "ted.com"; other.videoId = "talk"
+        #expect(other.embedURL == nil)
+
+        let recipe = try #require(Fixtures.links.first { $0.id == "ramen" }?.templateData)
+        #expect(recipe.hasRecipe)
+        #expect(recipe.recipeTimes == ["Prep 15 min", "Cook 45 min", "Total 1 h", "Makes 2 bowls"])
+        #expect([5, 60, 75, 135].map(TemplateData.minutes) == ["5 min", "1 h", "1 h 15 min", "2 h 15 min"])
+
+        let article = try #require(Fixtures.links.first { $0.id == "nasa" }?.templateData)
+        #expect(article.byline?.hasPrefix("By Mark Garcia · ") == true)
+        #expect(article.videoMeta == nil && !article.hasRecipe)
+    }
+
     @Test func underYourPrice() {
         var p = product   // ₴54,999 against an alert at ₴50,000
         #expect(!PriceSummary(p).isUnderAlert)

@@ -36,9 +36,12 @@ struct AppEnvironment {
         }
     }
 
-    static func mock(latency: Bool = true) -> AppEnvironment {
+    /// The sample library, as a Pro account unless `plan` says otherwise (previews and UI tests use `-free`).
+    static func mock(latency: Bool = true, plan: String = "pro") -> AppEnvironment {
         let cache = LocalCache.appGroup()
-        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: Fixtures.library, shared: cache)
+        var library = Fixtures.library
+        library.plan = plan
+        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: library, shared: cache)
     }
 
     /// The backend at `ANYLINK_API_BASE`, as the signed-in Supabase user. The App Group cache shows the last
@@ -50,7 +53,7 @@ struct AppEnvironment {
     }
 
     static func current() -> AppEnvironment {
-        FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting)
+        FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting, plan: AppConfig.isFree ? "free" : "pro")
     }
 
     // MARK: - Guest

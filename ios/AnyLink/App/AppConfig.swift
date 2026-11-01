@@ -10,6 +10,10 @@ enum AppConfig {
     static var isUITesting: Bool {
         CommandLine.arguments.contains("-ui-testing")
     }
+    /// UI tests and screenshots: the sample library as a free account.
+    static var isFree: Bool {
+        CommandLine.arguments.contains("-free")
+    }
     static var showGallery: Bool {
         CommandLine.arguments.contains("-gallery")
     }

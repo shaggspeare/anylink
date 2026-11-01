@@ -137,6 +137,35 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Tell me under"].exists)
     }
 
+    @MainActor
+    private func open(_ scope: String, _ tile: String, in app: XCUIApplication) {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", scope)).firstMatch.tap()
+        app.buttons[tile].tap()
+    }
+
+    @MainActor
+    func testTemplatesForProGenericLayoutForFree() throws {
+        let app = launch()
+        open("Recipes", "tile-ramen", in: app)
+        XCTAssertTrue(app.staticTexts["Ingredients"].waitForExistence(timeout: 3))
+        let noodles = app.buttons["2 portions fresh ramen noodles"]
+        noodles.tap()
+        XCTAssertTrue(noodles.isSelected)
+        app.navigationBars.buttons.firstMatch.tap()
+        open("Videos", "tile-ytrt", in: app)
+        XCTAssertTrue(app.buttons["Play video"].waitForExistence(timeout: 3))
+        app.terminate()
+
+        let free = launch(["-free"])
+        open("Recipes", "tile-ramen", in: free)
+        XCTAssertTrue(free.staticTexts["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."].waitForExistence(timeout: 3))
+        XCTAssertFalse(free.staticTexts["Ingredients"].exists)
+        free.navigationBars.buttons.firstMatch.tap()
+        open("Products", "tile-iph", in: free)
+        XCTAssertTrue(free.staticTexts["Pro tracks this price for you and charts its history."].waitForExistence(timeout: 3))
+        XCTAssertFalse(free.staticTexts["Tell me under"].exists)
+    }
+
     // MARK: - Collections, Trash, Settings (S10–S18)
 
     @MainActor
