@@ -47,6 +47,11 @@ only the user can do.
 - [ ] Run `AnyLinkTests` → `ProStoreTests` from Xcode. Apple's simulator bug FB22237318 stops them under
       `xcodebuild`, so they skip themselves there (Phase 4).
 
+- [ ] Make sure the App ID has **iCloud** (CloudKit container `iCloud.com.shaggspeare.anylink`) and **Push
+      Notifications** turned on, if automatic signing doesn't add them on the first build to a device (Phase 3).
+- [ ] Two-device iCloud sync check, and the real-iPhone pass for the local library. Both are listed under Phase 3
+      below (Phase 3).
+
 ## Deploys and database changes
 
 | When (UTC) | What | Notes |
@@ -308,3 +313,53 @@ App Store Connect are waiting on you.
    - Renewals, about every 5 minutes in the sandbox, move `plan_expires_at` forward.
    - Cancel the subscription and let it expire. The plan should turn free.
 4. Web as a free account: share, price alert, export and the upsell lines each open the Pro dialog.
+
+## Phase 3 · Local library on iOS
+
+**Status:** built, and merged with Phases 2, 4 and 6. Every check passes except the two baseline accessibility
+audits (209 package tests, zero warnings). Two-device iCloud sync and the real-iPhone checks are waiting on you.
+
+### Done
+- Decision D28 (a local library replaces D21 for free users), plus updates to the architecture doc and the screen
+  specs S0, S1, S9, S18 and S19.
+- `LocalStore` is `Local.store` in the App Group, mirrored to `iCloud.com.shaggspeare.anylink`.
+  - Each link and collection is one record, holding the model as JSON, with no unique constraints and no
+    relationships.
+  - Image bytes are in external storage and sync with their link.
+- `LocalAPI` implements the whole API over the store.
+  - Import dedupe, collections and filters work offline.
+  - Pages are read with the attested crawler.
+  - The dead-link check and grouping go through Phase 2's services, and fall back to grouping by folder and domain.
+  - Sharing, price alerts and export answer "Pro required", which opens the paywall.
+- The library re-reads when CloudKit brings in another device's changes, and when the app becomes active.
+- Guest mode is gone.
+  - A new install opens its library with no sign-in wall.
+  - Sign in moved to Settings.
+  - A Pro account switches to the server library. A Free account keeps the local library and sees the toast "On
+    Free, your iPhone and web libraries stay separate."
+- The share extension saves a PendingSave for a local library, and the app files it when it opens. Widgets work in
+  both modes.
+- Settings in local mode shows Sign in and the iCloud sync status, and hides the display name and Delete account.
+- `project.yml` adds iCloud (CloudKit), `aps-environment` and the remote-notification background mode.
+
+### Deviations
+- The dedupe, share-copy and grouping rules moved into `Networking/LibraryRules.swift`, which the mock and the local
+  library now share.
+- The inbox is built in, not stored, so two devices can't each create one.
+- The share extension follows a `serverLibrary` flag in the App Group instead of `signedIn`.
+- Reordering does nothing in a local library, because nothing in the app reorders yet.
+
+### Check by hand
+1. Two simulators or devices on one Apple Account, with iCloud on:
+   - Install the Debug build on each. Profile should show "iCloud sync · On".
+   - Save a link on A, then bring B to the foreground. The link should appear.
+   - Create a collection on A and move the link into it. Both should appear on B.
+2. Real iPhone:
+   - A fresh install has no sign-in wall.
+   - Three saves fill in a title, image and reading time, and Supabase `links` has no rows for them.
+   - With the app force-quit, share from Safari and run "Save to AnyLink" in Shortcuts. Both links appear when the
+     app opens.
+   - The widget shows recent saves.
+   - A Safari bookmarks import groups links and flags dead ones.
+   - With iCloud off, the app still works.
+   - Signing in as Pro opens the server library. Signing out brings back the local one.
