@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "./client";
 import { appAttestKeys } from "./schema";
 import { checkAssertion, spend, type UsageKind } from "../app-attest";
@@ -48,13 +48,14 @@ export async function verifyAssertion(
     return refuse(error instanceof Error && error.message === "replay" ? "replay" : "invalid");
   }
 
-  // The counter only moves forward, so of two calls racing with one counter, the second reads as a replay.
-  // ponytail: counts are written from the row read above, so racing calls can undercount; count in SQL if that's abused.
+  // The counts are worked out from the row as read, so the write only lands if the row hasn't moved since: of calls
+  // racing on one key, one wins and the rest read as replays (iOS signs again once). checkAssertion already saw
+  // counter > signCount, so the counter still only goes up.
   const usage = spend(key, kind, new Date().toISOString().slice(0, 10), amount);
   const [moved] = await db
     .update(appAttestKeys)
     .set({ signCount: counter, lastUsedAt: new Date(), ...usage })
-    .where(and(eq(appAttestKeys.keyId, keyId), lt(appAttestKeys.signCount, counter)))
+    .where(and(eq(appAttestKeys.keyId, keyId), eq(appAttestKeys.signCount, key.signCount)))
     .returning({ keyId: appAttestKeys.keyId });
   if (!moved) return refuse("replay");
   if (!usage) {
