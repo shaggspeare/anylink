@@ -9,7 +9,7 @@ import type { LinkItem } from "@/lib/types";
 
 export function ProductPanel({ link }: { link: LinkItem }) {
   const product = link.product!;
-  const { setAlertThreshold, plan } = useLibrary();
+  const { setAlertThreshold, plan, openPro } = useLibrary();
   const [showAllSpecs, setShowAllSpecs] = useState(false);
   const [threshold, setThreshold] = useState(product.alertThreshold ?? product.price ?? 0);
 
@@ -159,7 +159,9 @@ export function ProductPanel({ link }: { link: LinkItem }) {
                 />
               </div>
             ) : (
-              <p className="text-[13px] text-ink/50">Price alerts are a Pro feature.</p>
+              <button type="button" onClick={openPro} className="self-start text-[13px] text-ink/50 underline underline-offset-2">
+                Price alerts are a Pro feature.
+              </button>
             )}
           </div>
         </div>

@@ -181,6 +181,40 @@ final class APIStub: URLProtocol, @unchecked Sendable {
         #expect(!signedOut)
     }
 
+    @Test func proRefusalOpensThePaywallInsteadOfAToast() async {
+        APIStub.reset { _, _ in (200, #"{"ok":false,"reason":"pro"}"#) }
+        let s = store()
+        var paywalls = 0
+        s.onProRequired = { paywalls += 1 }
+        s.setPriceAlert("iph", threshold: 1)
+        await s.settle()
+        #expect(s.link("iph")?.product?.alertThreshold == 50000)
+        #expect(await s.setShared("rust", true) == false)
+        #expect(paywalls == 2)
+        #expect(s.toasts.current == nil)
+
+        // Queued while offline, refused once back: the paywall again, and the call is dropped.
+        APIStub.reset { _, _ in nil }
+        s.setPriceAlert("iph", threshold: 2)
+        await s.settle()
+        s.toasts.dismiss()
+        APIStub.reset { _, _ in (200, #"{"ok":false,"reason":"pro"}"#) }
+        s.drainOutbox()
+        await s.settle()
+        #expect(paywalls == 3)
+        #expect(s.outbox.isEmpty)
+        #expect(s.toasts.current == nil)
+    }
+
+    @Test func purchasesGoToTheBillingEndpointAndRefusalsDontSignOut() async throws {
+        APIStub.reset { _, _ in (200, #"{"ok":true}"#) }
+        try await APIStub.api().verifyPurchase("header.payload.signature")
+        #expect(APIStub.log.map(\.path) == ["/api/v1/billing/apple"])
+        #expect(APIStub.log.first?.body == #"{"jws":"header.payload.signature"}"#)
+        APIStub.reset { _, _ in (403, #"{"ok":false,"reason":"account"}"#) }
+        await #expect(throws: AppError.server(403)) { try await APIStub.api().verifyPurchase("x") }
+    }
+
     @Test func queuedProRefusalIsDroppedNotRetried() async {
         APIStub.reset { _, _ in nil }
         let s = store()

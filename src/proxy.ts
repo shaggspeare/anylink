@@ -29,6 +29,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Not the iOS API (bearer tokens, no cookies) or static files.
-  matcher: ["/((?!_next/static|_next/image|images/|api/v1/|favicon.ico|.*\\.(?:webp|png|jpg|svg|ico)$).*)"],
+  // Not the iOS API (bearer tokens, no cookies), Apple's billing notifications (no session, and never redirected), or
+  // static files.
+  matcher: ["/((?!_next/static|_next/image|images/|api/v1/|api/billing/|favicon.ico|.*\\.(?:webp|png|jpg|svg|ico)$).*)"],
 };

@@ -8,13 +8,14 @@ import type { Collection } from "@/lib/types";
 /** The owner's side of a shared collection (docs/adr/0001): on/off, the link, and the name
  * shown on it. Off kills the link for good; on again makes a new one. Turning it on is Pro. */
 export function ShareDialog({ collection, onClose }: { collection: Collection; onClose: () => void }) {
-  const { setCollectionShared, displayName, setDisplayName, showToast, plan } = useLibrary();
+  const { setCollectionShared, displayName, setDisplayName, showToast, plan, openPro } = useLibrary();
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(displayName ?? "");
   const url = collection.shareToken ? `${location.origin}/s/${collection.shareToken}` : null;
   const pro = isPro(plan);
 
   const toggle = async () => {
+    if (!url && !pro) return openPro();
     setBusy(true);
     try {
       await setCollectionShared(collection.id, !url);
@@ -60,7 +61,7 @@ export function ShareDialog({ collection, onClose }: { collection: Collection; o
             type="checkbox"
             role="switch"
             checked={Boolean(url)}
-            disabled={busy || (!url && !pro)}
+            disabled={busy}
             onChange={toggle}
             className="h-5 w-5 accent-[var(--color-signal)]"
           />
@@ -108,10 +109,12 @@ export function ShareDialog({ collection, onClose }: { collection: Collection; o
               />
             </label>
           </>
+        ) : pro ? (
+          <p className="text-meta text-ink/60">Turn it on to get a link — handy for wishlists and reading lists.</p>
         ) : (
-          <p className="text-meta text-ink/60">
-            {pro ? "Turn it on to get a link — handy for wishlists and reading lists." : "Share links are a Pro feature."}
-          </p>
+          <button type="button" onClick={openPro} className="self-start text-meta text-ink/60 underline underline-offset-2">
+            Share links are a Pro feature.
+          </button>
         )}
       </div>
     </div>

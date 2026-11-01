@@ -7,6 +7,7 @@ import Store
 import Auth
 import TipKit
 import AppIntents
+import StoreKit
 
 enum Appearance: String, CaseIterable, Identifiable {
     case system, light, dark
@@ -43,10 +44,23 @@ struct SettingsView: View {
     @AppStorage("signedIn") private var signedIn = true
     @AppStorage("guest") private var guest = false
     @State private var displayName = ""
+    @State private var managingSubscription = false
+
+    /// A guest's sample library says nothing about them: they're on Free.
+    private var pro: Bool { !guest && store.isPro }
 
     var body: some View {
         List {
             Section { account }
+            Section {
+                proRow("AnyLink Pro", value: pro ? "Pro" : "Free", systemImage: "sparkles")
+                proRow("Sync with web", value: pro ? "On" : "Pro", systemImage: "arrow.triangle.2.circlepath")
+                if pro {
+                    Button { managingSubscription = true } label: { row("Manage Subscription", systemImage: "creditcard") }
+                }
+            } header: {
+                header("AnyLink Pro")
+            }
             Section {
                 TipView(ShareSheetTip())
                 ShortcutsLink()
@@ -114,6 +128,7 @@ struct SettingsView: View {
             }
         }
         .tint(AL.ink)
+        .manageSubscriptionsSheet(isPresented: $managingSubscription)
         .onAppear { displayName = store.displayName ?? "" }
         .onDisappear(perform: saveDisplayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -172,6 +187,17 @@ struct SettingsView: View {
         Label(title, systemImage: systemImage).foregroundStyle(.primary).frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Shows where Pro stands; on Free it opens the paywall (S19).
+    @ViewBuilder
+    private func proRow(_ title: LocalizedStringKey, value: LocalizedStringKey, systemImage: String) -> some View {
+        let content = LabeledContent { Text(value) } label: { Label(title, systemImage: systemImage).foregroundStyle(.primary) }
+        if pro {
+            content
+        } else {
+            Button { router.sheet = .paywall } label: { content }
+        }
+    }
+
     private var version: String {
         let info = Bundle.main.infoDictionary
         let v = info?["CFBundleShortVersionString"] as? String ?? "–"
@@ -223,4 +249,11 @@ private struct AppearanceThumb: View {
 #Preview("Settings — Dark") {
     let env = AppEnvironment.mock(latency: false)
     NavigationStack { SettingsView() }.environment(env.store).environment(env.router).preferredColorScheme(.dark)
+}
+
+#Preview("Settings — Free") {
+    let env = AppEnvironment.mock(latency: false)
+    let lib = Fixtures.library
+    let _ = env.store.apply(LibrarySnapshot(links: lib.links, trashed: lib.trashed, collections: lib.collections, plan: "free"))
+    NavigationStack { SettingsView() }.environment(env.store).environment(env.router)
 }

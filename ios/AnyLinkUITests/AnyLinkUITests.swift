@@ -85,6 +85,32 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Keep everything you save"].waitForExistence(timeout: 3))
     }
 
+    // MARK: - Paywall (S19)
+
+    /// Under -ui-testing the paywall shows fixed prices: no test ever reaches the App Store.
+    @MainActor
+    func testFreeOpensThePaywallFromSettingsAndSignsInFirst() throws {
+        let app = launch(["-welcome"])
+        app.buttons["Skip for now"].tap()
+        app.tabBars.buttons["Profile"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'AnyLink Pro'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+        XCTAssertTrue(row.label.contains("Free"))
+        row.tap()
+
+        XCTAssertTrue(app.staticTexts["Your library on iPhone and the web"].waitForExistence(timeout: 3))
+        let yearly = app.buttons.matching(NSPredicate(format: "label CONTAINS '$19.99 a year'")).firstMatch
+        XCTAssertTrue(yearly.exists)
+        XCTAssertTrue(yearly.isSelected)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS '$49.99 once'")).firstMatch.exists)
+
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["Sign in to buy Pro"].waitForExistence(timeout: 3))
+        app.buttons["Not now"].tap()
+        app.buttons["Close"].tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 3))
+    }
+
     @MainActor
     func testAddExcerptOnlyStreamShowsNotice() throws {
         let app = launch()
@@ -156,12 +182,17 @@ final class AnyLinkUITests: XCTestCase {
 
         let free = launch(["-free"])
         free.buttons["tile-ramen"].tap()
-        XCTAssertTrue(free.staticTexts["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."].waitForExistence(timeout: 3))
+        // The upsell line is a button that opens the paywall (S19).
+        let upsell = free.buttons["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."]
+        XCTAssertTrue(upsell.waitForExistence(timeout: 3))
         XCTAssertFalse(free.staticTexts["Ingredients"].exists)
+        upsell.tap()
+        XCTAssertTrue(free.staticTexts["Your library on iPhone and the web"].waitForExistence(timeout: 3))
+        free.buttons["Close"].tap()
         free.navigationBars.buttons.firstMatch.tap()
         free.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Products")).firstMatch.tap()
         free.buttons["tile-iph"].tap()
-        XCTAssertTrue(free.staticTexts["Pro tracks this price for you and charts its history."].waitForExistence(timeout: 3))
+        XCTAssertTrue(free.buttons["Pro tracks this price for you and charts its history."].waitForExistence(timeout: 3))
         XCTAssertFalse(free.staticTexts["Tell me under"].exists)
     }
 
