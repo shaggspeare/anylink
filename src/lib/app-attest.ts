@@ -73,7 +73,8 @@ export function checkAttestation(
   // 7. The counter starts at 0.
   if (authData.readUInt32BE(33) !== 0) throw new Error("counter");
 
-  // 8. The aaguid names the environment. Both are accepted, and stored with the key.
+  // 8. The aaguid names the environment. Both are accepted, and stored with the key, so a Debug build on a real iPhone
+  //    works against production. TODO: refuse development keys in production before the App Store launch (Phase 9).
   const aaguid = authData.subarray(37, 53);
   const environment = aaguid.equals(PRODUCTION) ? "production" : aaguid.equals(DEVELOPMENT) ? "development" : null;
   if (!environment) throw new Error("aaguid");
