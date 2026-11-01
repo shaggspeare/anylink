@@ -166,6 +166,22 @@ struct NoAttest: AppAttesting {
         #expect(now.tags.contains("later") && now.status == .ready)
     }
 
+    @Test func aReadCutShortStaysUnreadButADeadPageIsDone() async throws {
+        func failing(_ reason: String) -> LocalAPI.Crawl {
+            { _ in AsyncThrowingStream { $0.yield(.failed(CrawlFailure(reason: reason))); $0.finish() } }
+        }
+        let cut = LocalAPI(store: local, crawler: failing("network"))
+        let link = try await cut.createLink(LinkDraft(url: "https://example.com/a", title: "Kept"))
+        await cut.reading?.value
+        #expect(local.links([link.id]).first?.status == .crawling, "read again on the next library()")
+
+        let dead = LocalAPI(store: local, crawler: failing("not-found"))
+        _ = try await dead.library(since: nil)
+        await dead.reading?.value
+        let done = try #require(local.links([link.id]).first)
+        #expect(done.status == .ready && done.title == "Kept", "a page that can't be read keeps what it was saved with")
+    }
+
     @Test func anImageFromAnotherDeviceGetsItsFile() async throws {
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xD9])
         let image = try await api.createImage(jpeg, collectionId: nil, caption: "Receipt")

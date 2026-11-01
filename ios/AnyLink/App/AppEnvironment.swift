@@ -73,10 +73,7 @@ struct AppEnvironment {
     static func local() -> AppEnvironment {
         let testing = AppConfig.isUITesting
         let base = testing ? nil : AppConfig.apiBase
-        // ponytail: a store that won't open (damaged, disk full) runs this launch in memory, so its saves don't last;
-        // tell the user if that ever shows up.
-        let store = (testing ? nil : LocalStore.appGroup()) ?? (try? LocalStore())
-        guard let store else { return mock() }
+        guard let store = localStore else { return mock() }
         let crawler: LocalAPI.Crawl
         if let base {
             let live = LiveCrawler(base: base, token: nil, attest: attest)
@@ -104,6 +101,12 @@ struct AppEnvironment {
         guard FeatureFlags.useLiveAPI, let base = AppConfig.apiBase else { return "pro" }
         return try await LiveAPI(base: base) { await AuthService.accessToken() }.library(since: nil).plan ?? "free"
     }
+
+    /// One per process, however often the mode changes: a second container on `Local.store` would mirror it to
+    /// CloudKit twice. In memory under -ui-testing.
+    // ponytail: a store that won't open (damaged, disk full) runs in memory, so that launch's saves don't last; tell
+    // the user if it ever shows up.
+    private static let localStore = (AppConfig.isUITesting ? nil : LocalStore.appGroup()) ?? (try? LocalStore())
 
     /// Signs calls from an install without an account (App Attest). One per process, so the key registers once.
     static let attest = AppConfig.apiBase.map {

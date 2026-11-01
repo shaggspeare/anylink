@@ -21,7 +21,8 @@ public final class LocalAPI: AnyLinkAPI {
     let shared: (any AnyLinkAPI)?
     /// Runs after a background read filled in a link, so the app can show it.
     public var onChange: (@MainActor () -> Void)?
-    private var reading: Task<Void, Never>?
+    /// Pages being read in the background; tests await it.
+    private(set) var reading: Task<Void, Never>?
 
     /// `crawler`, `services` and `shared` are nil without a backend: pages aren't read, imported links aren't checked,
     /// and grouping falls back to `LibraryRules.metadataGroups`.
@@ -37,12 +38,14 @@ public final class LocalAPI: AnyLinkAPI {
         for l in library.links + library.trashed where l.isImage && LocalImages.existing(for: l.id) == nil {
             if let jpeg = store.image(for: l.id) { LocalImages.write(jpeg, id: l.id) }
         }
-        readUnread()
+        if library.links.contains(where: { $0.status == .crawling }) { readUnread() }
         return library
     }
 
     /// The library as stored, at once: what a cold launch shows before anything else runs.
     public func snapshot() -> LibrarySnapshot {
+        // ponytail: decodes every link on the main actor at each refresh; move LocalStore to a ModelActor if big
+        // libraries stutter.
         let all = store.links()
         return LibrarySnapshot(links: all.filter { $0.deleted != true }, trashed: all.filter { $0.deleted == true },
                                collections: [Self.inbox] + store.collections())
@@ -266,23 +269,30 @@ public final class LocalAPI: AnyLinkAPI {
     }
 
     private func unread(excluding tried: Set<LinkItem.ID>) -> [LinkItem] {
-        store.links().filter { $0.status == .crawling && !tried.contains($0.id) }.sorted { $0.createdAt < $1.createdAt }
+        store.links().filter { $0.status == .crawling && $0.deleted != true && !tried.contains($0.id) }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     /// Like the server's `fillFromPage`: the page's fields and tags fill in, and the title too unless the save came
-    /// with a real one. A page that can't be read keeps what it was saved with.
+    /// with a real one. A page that can't be read keeps what it was saved with. A read cut short (offline, the app
+    /// suspended, today's cap) leaves the link unread for the next `library()`.
     private func read(_ link: LinkItem, with crawler: Crawl) async {
         var result: CrawlResult?
+        var failure: String?
         if let url = URL(string: link.url) {
             do {
                 for try await event in await crawler(url) {
-                    if case .preview(let r) = event { result = r }
-                    if case .done(let r) = event { result = r }
+                    switch event {
+                    case .preview(let r), .done(let r): result = r
+                    case .failed(let f): failure = f.reason
+                    case .step: break
+                    }
                 }
             } catch {
                 return
             }
         }
+        if result == nil, failure == "network" || failure == "rate-limited" { return }
         // Edits made while it read are in the store; keep them.
         guard var now = store.links([link.id]).first, now.status == .crawling else { return }
         if let r = result {

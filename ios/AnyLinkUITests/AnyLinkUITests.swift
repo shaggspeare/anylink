@@ -7,6 +7,7 @@ final class AnyLinkUITests: XCTestCase {
         else { try? Data((line + "\n").utf8).write(to: url) }
     }
 
+    @MainActor
     private func launch(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing"] + extra
@@ -355,6 +356,7 @@ final class AnyLinkUITests: XCTestCase {
     // MARK: - Accessibility audit (phase 13 gate)
 
     /// WCAG contrast of the darkest vs lightest pixel inside `frame` (points) on a fresh screenshot.
+    @MainActor
     private func measuredContrast(_ frame: CGRect, in shot: XCUIScreenshot) -> Double? {
         let image = shot.image
         guard let cg = image.cgImage, frame.width > 1, frame.height > 1 else { return nil }
