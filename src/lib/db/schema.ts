@@ -251,3 +251,10 @@ export const appAttestKeys = pgTable("app_attest_keys", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
+
+/** Groupings by installs without an account per UTC day, across every key: one device can register many keys, so this
+ * is the ceiling on the day's AI spend (src/lib/db/attest-keys.ts). */
+export const appAttestDaily = pgTable("app_attest_daily", {
+  day: date("day").primaryKey(),
+  groups: integer("groups").notNull().default(0),
+}).enableRLS();

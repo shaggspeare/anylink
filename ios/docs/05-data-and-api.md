@@ -170,7 +170,8 @@ These are exposed through Info.plist keys and read by `AppConfig`. A missing val
 Release it is a fatal configuration error.
 
 `APP_ATTEST_DEV_SECRET` is for DEBUG builds on the simulator, which can't use App Attest: they send it instead of an
-assertion, and only a server with the same `APP_ATTEST_DEV_SECRET` accepts it. Release builds blank it.
+assertion. Only a server with the same `APP_ATTEST_DEV_SECRET`, at least 32 characters long, accepts it, and Vercel's
+production deployment never does. Release builds blank it.
 
 ## 7. Backend gaps: what the app does meanwhile
 

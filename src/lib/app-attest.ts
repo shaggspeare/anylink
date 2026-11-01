@@ -73,7 +73,8 @@ export function checkAttestation(
   // 7. The counter starts at 0.
   if (authData.readUInt32BE(33) !== 0) throw new Error("counter");
 
-  // 8. The aaguid names the environment. Both are accepted, and stored with the key.
+  // 8. The aaguid names the environment. Both are accepted, and stored with the key, so a Debug build on a real iPhone
+  //    works against production. TODO: refuse development keys in production before the App Store launch (Phase 9).
   const aaguid = authData.subarray(37, 53);
   const environment = aaguid.equals(PRODUCTION) ? "production" : aaguid.equals(DEVELOPMENT) ? "development" : null;
   if (!environment) throw new Error("aaguid");
@@ -140,6 +141,10 @@ export type Usage = { usageDay: string | null; crawlCount: number; checkCount: n
 
 /** Per key and UTC day. A check counts the links in it; a crawl or a grouping counts one call. */
 export const DAILY_CAPS: Record<UsageKind, number> = { crawl: 200, check: 5000, group: 10 };
+
+/** Groupings per UTC day across every key together. One device can register many keys, so the per-key caps alone
+ * don't bound the day's AI spend; this does. */
+export const DAILY_GROUPS_ALL_KEYS = 300;
 
 /** The key's usage after spending `amount` of `kind` on `today` (YYYY-MM-DD), or null when that would pass the day's
  * cap. A new day starts from zero. */

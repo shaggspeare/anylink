@@ -92,12 +92,14 @@ Refusals are never a 401:
   counter didn't go up, usually two calls arriving out of order: sign again and retry once), `invalid`, or, at
   registration, `challenge`.
 - `429 { "reason": "daily-cap" }`: per key and UTC day, 200 crawls, 5,000 checked links and 10 groupings
-  (`DAILY_CAPS`).
+  (`DAILY_CAPS`). Groupings also stop at 300 a day across all keys together (`DAILY_GROUPS_ALL_KEYS`, counted in
+  `app_attest_daily`; apply `supabase/migrations/20261103010000_app_attest_daily.sql` too).
 - `503`: the server has no `APP_ATTEST_SECRET`.
 
 The simulator can't attest, so DEBUG builds there send `X-AnyLink-Dev: <APP_ATTEST_DEV_SECRET from Config.xcconfig>`
-instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is set and matches. Never set that in
-production.
+instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is at least 32 characters and matches, and
+never on Vercel's production deployment (`VERCEL_ENV=production`), whatever the variable says. Don't set it in
+production anyway.
 
 The server reads `APP_ATTEST_SECRET` (a long random string that signs the challenges) and, in development only,
 `APP_ATTEST_DEV_SECRET`. Apply `supabase/migrations/20261103000000_app_attest_keys.sql` before deploying.
