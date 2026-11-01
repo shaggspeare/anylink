@@ -420,7 +420,7 @@ Notes and images keep their own screens on both plans.
 - A byline (SF 13, ink .55): "By {author} · {date}", either part alone when only one is known, hidden when neither is.
   The date is abbreviated: "29 Sep 2026".
 - A summary card (ink .06, r16, padding 14) when the article text shows in full: the eyebrow "SUMMARY", then the
-  excerpt (15 pt, ink .85). With less text the excerpt already is the body, so the card is hidden.
+  excerpt (`lead`, ink .85). With less text the excerpt already is the body, so the card is hidden.
 
 **Video template (Pro):** for a YouTube or Vimeo video it replaces the video variant:
 - A 16:9 card (r19) with the thumbnail and a 56 pt play disc. Tapping it loads the privacy-enhanced player in its
