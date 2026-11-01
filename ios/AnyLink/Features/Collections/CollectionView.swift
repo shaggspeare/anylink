@@ -56,7 +56,7 @@ struct CollectionView: View {
                     Button("Select") { router.beginSelecting() }.disabled(shown.isEmpty)
                     if !isInbox {
                         Menu {
-                            // Sharing is Pro: a local library's switch answers with the Pro notice.
+                            // Sharing is Pro: on Free, a local library included, the switch opens the paywall (S19).
                             if collection?.isShareable == true {
                                 Button(collection?.shareToken == nil ? "Share…" : "Shared — manage…", systemImage: "person.2") {
                                     router.sheet = .share(id)

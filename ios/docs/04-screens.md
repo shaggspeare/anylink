@@ -557,7 +557,8 @@ Free accounts see the generic layout (S15) instead.
     stores it."
   - Off (no iCloud account, restricted, or iCloud can't be reached): `settings.icloudOff` "iCloud isn't available, so
     saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices."
-- Hidden: Your library (Export), Name on shared collections and Delete account. Sign out shows only when signed in.
+- Hidden: Name on shared collections and Delete account. Your library (Export, with its Pro footer) and Sign out
+  show only when signed in.
 
 **States:** server library · local, signed out · local, signed in on Free · iCloud on · iCloud off · iCloud checking.
 
