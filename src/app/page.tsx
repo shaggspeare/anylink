@@ -10,6 +10,7 @@ import { SearchDemo } from "@/components/search-demo";
 import { PhoneArc } from "@/components/landing-phones";
 import { TiltSection } from "@/components/tilt-section";
 import { TourButton } from "@/components/tour";
+import { APP_STORE_URL, PRO_BENEFITS } from "@/lib/pro";
 import appIcon from "../../public/images/landing/app-icon.webp";
 import chain from "../../public/images/landing/chain.webp";
 import plant from "../../public/images/hero/plant.webp";
@@ -46,12 +47,17 @@ export const metadata = {
 const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument-serif" });
 const hand = Caveat({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-caveat" });
 
+/** Pricing sells Pro, so production shows it only once the App Store listing exists. Development always shows it, as a
+ * preview. */
+const SHOW_PRICING = APP_STORE_URL !== null || process.env.NODE_ENV !== "production";
+
 const NAV = [
   { label: "Features", href: "#features" },
   { label: "Collections", href: "#collections" },
   { label: "Search", href: "#search" },
   { label: "iPhone", href: "#iphone" },
   { label: "How it works", href: "#how-it-works" },
+  ...(SHOW_PRICING ? [{ label: "Pricing", href: "#pricing" }] : []),
 ];
 
 // Back to front. z/rotations place each tile in the 3D pile; --sx/--sy is where the
@@ -106,6 +112,18 @@ const STEPS = [
   },
 ];
 
+// The Free column of "What ships" in docs/pro-build-plan.md. Pro's column is PRO_BENEFITS, the paywall's list.
+const FREE = [
+  "A library on your iPhone, synced with iCloud",
+  "Or a library on the web, with a free account",
+  "Collections, tags, notes, images and highlights",
+  "Reader view, search and smart collections",
+  "Import your bookmarks, grouped by AI",
+  "Share sheet, widgets, Shortcuts and Spotlight",
+  "Save from Chrome, with a web account",
+  "Title, image and reading time on every save",
+];
+
 // ponytail: user count is hand-set — keep it honest as the library grows.
 const STATS = [
   { value: "1K+", label: "happy users" },
@@ -116,6 +134,17 @@ const STATS = [
 const ARROW = (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden>
     <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+const CHECK = (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </svg>
+);
+const PHONE = (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+    <rect x="6.5" y="2.5" width="11" height="19" rx="3" />
+    <path d="M10.5 18.5h3" />
   </svg>
 );
 const STAR = (
@@ -323,12 +352,8 @@ export default function LandingPage() {
               without the clutter, and share a whole collection with one link.
             </p>
             <div className="btns">
-              {/* ponytail: no App Store listing yet — point this at it once the app is live. */}
-              <a className="btn btn-glass" href="#iphone">
-                <svg className="ic" viewBox="0 0 24 24" aria-hidden>
-                  <rect x="6.5" y="2.5" width="11" height="19" rx="3" />
-                  <path d="M10.5 18.5h3" />
-                </svg>
+              <a className="btn btn-glass" href={APP_STORE_URL ?? "#iphone"}>
+                {PHONE}
                 Get the iPhone app
               </a>
             </div>
@@ -372,9 +397,7 @@ export default function LandingPage() {
                   <ul>
                     {s.details.map((d) => (
                       <li key={d}>
-                        <svg className="ic" viewBox="0 0 24 24" aria-hidden>
-                          <path d="M5 12.5l4.5 4.5L19 7.5" />
-                        </svg>
+                        {CHECK}
                         {d}
                       </li>
                     ))}
@@ -385,6 +408,76 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {SHOW_PRICING && (
+        <section className="sec" id="pricing">
+          <div className="wrap">
+            <div className="sec-head">
+              <span className="eyebrow">
+                <span className="dot" />
+                Pricing
+              </span>
+              <h2 className="h2">
+                Free to use.
+                <br />
+                <span className="it">Pro when you want more.</span>
+              </h2>
+              <p className="lead">
+                AnyLink is free on your iPhone and on the web. Pro joins the two into one library, and reads every page
+                more closely.
+              </p>
+            </div>
+            <div className="plans">
+              <article className="plan">
+                <h3>Free</h3>
+                <p className="plan-price">
+                  <b>$0</b>
+                </p>
+                <p className="plan-sub">No account needed on iPhone.</p>
+                <p className="plan-eb">Included</p>
+                <ul>
+                  {FREE.map((f) => (
+                    <li key={f}>
+                      {CHECK}
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+              <article className="plan plan-pro">
+                <h3>Pro</h3>
+                <p className="plan-price">
+                  <b>$2.99</b> a month
+                </p>
+                <p className="plan-sub">or $19.99 a year · $49.99 lifetime</p>
+                <p className="plan-eb">Everything in Free, plus</p>
+                <ul>
+                  {PRO_BENEFITS.map((b) => (
+                    <li key={b}>
+                      {CHECK}
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+            <div className="plans-foot">
+              <p>
+                Pro is bought in the AnyLink iPhone app, and works on the web with the same account. Lifetime includes
+                about 1,000 AI saves a month.
+              </p>
+              {APP_STORE_URL ? (
+                <a className="btn btn-acc" href={APP_STORE_URL}>
+                  {PHONE}
+                  Get AnyLink on the App Store
+                </a>
+              ) : (
+                <p>AnyLink for iPhone is coming to the App Store.</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <TiltSection className="cta">
         <div className="wrap cta-grid">
