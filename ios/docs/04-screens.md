@@ -454,6 +454,14 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
   - New links go to — Unsorted (picker)
 - **Appearance**: three thumbnails (System / Light / Dark) → `.preferredColorScheme`, stored in `@AppStorage`.
 - **Reading**: "Open links in" (AnyLink | Safari) · Show tips again (`Tips.resetDatastore()`).
+- **Your library** (signed in only): **Export library** (`square.and.arrow.up`) asks for a format in a confirmation
+  dialog: "Bookmarks (HTML)", "Everything (JSON)" or "Spreadsheet (CSV)". Not a `Menu`: in a List, a Menu cuts its
+  label to two lines at the largest text sizes. Picking one downloads the file (`GET /api/v1/export`).
+  - States: ready; preparing (the row reads "Preparing your file…" with a spinner and can't be tapped); free.
+  - When the file is ready, the Files save sheet opens with `anylink-{date}.{ext}`.
+  - Pro only. On a free account the footer reads "Export is a Pro feature.", and picking a format shows
+    `error.proRequired`.
+  - Offline shows `error.exportOffline`; anything else, `error.generic`.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
   deleted from every device. This can't be undone." Required by the App Store.
 - Footer: version and build.
@@ -478,6 +486,7 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
 | toast.filterSaved | Saved as a filter in Collections |
 | toast.emptyRemoved | Removed {n} empty collections |
 | error.offline | You're offline. Changes are saved and will sync when you're back. |
+| error.exportOffline | You're offline. Export needs a connection. |
 | error.generic | That didn't go through. Try again. |
 | error.proRequired | That's a Pro feature. (A free account turned on sharing or set a price alert. The change is undone; the paywall replaces this toast later.) |
 | share.paused | Paused while you're on Free: viewers get “not found”. Go Pro and this same link works again. Turning sharing off breaks it for good. (Share sheet footer when a free owner's collection still has its link.) |

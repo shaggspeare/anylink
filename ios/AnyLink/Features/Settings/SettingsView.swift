@@ -92,6 +92,7 @@ struct SettingsView: View {
                 }
             } header: { header("Reading") }
             if !guest {
+                ExportSection()
                 Section {
                     TextField("Not shown", text: $displayName)
                         .textContentType(.name)

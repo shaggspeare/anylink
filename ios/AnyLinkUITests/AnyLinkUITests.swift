@@ -181,6 +181,18 @@ final class AnyLinkUITests: XCTestCase {
         app.buttons["System"].tap()
     }
 
+    @MainActor
+    func testExportHandsTheFileToFiles() throws {
+        let app = launch()
+        app.tabBars.buttons["Profile"].tap()
+        let export = app.buttons["Export library"]
+        if !export.waitForExistence(timeout: 2) { app.swipeUp() }
+        export.tap()
+        app.buttons["Everything (JSON)"].tap()
+        // The Files save sheet only opens once the file is written.
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 5))
+    }
+
     // MARK: - Search (S13)
 
     @MainActor

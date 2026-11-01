@@ -101,3 +101,18 @@ production.
 
 The server reads `APP_ATTEST_SECRET` (a long random string that signs the challenges) and, in development only,
 `APP_ATTEST_DEV_SECRET`. Apply `supabase/migrations/20261103000000_app_attest_keys.sql` before deploying.
+
+### Export
+
+`GET /api/v1/export?format=html|json|csv` answers with the library as a file (`Content-Disposition: attachment;
+filename="anylink-<yyyy-mm-dd>.<format>"`). Trash isn't in it. The writers are in `src/lib/export.ts`.
+
+- `html`: Netscape bookmark HTML. Each collection is a folder, and each link keeps `ADD_DATE` and `TAGS`. Notes have
+  no URL, so they're left out.
+- `json`: `{ format: "anylink", version: 1, exportedAt, collections, links }`, where `collections` and `links` are
+  the `Collection` and `LinkItem` shapes from `GET /api/v1/library`.
+- `csv`: `url,title,collection,tags,note,saved_at,excerpt`, quoted per RFC 4180 and starting with a UTF-8 byte-order
+  mark.
+
+Pro only. A free account gets `403` with `{ "ok": false, "reason": "pro" }`, never a 401, and iOS maps it to
+`AppError.proRequired`. A missing or unknown `format` gets 400.

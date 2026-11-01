@@ -35,6 +35,8 @@ public protocol AnyLinkAPI: Sendable {
     func sharedCollection(token: String) async throws -> SharedCollection
     /// `linkIds` go to the inbox; nil copies the whole collection into a new one.
     func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare
+    /// Pro: the library as an HTML, JSON or CSV file in the temp directory (`GET /api/v1/export`).
+    func export(format: ExportFormat) async throws -> URL
 }
 
 public extension AnyLinkAPI {
@@ -46,6 +48,8 @@ public extension AnyLinkAPI {
     func setDisplayName(_ name: String) async throws -> String? { throw AppError.server(501) }
     func sharedCollection(token: String) async throws -> SharedCollection { throw AppError.server(501) }
     func saveFromShare(token: String, linkIds: [LinkItem.ID]?) async throws -> SavedFromShare { throw AppError.server(501) }
+    /// Export is Pro and reads the server library, so a client without one says it's Pro.
+    func export(format: ExportFormat) async throws -> URL { throw AppError.proRequired }
 }
 
 // MARK: - NDJSON decoder

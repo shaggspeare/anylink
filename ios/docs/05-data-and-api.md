@@ -55,6 +55,7 @@ public protocol AnyLinkAPI: Sendable {
     func groupInbox(_ priorities: GroupingPriorities) async throws -> [GroupedResult]  // groupInbox [{focus, topics, kept, …}] → [{ collection, linkIds, reasoning }]
     func logSignal(_ signal: Signal) async                                              // logSignal [action, { linkId?, linkIds?, collectionId?, payload? }] (never throws)
     func deleteAccount() async throws                                                   // BACKEND: no endpoint yet; Mock only
+    func export(format: ExportFormat) async throws -> URL                               // GET /api/v1/export?format=html|json|csv → a temp file; 403 { reason: "pro" } → .proRequired
 }
 
 public enum BulkAction: Sendable { case move(to: LinkCollection.ID), tag(String), archive, trash, restore, purge }
