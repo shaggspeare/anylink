@@ -121,15 +121,16 @@ final class ProStore {
 }
 
 extension ProStore {
-    /// The app's: purchases carry the Supabase user's id, go to `POST /api/v1/billing/apple`, and refresh `env`'s
-    /// library once the server has them. Without a backend (UI tests, mock builds) nothing is posted, and a fixed id
+    /// The app's: purchases carry the Supabase user's id, go to `POST /api/v1/billing/apple`, and refresh the library
+    /// on screen once the server has them (RootView swaps it when the library mode changes; Pro phase 5 moves a local
+    /// library into the server one here). Without a backend (UI tests, mock builds) nothing is posted, and a fixed id
     /// stands in for the mock sign-in.
-    static func app(_ env: AppEnvironment) -> ProStore {
-        let store = env.store
-        guard env.isLive, let base = AppConfig.apiBase else {
+    static func app() -> ProStore {
+        let refresh: @MainActor () async -> Void = { await IntentBridge.store?.refresh() }
+        guard FeatureFlags.useLiveAPI, let base = AppConfig.apiBase else {
             let mockAccount = UUID(uuid: (0, 0, 0, 0, 0, 0, 0x40, 0, 0x80, 0, 0, 0, 0, 0, 0, 1))
             let pro = ProStore(account: { UserDefaults.standard.bool(forKey: "signedIn") ? mockAccount : nil },
-                               post: { _ in }, confirmed: { await store.refresh() })
+                               post: { _ in }, confirmed: refresh)
             #if DEBUG
             // UI tests never reach the App Store: the paywall shows fixed prices and doesn't load products.
             if AppConfig.isUITesting { pro.options = previewOptions }
@@ -138,7 +139,7 @@ extension ProStore {
         }
         let api = LiveAPI(base: base) { await AuthService.accessToken() }
         return ProStore(account: { AuthService.client?.currentUser?.id },
-                        post: { try await api.verifyPurchase($0) }, confirmed: { await store.refresh() })
+                        post: { try await api.verifyPurchase($0) }, confirmed: refresh)
     }
 
     #if DEBUG

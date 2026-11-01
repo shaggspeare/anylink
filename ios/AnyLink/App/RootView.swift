@@ -8,45 +8,62 @@ import Models
 import WidgetKit
 
 struct RootView: View {
-    let env: AppEnvironment
+    /// Replaced when the library mode changes (signing in to Pro, signing out).
+    @Binding var env: AppEnvironment
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.undoManager) private var undoManager
     @AppStorage("appearance") private var appearance: Appearance = .system
     @AppStorage("signedIn") private var signedIn = false
-    /// Skipped sign-in on Welcome: the sample library on its own store, until they sign up.
-    @AppStorage("guest") private var guest = false
+    /// The signed-in account's plan, as the server last said. Empty until it has.
+    @AppStorage("plan") private var plan = ""
     @AppStorage("onboarded") private var onboarded = false
-    @State private var guestEnv: AppEnvironment?
     /// A password-reset link signed them in; ask for the new password.
     @State private var choosingPassword = false
-    /// A link (e.g. a shared collection) opened on Welcome; handled once they're in.
-    @State private var pendingURL: URL?
+    @State private var checkingPlan = false
     /// Once per cold launch. The clip is all motion, so Reduce Motion skips it.
     @State private var splashing = !UIAccessibility.isReduceMotionEnabled && !AppConfig.isUITesting
 
+    private var mode: LibraryMode { LibraryMode(signedIn: signedIn, plan: plan) }
+
     var body: some View {
-        Group {
-            if signedIn { main(env) }
-            else if guest, let guestEnv { main(guestEnv) }
-            else { WelcomeView(onSignedIn: { signedIn = true }, onSkip: { guest = true }) }
-        }
-        .overlay {
-            if splashing { SplashView { withAnimation(AL.Motion.sheet) { splashing = false } }.transition(.opacity) }
-        }
-        .preferredColorScheme(appearance.scheme)
-        .onOpenURL { url in
-            if AuthService.isCallback(url) { finishMagicLink(url) }
-            else if !signedIn && !guest { pendingURL = url }
-        }
-        .sheet(isPresented: $choosingPassword) { NewPasswordSheet() }
-        .onChange(of: signedIn, initial: true) { was, on in
-            UserDefaults(suiteName: "group.com.shaggspeare.anylink")?.set(on, forKey: "signedIn")
-            if !on { WidgetSummary.clear(); WidgetCenter.shared.reloadAllTimelines() }
-            if on && !was { didSignIn() }
-        }
-        .onChange(of: guest, initial: true) { _, on in
-            guestEnv = on && !signedIn ? (guestEnv ?? .guest()) : nil
-        }
+        // No sign-in wall (S0): every mode has a library. A new environment starts its screens afresh.
+        main(env)
+            .id(ObjectIdentifier(env.store))
+            .overlay {
+                if splashing { SplashView { withAnimation(AL.Motion.sheet) { splashing = false } }.transition(.opacity) }
+            }
+            .preferredColorScheme(appearance.scheme)
+            .sheet(isPresented: $choosingPassword) { NewPasswordSheet() }
+            .onChange(of: mode, initial: true) { _, mode in
+                if mode != env.mode { env = .make(mode) }
+                // The share extension saves through the API only for a live server library (S9). MockAPI's is out of
+                // its reach, so mock builds and UI tests get PendingSaves too.
+                UserDefaults(suiteName: LocalImages.group)?.set(env.mode == .server && env.isLive, forKey: "serverLibrary")
+            }
+            .onChange(of: signedIn) { _, on in
+                // An email link can sign them in while S1 is still open.
+                if on, env.router.sheet == .signIn { env.router.sheet = nil }
+                guard !on else { return }
+                plan = ""
+                WidgetSummary.clear()
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            .task(id: signedIn) { await checkPlan() }
+    }
+
+    /// Signed in, the server says which library the account has (S1): Pro switches to it, Free keeps the local one.
+    /// Offline, it asks again the next time the app becomes active.
+    private func checkPlan() async {
+        guard signedIn, plan.isEmpty, !checkingPlan else { return }
+        checkingPlan = true
+        defer { checkingPlan = false }
+        do {
+            let answer = try await AppEnvironment.serverPlan()
+            plan = answer
+            if answer != "pro" { env.store.toasts.show("Signed in. On Free, your iPhone and web libraries stay separate.") }
+        } catch AppError.unauthorized {
+            signedIn = false
+        } catch {}
     }
 
     /// Saves what the share extension left behind and tells it which collections to offer.
@@ -56,7 +73,7 @@ struct RootView: View {
         shared.saveRecentCollections(env.store.recentCollections)
     }
 
-    /// An email link (confirm account, reset password) opened on this iPhone. Called from Welcome and from inside the app (a guest signing up).
+    /// An email link (confirm account, reset password) opened on this iPhone.
     private func finishMagicLink(_ url: URL) {
         guard let client = AuthService.client else { return }
         Task {
@@ -72,11 +89,8 @@ struct RootView: View {
         }
     }
 
-    private func didSignIn() {
-        // A guest's own saves queue up for the account; syncWithExtension saves them on the first run.
-        if let guestEnv { AppEnvironment.adoptGuest(guestEnv, into: env.shared) }
-        guest = false
-        // First launch with an empty library goes through onboarding.
+    /// A first launch with an empty library opens the import (S0), unless the share extension already left saves.
+    private func onboardIfNew(_ env: AppEnvironment) {
         let carried = !(env.shared?.pendingSaves().isEmpty ?? true)
         if !onboarded && env.store.live.isEmpty && !carried { env.router.showsOnboarding = true }
     }
@@ -92,7 +106,13 @@ struct RootView: View {
             .task { await env.reachability.start() }
             .task {
                 IntentBridge.store = env.store
+                onboardIfNew(env)
                 await Spotlight.reindex(env.store.live)
+            }
+            .task {
+                // Another device's changes, brought in by CloudKit.
+                guard let local = env.local else { return }
+                for await _ in local.remoteChanges() { await env.store.refresh() }
             }
             .onContinueUserActivity(CSSearchableItemActionType) { activity in
                 if let id = Spotlight.linkID(from: activity) { env.router.handle(URL(string: "anylink://link/\(id)")!) }
@@ -101,21 +121,17 @@ struct RootView: View {
                 if phase == .background { Task { await Spotlight.reindex(env.store.live) } }
                 if phase == .active {
                     Task { await env.clipboard.check() }
-                    // Launch and every return: the share extension saves straight to the server while we're away.
+                    // Launch and every return: the share extension saves straight to the server while we're away, and
+                    // CloudKit brings a local library's changes in.
                     Task {
                         if env.isLive { await env.store.refresh() } else { env.store.drainOutbox() }
                         await syncWithExtension(env)
+                        await checkPlan()
                     }
                 }
             }
             .onChange(of: undoManager, initial: true) { _, um in env.store.undo.undoManager = um }
             .onOpenURL { if AuthService.isCallback($0) { finishMagicLink($0) } else { env.router.handle($0) } }
-            .task {
-                if let url = pendingURL {
-                    pendingURL = nil
-                    env.router.handle(url)
-                }
-            }
             .fullScreenCover(isPresented: $router.showsOnboarding) {
                 OnboardingFlow(store: env.store) {
                     onboarded = true
@@ -228,10 +244,12 @@ struct TabSwipe: UIGestureRecognizerRepresentable {
 }
 
 #Preview("Light") {
-    RootView(env: .mock(latency: false))
+    @Previewable @State var env = AppEnvironment.mock(latency: false)
+    RootView(env: $env)
 }
 
 #Preview("Dark") {
-    RootView(env: .mock(latency: false))
+    @Previewable @State var env = AppEnvironment.mock(latency: false)
+    RootView(env: $env)
         .preferredColorScheme(.dark)
 }

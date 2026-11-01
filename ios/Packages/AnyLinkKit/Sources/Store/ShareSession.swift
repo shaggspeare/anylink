@@ -17,8 +17,7 @@ public final class ShareSession {
     public enum Mode: Equatable, Sendable {
         case saving
         case saved            // on the server
-        case pending          // waiting in the App Group for the app or the network
-        case signedOut
+        case pending          // waiting in the App Group for the app (a local library) or the network
         case noLink
     }
 
@@ -33,16 +32,18 @@ public final class ShareSession {
 
     @ObservationIgnored let api: (any AnyLinkAPI)?
     @ObservationIgnored let cache: LocalCache?
-    @ObservationIgnored let signedIn: Bool
     @ObservationIgnored private var pending: PendingSave?
 
-    /// `api` is nil when no backend is configured (Mock builds): everything goes through a PendingSave.
-    public init(api: (any AnyLinkAPI)?, cache: LocalCache?, signedIn: Bool) {
+    /// `api` is the server library's; nil for a local library (and in mock builds), where every save waits as a
+    /// PendingSave for the app. The extension never opens the local library's CloudKit store.
+    public init(api: (any AnyLinkAPI)?, cache: LocalCache?) {
         self.api = api
         self.cache = cache
-        self.signedIn = signedIn
         recent = Array((cache?.recentCollections() ?? []).prefix(4))
     }
+
+    /// The app files a local library's saves and reads their pages when it next opens (S9).
+    public var isLocal: Bool { api == nil }
 
     public var domain: String? {
         if kind == .note || kind == .image { return kind == .note ? "Note" : "Image" }
@@ -61,7 +62,6 @@ public final class ShareSession {
     }
 
     private func startNote(_ text: String) async {
-        guard signedIn else { mode = .signedOut; return }
         kind = .note
         title = noteTitle(text)
         let pendingNote = PendingSave(url: "", text: text)
@@ -77,7 +77,6 @@ public final class ShareSession {
     /// The file goes into the App Group first either way: it's the app's local copy, and it's what a
     /// pending save points at if the upload can't happen now.
     private func startImage(_ raw: Data) async {
-        guard signedIn else { mode = .signedOut; return }
         kind = .image
         title = "Image"
         guard let jpeg = LocalImages.prepare(raw) else { mode = .noLink; return }
@@ -96,7 +95,6 @@ public final class ShareSession {
     }
 
     public func start(url: URL?, title: String?) async {
-        guard signedIn else { mode = .signedOut; return }
         guard let url else { mode = .noLink; return }
         self.url = url
         self.title = title?.isEmpty == false ? title : nil

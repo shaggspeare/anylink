@@ -235,7 +235,8 @@ struct LibraryEmptyState: View {
             }
             VStack(spacing: 0) {
                 way(1, "Share from any app", "In Safari, tap Share → AnyLink. Pin it to the top row.") {}
-                    .popoverTip(ShareSheetTip())
+                    // A new install's import opens over this empty state (S0); the popover would float above it.
+                    .popoverTip(router.showsOnboarding ? nil : ShareSheetTip())
                 Divider().padding(.leading, 60)
                 way(2, "Paste a link", "Copy a URL, then tap Paste at the bottom of any tab.") {
                     router.sheet = .addLink(prefill: nil)

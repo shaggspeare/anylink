@@ -14,8 +14,6 @@ struct ShareView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             switch session.mode {
-            case .signedOut:
-                message("Open AnyLink once to sign in, then share again.", system: "person.crop.circle.badge.exclamationmark")
             case .noLink:
                 message("There's nothing to save in what you shared.", system: "link.badge.plus")
             default:
@@ -76,6 +74,9 @@ struct ShareView: View {
             }
             HStack(spacing: 6) {
                 switch session.mode {
+                case .pending where session.isLocal:
+                    Image(systemName: "tray.and.arrow.down").foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+                    Text("Title and picture fill in when you open AnyLink.")
                 case .pending:
                     Image(systemName: "icloud.and.arrow.up").foregroundStyle(AL.ink.opacity(AL.Ink.a50))
                     Text("Saved — it will sync when you're online.")

@@ -35,14 +35,16 @@ public final class LocalCache {
     let container: ModelContainer
     let context: ModelContext
 
+    /// Never synced: with the app's iCloud entitlement SwiftData would otherwise mirror it to CloudKit, which can't
+    /// take `@Attribute(.unique)`. Only `LocalStore` syncs.
     public init(inMemory: Bool = false, url: URL? = nil) throws {
         let config: ModelConfiguration
         if inMemory {
-            config = ModelConfiguration(isStoredInMemoryOnly: true)
+            config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         } else if let url {
-            config = ModelConfiguration(url: url)
+            config = ModelConfiguration(url: url, cloudKitDatabase: .none)
         } else {
-            config = ModelConfiguration()
+            config = ModelConfiguration(cloudKitDatabase: .none)
         }
         container = try ModelContainer(for: CacheBlob.self, configurations: config)
         context = ModelContext(container)
