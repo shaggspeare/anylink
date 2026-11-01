@@ -65,6 +65,8 @@ targets:
         AppIdentifierPrefix: $(AppIdentifierPrefix)
         # What the simulator sends instead of an App Attest assertion (AppConfig.appAttestDevSecret). Empty in Release.
         AppAttestDevSecret: $(APP_ATTEST_DEV_SECRET)
+        # CloudKit's silent pushes tell a local library about another device's changes (D28).
+        UIBackgroundModes: [remote-notification]
     entitlements:
       path: AnyLink/AnyLink.entitlements
       properties:
@@ -76,6 +78,11 @@ targets:
         com.apple.developer.associated-domains: ["applinks:www.anylink.space"]
         # App Attest for installs without an account: development in Debug, production in Release (settings below).
         com.apple.developer.devicecheck.appattest-environment: $(APP_ATTEST_ENVIRONMENT)
+        # The local library: SwiftData mirrors it to the user's private CloudKit database (D28). The App Store export
+        # switches aps-environment to production, as it does for any push entitlement.
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.shaggspeare.anylink]
+        com.apple.developer.icloud-services: [CloudKit]
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink
