@@ -43,7 +43,8 @@ public enum Confirm: Hashable, Identifiable, Sendable {
     case dissolve(LinkCollection.ID)
     case emptyTrash(count: Int)
     case deleteForever(Set<LinkItem.ID>)
-    case deleteAccount
+    /// `localLibrary`: the app is on a local library, which belongs to the device and stays (S18).
+    case deleteAccount(localLibrary: Bool)
     public var id: Self { self }
 }
 

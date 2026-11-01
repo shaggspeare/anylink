@@ -147,6 +147,17 @@ import Fixtures
         #expect(Set(local.links()) == Set(after), "a second lapse changes nothing")
     }
 
+    /// App Store 5.1.1(v) on a local library (S18): the account and its server library go; this device's library stays.
+    @Test func deletingTheAccountFromALocalLibraryKeepsIt() async throws {
+        local.save([link("L1", url: "https://example.com/a")])
+        let store = LibraryStore(api: LocalAPI(store: local, crawler: nil))
+        await store.refresh()
+        let server = MockAPI.fixtures(latency: false)
+        #expect(await store.deleteAccount(on: server))
+        #expect(try await server.library(since: nil).links.isEmpty, "the account's server library is gone")
+        #expect(store.live.map(\.id) == ["L1"] && local.links().map(\.id) == ["L1"], "this device's library stays")
+    }
+
     @Test func openingAPendingLinkOnProEnrichesItOnce() async throws {
         var pending = link("p", url: "https://example.com/p")
         pending.aiPending = true

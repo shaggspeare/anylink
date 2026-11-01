@@ -545,7 +545,8 @@ Free accounts see the generic layout (S15) instead.
   - Offline shows `error.exportOffline`; anything else, `error.generic`.
 - Sign out · **Delete account…**: confirmation "Delete your account?" / "Your library, collections and notes are
   deleted from every device. This can't be undone. Deleting your account doesn't stop App Store billing: cancel a Pro
-  subscription in Settings → Apple Account → Subscriptions." Required by the App Store (guideline 5.1.1(v)).
+  subscription in Settings → Apple Account → Subscriptions." Required by the App Store (guideline 5.1.1(v)), so it
+  shows whenever someone is signed in, on a local library too (below).
 - Footer: version and build.
 
 **Local library** (signed out, or signed in on Free: `LibraryMode.local`, ADR 0002):
@@ -558,10 +559,14 @@ Free accounts see the generic layout (S15) instead.
     stores it."
   - Off (no iCloud account, restricted, or iCloud can't be reached): `settings.icloudOff` "iCloud isn't available, so
     saves stay on this iPhone. Sign in to iCloud in the Settings app to sync your other devices."
-- Hidden: Name on shared collections and Delete account. Your library (Export, with its Pro footer) and Sign out
+- Hidden: Name on shared collections. Your library (Export, with its Pro footer), Sign out and **Delete account…**
   show only when signed in.
+- **Delete account…** on a local library deletes the account and its web library on the server, then signs out and
+  stays on this library: it belongs to the device, not the account. Its confirmation: "Delete your account?" / "Your
+  AnyLink account and its web library are deleted. The library on this iPhone stays. Deleting your account doesn't
+  stop App Store billing: cancel a Pro subscription in Settings → Apple Account → Subscriptions."
 - After Pro ends (S20) the app is on this local library again, still signed in: the card shows the email, and Sign out
-  stays.
+  and Delete account… stay.
 
 **States:** server library · local, signed out · local, signed in on Free (and after a lapse) · iCloud on · iCloud
 off · iCloud checking.
