@@ -70,7 +70,8 @@ struct AppEnvironment {
     static func local() -> AppEnvironment {
         let testing = AppConfig.isUITesting
         let base = testing ? nil : AppConfig.apiBase
-        // ponytail: falls back to memory if the store won't open, so the app still runs; nothing seen so far opens it badly.
+        // ponytail: a store that won't open (damaged, disk full) runs this launch in memory, so its saves don't last;
+        // tell the user if that ever shows up.
         let store = (testing ? nil : LocalStore.appGroup()) ?? (try? LocalStore())
         guard let store else { return mock() }
         let crawler: LocalAPI.Crawl
