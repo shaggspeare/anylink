@@ -29,6 +29,11 @@ final class ProStore {
     /// Where the last purchase or restore got to; the paywall shows it and resets it.
     var phase = Phase.idle
 
+    #if DEBUG
+    /// UI tests: Continue buys without the App Store, as if StoreKit had verified the purchase.
+    @ObservationIgnored var buysWithoutStore = false
+    #endif
+
     @ObservationIgnored private var products: [String: Product] = [:]
     @ObservationIgnored private let account: @MainActor () -> UUID?
     @ObservationIgnored private let post: @Sendable (String) async throws -> Void
@@ -72,6 +77,15 @@ final class ProStore {
 
     /// Buys with the account's id as `appAccountToken`: the server puts Pro on that account and no other.
     func buy(_ id: String) async {
+        #if DEBUG
+        if buysWithoutStore, account() != nil {
+            phase = .confirming
+            do { try await post(id) } catch { phase = .unconfirmed; return }
+            await confirmed()
+            phase = .done
+            return
+        }
+        #endif
         guard let product = products[id], let account = account() else { phase = .failed; return }
         phase = .buying
         do {
@@ -120,26 +134,38 @@ final class ProStore {
     }
 }
 
+extension Notification.Name {
+    /// The server has a purchase: RootView asks for the plan, and a local library moves to the server one (S20).
+    static let proConfirmed = Notification.Name("proConfirmed")
+}
+
 extension ProStore {
-    /// The app's: purchases carry the Supabase user's id, go to `POST /api/v1/billing/apple`, and refresh the library
-    /// on screen once the server has them (RootView swaps it when the library mode changes; Pro phase 5 moves a local
-    /// library into the server one here). Without a backend (UI tests, mock builds) nothing is posted, and a fixed id
-    /// stands in for the mock sign-in.
+    /// The app's: purchases carry the Supabase user's id, go to `POST /api/v1/billing/apple`, and once the server has
+    /// them refresh the library on screen and post `.proConfirmed`, which moves a local library into the server one
+    /// (S20). Without a backend (UI tests, mock builds) a purchase makes the mock account Pro, and a fixed id stands in
+    /// for the mock sign-in.
     static func app() -> ProStore {
-        let refresh: @MainActor () async -> Void = { await IntentBridge.store?.refresh() }
+        let confirmed: @MainActor () async -> Void = {
+            await IntentBridge.store?.refresh()
+            NotificationCenter.default.post(name: .proConfirmed, object: nil)
+        }
         guard FeatureFlags.useLiveAPI, let base = AppConfig.apiBase else {
             let mockAccount = UUID(uuid: (0, 0, 0, 0, 0, 0, 0x40, 0, 0x80, 0, 0, 0, 0, 0, 0, 1))
+            let server = AppEnvironment.mockServer
             let pro = ProStore(account: { UserDefaults.standard.bool(forKey: "signedIn") ? mockAccount : nil },
-                               post: { _ in }, confirmed: refresh)
+                               post: { _ in await server.setPlan("pro") }, confirmed: confirmed)
             #if DEBUG
-            // UI tests never reach the App Store: the paywall shows fixed prices and doesn't load products.
-            if AppConfig.isUITesting { pro.options = previewOptions }
+            // UI tests never reach the App Store: the paywall shows fixed prices and buys without it.
+            if AppConfig.isUITesting {
+                pro.options = previewOptions
+                pro.buysWithoutStore = true
+            }
             #endif
             return pro
         }
         let api = LiveAPI(base: base) { await AuthService.accessToken() }
         return ProStore(account: { AuthService.client?.currentUser?.id },
-                        post: { try await api.verifyPurchase($0) }, confirmed: refresh)
+                        post: { try await api.verifyPurchase($0) }, confirmed: confirmed)
     }
 
     #if DEBUG

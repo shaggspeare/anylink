@@ -1,11 +1,32 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld of %lld" : {
+      "comment" : "Upgrade (S20): how many links have moved so far, of how many."
+    },
+    "Check your connection and try again. It carries on where it stopped." : {
+      "comment" : "Upgrade (S20) failed: what to do."
+    },
+    "Get Pro again" : {
+      "comment" : "Pro-ended notice (S20): opens the paywall."
+    },
     "Ingredients" : {
       "comment" : "Heading of the recipe template's checklist."
     },
+    "Later" : {
+      "comment" : "Upgrade (S20) failed: keep using the library on this iPhone; the move carries on next time AnyLink opens."
+    },
+    "Moving your library to AnyLink Pro…" : {
+      "comment" : "Upgrade (S20) title while the local library moves to the server."
+    },
+    "OK" : {
+      "comment" : "Closes the Pro-ended notice (S20)."
+    },
     "Play video" : {
       "comment" : "Accessibility label of the video template's play button."
+    },
+    "Pro has ended" : {
+      "comment" : "Pro-ended notice (S20) title, shown once when the library comes back Free."
     },
     "Steps" : {
       "comment" : "Heading of the recipe template's numbered steps."
@@ -21,6 +42,15 @@
     },
     "Video player" : {
       "comment" : "Accessibility label of the loaded video player."
+    },
+    "Your library didn't finish moving" : {
+      "comment" : "Upgrade (S20) title after the move failed."
+    },
+    "Your library stays on this iPhone, and the web keeps its own copy. They stay separate until you go Pro again." : {
+      "comment" : "Pro-ended notice (S20) message."
+    },
+    "Your links, collections, notes and highlights are joining your library on the web. This iPhone keeps its own copy too." : {
+      "comment" : "Upgrade (S20): what the move does."
     },
     "·" : {
       "comment" : "A dot separator.",

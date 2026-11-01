@@ -54,6 +54,11 @@ public enum LibraryMove {
                                                       collections: local.collections(), inbox: LocalAPI.inbox.id, theirsWin: true)
         local.save(collections)
         local.save(links)
+        forget(account, defaults: defaults)
+    }
+
+    /// Drops the record of what `account`'s last upgrade sent: the next one sends everything.
+    public static func forget(_ account: String, defaults: UserDefaults = .standard) {
         defaults.removeObject(forKey: progressKey(account))
     }
 

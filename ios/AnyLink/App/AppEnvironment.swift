@@ -45,21 +45,36 @@ struct AppEnvironment {
         }
     }
 
-    /// The environment for a library mode. Pro phase 5 adds the upgrade and lapse moves between them.
+    /// The environment for a library mode. RootView moves the library between them when the plan changes (S20).
     static func make(_ mode: LibraryMode) -> AppEnvironment {
         switch mode {
-        case .server: FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting, plan: AppConfig.isFree ? "free" : "pro")
+        case .server: FeatureFlags.useLiveAPI ? live() : mock(api: mockServer)
         case .local: local()
         }
     }
 
-    /// The sample library, as a Pro account unless `plan` says otherwise (previews and UI tests use `-free`).
-    static func mock(latency: Bool = true, plan: String = "pro") -> AppEnvironment {
+    /// The sample library, as a Pro account unless `plan` says otherwise (previews use `-free`'s "free").
+    static func mock(api: MockAPI? = nil, latency: Bool = true, plan: String = "pro") -> AppEnvironment {
         let cache = LocalCache.appGroup()
         var library = Fixtures.library
         library.plan = plan
-        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: library, shared: cache)
+        return AppEnvironment(api: api ?? MockAPI.fixtures(latency: latency), snapshot: library, shared: cache)
     }
+
+    /// Without a backend (UI tests, mock builds), the account's server library: one per process, so an upgrade's upload
+    /// shows up in the server library it switches to. Free under `-free` until a purchase (`ProStore`), and under
+    /// `-pro-ends`.
+    static let mockServer = MockAPI.fixtures(latency: !AppConfig.isUITesting,
+                                             plan: AppConfig.isFree || AppConfig.proEnds ? "free" : "pro")
+
+    /// Where the upgrade sends a local library: the signed-in account's server library.
+    static var server: any AnyLinkAPI {
+        guard FeatureFlags.useLiveAPI, let base = AppConfig.apiBase else { return mockServer }
+        return LiveAPI(base: base) { await AuthService.accessToken() }
+    }
+
+    /// Whose upgrade a record of uploaded links belongs to (`LibraryMove`).
+    static var account: String { AuthService.client?.currentUser?.id.uuidString ?? "mock" }
 
     /// The backend at `ANYLINK_API_BASE`, as the signed-in Supabase user. The App Group cache shows the last
     /// library at once; `refresh()` then syncs.
@@ -98,17 +113,26 @@ struct AppEnvironment {
         return env
     }
 
-    /// The signed-in account's plan, "pro" or "free", from its server library. MockAPI's account is Pro.
+    /// The signed-in account's plan, "pro" or "free", from its server library.
+    // ponytail: reads the whole web library for its plan, on every return to a signed-in local library; add a plan-only
+    // endpoint if free accounts with big web libraries feel it.
     static func serverPlan() async throws -> String {
-        guard FeatureFlags.useLiveAPI, let base = AppConfig.apiBase else { return "pro" }
-        return try await LiveAPI(base: base) { await AuthService.accessToken() }.library(since: nil).plan ?? "free"
+        try await server.library(since: nil).plan ?? "free"
     }
 
     /// One per process, however often the mode changes: a second container on `Local.store` would mirror it to
-    /// CloudKit twice. In memory under -ui-testing.
+    /// CloudKit twice. In memory under -ui-testing, where `-free` starts it with the sample library.
     // ponytail: a store that won't open (damaged, disk full) runs in memory, so that launch's saves don't last; tell
     // the user if it ever shows up.
-    private static let localStore = (AppConfig.isUITesting ? nil : LocalStore.appGroup()) ?? (try? LocalStore())
+    static let localStore: LocalStore? = {
+        guard AppConfig.isUITesting else { return LocalStore.appGroup() ?? (try? LocalStore()) }
+        let store = try? LocalStore()
+        if AppConfig.isFree {
+            store?.save(Fixtures.collections.filter { $0.isInbox != true })
+            store?.save(Fixtures.links + Fixtures.trashed.map { var l = $0; l.deleted = true; return l })
+        }
+        return store
+    }()
 
     /// Signs calls from an install without an account (App Attest). One per process, so the key registers once.
     static let attest = AppConfig.apiBase.map {

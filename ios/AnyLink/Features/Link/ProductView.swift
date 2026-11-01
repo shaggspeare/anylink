@@ -11,20 +11,24 @@ struct LinkDetailView: View {
     @Environment(LibraryStore.self) private var store
 
     var body: some View {
-        if let link = store.link(id) {
-            if link.isNote {
-                NoteView(link: link)
-            } else if link.isImage {
-                ImageDetailView(link: link)
-            } else if store.isPro, link.contentType == .product, link.product != nil {
-                ProductView(link: link)
+        Group {
+            if let link = store.link(id) {
+                if link.isNote {
+                    NoteView(link: link)
+                } else if link.isImage {
+                    ImageDetailView(link: link)
+                } else if store.isPro, link.contentType == .product, link.product != nil {
+                    ProductView(link: link)
+                } else {
+                    // The generic layout for a free account, and Pro's other templates.
+                    ReaderView(link: link)
+                }
             } else {
-                // The generic layout for a free account, and Pro's other templates.
-                ReaderView(link: link)
+                ContentUnavailableView("This link is gone", systemImage: "link")
             }
-        } else {
-            ContentUnavailableView("This link is gone", systemImage: "link")
         }
+        // Saved without its AI step: on Pro, the summary and tags arrive now.
+        .task(id: id) { await store.enrichIfPending(id) }
     }
 }
 

@@ -296,17 +296,66 @@ final class AnyLinkUITests: XCTestCase {
 
     // MARK: - Welcome + onboarding (S1–S5)
 
-    /// Sign-in moved to Settings (S1, S18); MockAPI's account is Pro, so it switches to that server library.
+    /// Sign-in moved to Settings (S1, S18). MockAPI's account is Pro, so what this iPhone saved moves into that server
+    /// library (S20), and the app switches to it.
     @MainActor
     func testSignInFromSettingsOpensTheProLibrary() throws {
         let app = launch(["-signed-out"])
+        read("www.theverge.com/2026/10/one", in: app)
+        let save = app.buttons["Save to Unsorted"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        save.tap()
+        XCTAssertTrue(app.staticTexts["Saved to Unsorted"].waitForExistence(timeout: 3))
         app.tabBars.buttons["Profile"].tap()
         XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["Delete account…"].exists, "a local library has no account to delete")
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Sign in")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Paste anything.\nWe read the rest."].waitForExistence(timeout: 3))
         app.buttons["Continue with Apple"].tap()
+        XCTAssertTrue(app.staticTexts["Your library is on AnyLink Pro"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["tile-nasa"].exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Designing tab bars for iOS 26")).firstMatch.exists,
+                      "the link saved on this iPhone moved too")
+    }
+
+    /// A free account buys Pro (S19): its local library moves to the server library (S20), nothing doubled, and
+    /// Settings shows Pro. Under -ui-testing the purchase skips the App Store.
+    @MainActor
+    func testBuyingProMovesTheLocalLibrary() throws {
+        let app = launch(["-free"])
         XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3), "a free account's library is on this iPhone")
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'AnyLink Pro'")).firstMatch.tap()
+        let buy = app.buttons["Continue"]
+        XCTAssertTrue(buy.waitForExistence(timeout: 3))
+        buy.tap()
+        XCTAssertTrue(app.staticTexts["Your library is on AnyLink Pro"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.buttons.matching(identifier: "tile-nasa").count, 1, "uploading the sample library again adds nothing")
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.buttons["Manage Subscription"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["iCloud sync"].exists, "the server library now")
+    }
+
+    /// Pro ends (S20): the next refresh copies the server library onto this iPhone and switches to it, still signed in,
+    /// with a notice once.
+    @MainActor
+    func testProEndingKeepsTheLibraryOnThisIPhone() throws {
+        let app = launch(["-pro-ends"])
+        let nasa = app.buttons["tile-nasa"]
+        XCTAssertTrue(nasa.waitForExistence(timeout: 5))
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)))
+        let notice = app.alerts["Pro has ended"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        notice.buttons["OK"].tap()
+        XCTAssertTrue(nasa.waitForExistence(timeout: 3), "the library stays on this iPhone")
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'AnyLink Pro'")).firstMatch.label.contains("Free"))
+        app.swipeUp()
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["Sign out"].waitForExistence(timeout: 3), "still signed in, so the web keeps working")
     }
 
     @MainActor
