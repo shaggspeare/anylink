@@ -14,12 +14,23 @@ only the user can do.
 - [ ] Two iOS UI tests, `testAccessibilityAuditTopLevelScreens` and `testAccessibilityAuditSecondaryScreens`, fail on
       iOS 26.5 with contrast warnings on Trash, Profile and Search. They fail before the Pro work too (Phase 1).
 
+- [ ] **Set `APP_ATTEST_SECRET` in Vercel → Production**, then redeploy. Use any long random string, e.g. the
+      output of `openssl rand -base64 48`. I wasn't allowed to write secrets. Until it's set, `/api/attest/*` answer
+      503: iOS installs without an account fall back to the per-IP crawl limit, and import checks and grouping fail
+      for them (Phase 2).
+- [ ] Never set `APP_ATTEST_DEV_SECRET` in Production. It's only for testing the simulator against a local or preview
+      server, with the same value in `ios/Config.xcconfig` (Phase 2).
+- [ ] Make sure App Attest is on for the App ID `com.shaggspeare.anylink`. Automatic signing usually adds it on the
+      first build to a device (Phase 2).
+- [ ] Run Phase 2's real-iPhone checks below (Phase 2).
+
 ## Deploys and database changes
 
 | When (UTC) | What | Notes |
 | --- | --- | --- |
 | 2026-10-31 night | Migration `20261102000000_grandfather_pro.sql` applied | All 6 accounts are now `pro` |
 | 2026-10-31 night | Production deploy of Phases 1 and 8 (`main` fast-forwarded to `pro` at `a478877`) | Smoke test passed: `/`, `/app` and `/privacy-policy` return 200, `/api/v1/library` returns 401, and a signed-out crawl gets no AI tags |
+| 2026-10-31 night | Migration `20261103000000_app_attest_keys.sql` applied | Empty table, row-level security on |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
@@ -97,3 +108,73 @@ Full steps are in `extension/README.md`.
    - Set the plan back to pro. The same link should work again.
 5. Call `/api/cron/price-check` with `Authorization: Bearer $CRON_SECRET`. Only Pro accounts' products should get new
    price snapshots.
+
+## Phase 2 · Calls without an account
+
+**Status:** done, and the offline checks pass. Before the device checks, three things have to happen:
+- `APP_ATTEST_SECRET` is set in Vercel.
+- App Attest is on for the App ID.
+- A deploy goes out.
+
+### Done
+- The App Attest checks are hand-written on `node:crypto` in `src/lib/app-attest.ts`, with no new dependency.
+  - They cover the certificate chain to Apple's App Attestation root, the nonce, the key id, rpIdHash, aaguid and the
+    counter.
+  - The tests use real Apple development and production attestations, plus a real assertion.
+- `GET /api/attest/challenge` returns an HMAC challenge that lasts 5 minutes. `POST /api/attest/register` stores a
+  key once.
+- `verifyAssertion` reads the key id and the assertion from headers. The assertion signs the SHA-256 of the body, and
+  the counter only goes up.
+  - A failure answers 403 with a reason: `attestation-required`, `unknown-key`, `replay` or `invalid`.
+  - A key over its cap gets 429. Nothing answers 401.
+- Daily caps per key: 200 crawls, 5,000 checked links and 10 groupings.
+- `/api/crawl` accepts an assertion instead of a session. `POST /api/v1/local/check` and `POST /api/v1/local/group`
+  serve installs without an account, and neither stores links or collections.
+- On iOS, `AppAttestClient` and `LocalServices` live in AnyLinkKit. Guest crawls are signed. The App Attest
+  entitlement is development in Debug and production in Release.
+  - On the simulator, DEBUG builds send `X-AnyLink-Dev`. The server accepts it only where `APP_ATTEST_DEV_SECRET` is
+    set.
+
+### Deviations
+- The local check takes `{ id, url, title }`, not bare URLs, so dead links can be listed by title.
+- The local group route creates the collection ids itself. `GROUP_LIMIT` and `SYSTEM_COLORS` moved to
+  `group-links.ts`.
+- Apple's fraud receipt isn't used, and registration isn't limited, so one device could register several keys.
+  There's a `ponytail:` note on this.
+
+### Check by hand
+These are on a real iPhone, after the secret and a deploy.
+1. Run a Debug build and add a link.
+   - `select key_id, environment, sign_count, crawl_count from app_attest_keys order by created_at desc limit 1;`
+     should show one development key with `crawl_count = 1`.
+   - Relaunching shouldn't add a key.
+2. Replay a captured `POST /api/crawl`, using Proxyman. It should get 403 `replay`.
+   - Change the body and send it again. It should get 403 `invalid`.
+3. Set `crawl_count = 200` for today. A new link should show the "Too many previews…" notice. Reset the count
+   afterwards.
+4. On production, any `X-AnyLink-Dev` header should get 403.
+
+## Phase 7 · Export
+
+**Status:** done, and the checks pass, including the new UI test that hands the file to Files.
+
+### Done
+- `src/lib/export.ts` writes three formats, each with a test:
+  - Bookmark HTML: collections become folders. It re-parses through the importer to the same URLs, folders and dates.
+  - JSON: `{ format: "anylink", version: 1, … }`.
+  - CSV: RFC 4180, with a UTF-8 byte-order mark.
+- `GET /api/v1/export?format=html|json|csv`, Pro only. A free account gets 403 with `{ ok: false, reason: "pro" }`.
+- Web: three buttons under "Your library" in Settings.
+- iOS: Settings → Export library → a format → the Files save sheet.
+
+### Deviations
+- iOS uses the Files save sheet, not the share sheet, so the download doesn't need a second tap.
+- CSV cells that start with `=`, `+`, `-` or `@` get a leading `'`, so a page title can't run as a spreadsheet formula.
+- Trash isn't exported. Bookmark HTML also leaves out notes and smart collections; JSON keeps them.
+
+### Check by hand
+1. Import the exported HTML into Chrome or Firefox. The folders should match your collections.
+2. Open the CSV in Numbers or Excel. Non-English titles should read correctly, and commas and line breaks should stay
+   inside their cells.
+3. Export the JSON of a big library. Article text is included, so check the response isn't cut off by the hosting
+   size limit.
