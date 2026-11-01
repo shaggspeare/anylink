@@ -38,6 +38,7 @@ only the user can do.
 | 2026-10-31 night | Migration `20261103010000_app_attest_daily.sql` applied | Daily ceiling of 300 account-less groupings across all keys |
 | 2026-10-31 night | Production deploy of Phases 2 and 7, plus the security fixes (`main` at `2fb7176`) | Smoke test passed. `/api/attest/challenge` answers 503 until `APP_ATTEST_SECRET` is set, and production ignores `X-AnyLink-Dev` |
 | 2026-10-31 night | Migration `20261105000000_templates.sql` applied | `content_type` gains `recipe`; `links.template_data` added |
+| 2026-10-31 night | Production deploy of Phase 6 (`main` at `7a15a5e`) | Smoke test passed. A live crawl of a recipe page answers `article` without `X-AnyLink-Types` and `recipe` with it, ingredients included |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
