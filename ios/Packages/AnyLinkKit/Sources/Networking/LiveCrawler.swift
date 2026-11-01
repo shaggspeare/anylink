@@ -6,9 +6,11 @@ public struct LiveCrawler: Sendable {
     let base: URL
     let token: String?
     let session: URLSession
+    /// Signs the call when there's no token: an install without an account crawls on its App Attest key's daily cap.
+    let attest: (any AppAttesting)?
 
-    public init(base: URL, token: String?, session: URLSession = .shared) {
-        self.base = base; self.token = token; self.session = session
+    public init(base: URL, token: String?, session: URLSession = .shared, attest: (any AppAttesting)? = nil) {
+        self.base = base; self.token = token; self.session = session; self.attest = attest
     }
 
     public func crawl(_ url: URL) -> AsyncThrowingStream<CrawlEvent, Error> {
@@ -16,14 +18,20 @@ public struct LiveCrawler: Sendable {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        req.setValue(ContentType.header, forHTTPHeaderField: "X-AnyLink-Types")
         req.httpBody = try? JSONEncoder().encode(["url": url.absoluteString])
         let session = session
         let request = req
+        let attest = token == nil ? attest : nil
 
         let (stream, cont) = AsyncThrowingStream.makeStream(of: CrawlEvent.self)
         let task = Task {
             do {
-                let (bytes, response) = try await session.bytes(for: request)
+                let (bytes, response) = if let attest {
+                    try await attest.bytes(for: request, session: session)
+                } else {
+                    try await session.bytes(for: request)
+                }
                 // Not a stream: a bad URL, or a guest past their preview budget.
                 let refused = switch (response as? HTTPURLResponse)?.statusCode {
                 case 400: "invalid-url"

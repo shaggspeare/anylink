@@ -38,9 +38,12 @@ struct AppEnvironment {
         }
     }
 
-    static func mock(latency: Bool = true) -> AppEnvironment {
+    /// The sample library, as a Pro account unless `plan` says otherwise (previews and UI tests use `-free`).
+    static func mock(latency: Bool = true, plan: String = "pro") -> AppEnvironment {
         let cache = LocalCache.appGroup()
-        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: Fixtures.library, shared: cache)
+        var library = Fixtures.library
+        library.plan = plan
+        return AppEnvironment(api: MockAPI.fixtures(latency: latency), snapshot: library, shared: cache)
     }
 
     /// The backend at `ANYLINK_API_BASE`, as the signed-in Supabase user. The App Group cache shows the last
@@ -52,7 +55,12 @@ struct AppEnvironment {
     }
 
     static func current() -> AppEnvironment {
-        FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting)
+        FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting, plan: AppConfig.isFree ? "free" : "pro")
+    }
+
+    /// Signs calls from an install without an account (App Attest). One per process, so the key registers once.
+    static let attest = AppConfig.apiBase.map {
+        AppAttestClient(base: $0, keychainGroup: AppConfig.sharedKeychainGroup, devSecret: AppConfig.appAttestDevSecret)
     }
 
     // MARK: - Guest
@@ -62,12 +70,12 @@ struct AppEnvironment {
     private static let guestStore = URL.applicationSupportDirectory.appending(path: "Guest.store")
 
     /// Skipped sign-in: the sample library plus their own saves, kept on this device only. Previews still come
-    /// from the real crawler (rate-limited per IP for guests).
+    /// from the real crawler, signed with App Attest (rate-limited per IP where the device can't attest).
     static func guest() -> AppEnvironment {
         try? FileManager.default.createDirectory(at: .applicationSupportDirectory, withIntermediateDirectories: true)
         let cache = AppConfig.isUITesting ? try? LocalCache(inMemory: true) : try? LocalCache(url: guestStore)
         let library = cache?.loadSnapshot() ?? Fixtures.library
-        let crawler = AppConfig.isUITesting ? nil : AppConfig.apiBase.map { LiveCrawler(base: $0, token: nil) }
+        let crawler = AppConfig.isUITesting ? nil : AppConfig.apiBase.map { LiveCrawler(base: $0, token: nil, attest: attest) }
         let env = AppEnvironment(
             api: MockAPI(links: library.links, trashed: library.trashed, collections: library.collections, latency: false),
             snapshot: library, cache: cache, crawl: crawler.map { c in { @Sendable url in c.crawl(url) } }

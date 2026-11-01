@@ -27,7 +27,7 @@ extracted text and whatever metadata was already found, return strict JSON with 
 {
   "title": string,
   "excerpt": string (a real 1-2 sentence summary, not just the first line),
-  "contentType": "article" | "video" | "product",
+  "contentType": "article" | "video" | "product" | "recipe",
   "tags": string[] (up to 3 short topical tags),
   "product": { "price": number, "currency": string (ISO code or symbol), "inStock": boolean }
     (only include this field, and only the sub-fields you can actually infer, when
@@ -67,7 +67,7 @@ export async function structureContent(input: StructureInput): Promise<Structure
     if (!parsed) return null;
 
     const contentType: ContentType =
-      parsed.contentType && ["article", "video", "product"].includes(parsed.contentType)
+      parsed.contentType && ["article", "video", "product", "recipe"].includes(parsed.contentType)
         ? parsed.contentType
         : input.contentTypeGuess;
 

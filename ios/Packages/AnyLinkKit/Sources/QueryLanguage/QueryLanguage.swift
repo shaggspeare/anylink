@@ -309,7 +309,7 @@ extension SearchToken {
         let label: String
         switch term {
         case .type(let t, let neg):
-            let base = switch t { case .video: "Videos"; case .article: "Articles"; case .product: "Products"; case .note: "Notes"; case .image: "Images" }
+            let base = switch t { case .video: "Videos"; case .article: "Articles"; case .product: "Products"; case .note: "Notes"; case .image: "Images"; case .recipe: "Recipes" }
             label = neg ? "Not \(base)" : base
         case .flag(let f, let neg):
             let base = switch f {
@@ -336,6 +336,7 @@ extension SearchToken {
         SearchToken(id: "type:video", label: "Videos", term: .type(.video, negated: false)),
         SearchToken(id: "type:article", label: "Articles", term: .type(.article, negated: false)),
         SearchToken(id: "type:product", label: "Products", term: .type(.product, negated: false)),
+        SearchToken(id: "type:recipe", label: "Recipes", term: .type(.recipe, negated: false)),
         SearchToken(id: "type:note", label: "Notes", term: .type(.note, negated: false)),
         SearchToken(id: "type:image", label: "Images", term: .type(.image, negated: false)),
         SearchToken(id: "is:favorite", label: "Favorites", term: .flag(.favorite, negated: false)),

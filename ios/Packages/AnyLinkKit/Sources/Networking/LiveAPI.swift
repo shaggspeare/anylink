@@ -22,6 +22,7 @@ public struct LiveAPI: AnyLinkAPI {
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         if let t = await token() { r.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
+        r.setValue(ContentType.header, forHTTPHeaderField: "X-AnyLink-Types")
         return r
     }
 
@@ -120,6 +121,7 @@ public struct LiveAPI: AnyLinkAPI {
         let size: CardSize
         let note: String?
         let product: ProductDetails?
+        let templateData: TemplateData?
         let source: String
     }
 
@@ -135,7 +137,7 @@ public struct LiveAPI: AnyLinkAPI {
             collectionId: d.collectionId ?? "",   // empty: the server files it in the inbox
             articleText: cr?.articleText, heroImage: cr?.heroImage,
             contentType: cr?.contentType ?? .article, readingTimeMinutes: cr?.readingTimeMinutes,
-            tags: d.tags, size: d.size, note: d.note, product: cr?.product, source: "ios"
+            tags: d.tags, size: d.size, note: d.note, product: cr?.product, templateData: cr?.templateData, source: "ios"
         )
     }
 

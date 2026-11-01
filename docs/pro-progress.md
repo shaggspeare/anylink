@@ -14,6 +14,36 @@ only the user can do.
 - [ ] Two iOS UI tests, `testAccessibilityAuditTopLevelScreens` and `testAccessibilityAuditSecondaryScreens`, fail on
       iOS 26.5 with contrast warnings on Trash, Profile and Search. They fail before the Pro work too (Phase 1).
 
+- [ ] **Set `APP_ATTEST_SECRET` in Vercel → Production**, then redeploy. Use any long random string, e.g. the
+      output of `openssl rand -base64 48`. I wasn't allowed to write secrets. Until it's set, `/api/attest/*` answer
+      503: iOS installs without an account fall back to the per-IP crawl limit, and import checks and grouping fail
+      for them (Phase 2).
+- [ ] Never set `APP_ATTEST_DEV_SECRET` in Production. It's only for testing the simulator against a local or preview
+      server, with the same value in `ios/Config.xcconfig` (Phase 2).
+- [ ] Make sure App Attest is on for the App ID `com.shaggspeare.anylink`. Automatic signing usually adds it on the
+      first build to a device (Phase 2).
+- [ ] Run Phase 2's real-iPhone checks below (Phase 2).
+
+- [ ] Ship a new iOS build (TestFlight) soon. Builds from before Phase 6 can't read the `recipe` type, so the server
+      sends them `article` instead. Once no older build is installed, delete `src/lib/ios-types.ts` and the
+      `X-AnyLink-Types` header; its `ponytail:` comment marks them (Phase 6).
+
+## Deploys and database changes
+
+| When (UTC) | What | Notes |
+| --- | --- | --- |
+| 2026-10-31 night | Migration `20261102000000_grandfather_pro.sql` applied | All 6 accounts are now `pro` |
+| 2026-10-31 night | Production deploy of Phases 1 and 8 (`main` fast-forwarded to `pro` at `a478877`) | Smoke test passed: `/`, `/app` and `/privacy-policy` return 200, `/api/v1/library` returns 401, and a signed-out crawl gets no AI tags |
+| 2026-10-31 night | Migration `20261103000000_app_attest_keys.sql` applied | Empty table, row-level security on |
+| 2026-10-31 night | Migration `20261103010000_app_attest_daily.sql` applied | Daily ceiling of 300 account-less groupings across all keys |
+| 2026-10-31 night | Production deploy of Phases 2 and 7, plus the security fixes (`main` at `2fb7176`) | Smoke test passed. `/api/attest/challenge` answers 503 until `APP_ATTEST_SECRET` is set, and production ignores `X-AnyLink-Dev` |
+| 2026-10-31 night | Migration `20261105000000_templates.sql` applied | `content_type` gains `recipe`; `links.template_data` added |
+| 2026-10-31 night | Production deploy of Phase 6 (`main` at `7a15a5e`) | Smoke test passed. A live crawl of a recipe page answers `article` without `X-AnyLink-Types` and `recipe` with it, ingredients included |
+
+Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
+An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
+page has already started streaming.
+
 ## Phase 8 · Chrome extension
 
 **Status:** built, and the automated checks pass. Real sign-in and a real save are waiting on the Supabase redirect
@@ -86,3 +116,128 @@ Full steps are in `extension/README.md`.
    - Set the plan back to pro. The same link should work again.
 5. Call `/api/cron/price-check` with `Authorization: Bearer $CRON_SECRET`. Only Pro accounts' products should get new
    price snapshots.
+
+## Phase 2 · Calls without an account
+
+**Status:** done, and the offline checks pass. Before the device checks, three things have to happen:
+- `APP_ATTEST_SECRET` is set in Vercel.
+- App Attest is on for the App ID.
+- A deploy goes out.
+
+### Done
+- The App Attest checks are hand-written on `node:crypto` in `src/lib/app-attest.ts`, with no new dependency.
+  - They cover the certificate chain to Apple's App Attestation root, the nonce, the key id, rpIdHash, aaguid and the
+    counter.
+  - The tests use real Apple development and production attestations, plus a real assertion.
+- `GET /api/attest/challenge` returns an HMAC challenge that lasts 5 minutes. `POST /api/attest/register` stores a
+  key once.
+- `verifyAssertion` reads the key id and the assertion from headers. The assertion signs the SHA-256 of the body, and
+  the counter only goes up.
+  - A failure answers 403 with a reason: `attestation-required`, `unknown-key`, `replay` or `invalid`.
+  - A key over its cap gets 429. Nothing answers 401.
+- Daily caps per key: 200 crawls, 5,000 checked links and 10 groupings.
+- `/api/crawl` accepts an assertion instead of a session. `POST /api/v1/local/check` and `POST /api/v1/local/group`
+  serve installs without an account, and neither stores links or collections.
+- On iOS, `AppAttestClient` and `LocalServices` live in AnyLinkKit. Guest crawls are signed. The App Attest
+  entitlement is development in Debug and production in Release.
+  - On the simulator, DEBUG builds send `X-AnyLink-Dev`. The server accepts it only where `APP_ATTEST_DEV_SECRET` is
+    set.
+
+### Security review
+An independent review of the App Attest code found nothing critical or high. Its fixes are merged:
+- A version check on the key row, so racing calls can't get past the daily cap.
+- A daily ceiling of 300 account-less groupings across all keys.
+- The dev bypass is off on Vercel production and needs a secret of 32 or more characters.
+- A test that fails if the leaf certificate isn't checked.
+
+Development keys are still accepted in production, so a Debug build on a real iPhone can be tested. Refuse them
+before the App Store launch (Phase 9).
+
+### Deviations
+- The local check takes `{ id, url, title }`, not bare URLs, so dead links can be listed by title.
+- The local group route creates the collection ids itself. `GROUP_LIMIT` and `SYSTEM_COLORS` moved to
+  `group-links.ts`.
+- Apple's fraud receipt isn't used, and registration isn't limited, so one device could register several keys.
+  There's a `ponytail:` note on this.
+
+### Check by hand
+These are on a real iPhone, after the secret and a deploy.
+1. Run a Debug build and add a link.
+   - `select key_id, environment, sign_count, crawl_count from app_attest_keys order by created_at desc limit 1;`
+     should show one development key with `crawl_count = 1`.
+   - Relaunching shouldn't add a key.
+2. Replay a captured `POST /api/crawl`, using Proxyman. It should get 403 `replay`.
+   - Change the body and send it again. It should get 403 `invalid`.
+3. Set `crawl_count = 200` for today. A new link should show the "Too many previews…" notice. Reset the count
+   afterwards.
+4. On production, any `X-AnyLink-Dev` header should get 403.
+
+## Phase 7 · Export
+
+**Status:** done, and the checks pass, including the new UI test that hands the file to Files.
+
+### Done
+- `src/lib/export.ts` writes three formats, each with a test:
+  - Bookmark HTML: collections become folders. It re-parses through the importer to the same URLs, folders and dates.
+  - JSON: `{ format: "anylink", version: 1, … }`.
+  - CSV: RFC 4180, with a UTF-8 byte-order mark.
+- `GET /api/v1/export?format=html|json|csv`, Pro only. A free account gets 403 with `{ ok: false, reason: "pro" }`.
+- Web: three buttons under "Your library" in Settings.
+- iOS: Settings → Export library → a format → the Files save sheet.
+
+### Deviations
+- iOS uses the Files save sheet, not the share sheet, so the download doesn't need a second tap.
+- CSV cells that start with `=`, `+`, `-` or `@` get a leading `'`, so a page title can't run as a spreadsheet formula.
+- Trash isn't exported. Bookmark HTML also leaves out notes and smart collections; JSON keeps them.
+
+### Check by hand
+1. Import the exported HTML into Chrome or Firefox. The folders should match your collections.
+2. Open the CSV in Numbers or Excel. Non-English titles should read correctly, and commas and line breaks should stay
+   inside their cells.
+3. Export the JSON of a big library. Article text is included, so check the response isn't cut off by the hosting
+   size limit.
+
+## Phase 6 · Detail templates
+
+**Status:** done on web and iOS, and the checks pass, apart from the known accessibility failure on the Search
+screen.
+
+### Done
+- iOS reads an unknown content type as an article. `TemplateData` decodes one field at a time.
+- Builds from before this phase don't send the `X-AnyLink-Types` header. For them, `src/lib/ios-types.ts` turns
+  `recipe` into `article` in the library, shared collections, action results and crawl events.
+- The `recipe` type:
+  - `type:recipe` works on both platforms.
+  - There's a Recipes filter in the web sidebar and the iOS Collections tab, shown only when it has links.
+- `links.template_data` is filled without AI, on every save path:
+  - Article: byline and date.
+  - Video: provider, id, channel and duration.
+  - Recipe: ingredients, steps, times and yield.
+- The e-commerce template:
+  - `previousPrice` is the price when the link was saved.
+  - An "Under your price" badge shows when the price is at or below the alert.
+  - `pricePush` and its placeholder toggle are gone.
+- Pro templates on both platforms:
+  - Article: byline, date and summary.
+  - Video: YouTube from youtube-nocookie.com, or Vimeo with `dnt=1`. On iOS it plays in a WKWebView that keeps no
+    cookies.
+  - Recipe: a checkable ingredient list, the steps, the times and the yield.
+- Free accounts get the generic layout, with an upsell line for each type.
+- The new UI test `testTemplatesForProGenericLayoutForFree` passes. The `-free` launch argument runs the mock as a
+  free account.
+
+### Deviations
+- Recipe detection runs before VideoObject, because recipe pages often embed a video.
+- Older links get no `template_data` until they're saved again. A video still plays, because its id comes from the
+  URL.
+- Unlisted Vimeo videos won't play inline, because they need an `h=` hash that isn't stored.
+
+### Check by hand
+1. Check web as Pro:
+   - A YouTube link and a Vimeo link play in place.
+   - A page with Recipe JSON-LD shows the recipe card.
+   - An article shows its byline and date.
+   - A product with an alert set above its price shows "Under your price".
+2. Check web as free: each type shows the generic layout and its upsell line.
+3. Run the same checks on a new iOS build, for Pro and for free.
+4. Point an older iOS build at the new server. The library should still load, with recipes shown as articles.

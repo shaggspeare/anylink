@@ -7,6 +7,7 @@ import { sortLinks } from "../organize";
 import { isPro, type Plan } from "../plan";
 import { currentUserId } from "./current-user";
 import { proAccounts } from "./plan";
+import { videoFromUrl } from "../crawler/url";
 import type {
   Collection,
   Highlight,
@@ -15,6 +16,7 @@ import type {
   PriceSnapshot,
   ProductDetails,
   SharedCollection,
+  TemplateData,
 } from "../types";
 
 type ProductJson = Pick<
@@ -142,6 +144,8 @@ export function toLinkItem(
 ): LinkItem {
   const product = row.productData as ProductJson | null;
   const { latest, alert } = extra;
+  // What it cost when saved: the first snapshot, once a later one differs from it.
+  const saved = extra.history && extra.history.length > 1 ? extra.history[0].price : undefined;
   return {
     id: row.id,
     url: row.url,
@@ -175,11 +179,15 @@ export function toLinkItem(
           ...product,
           currency: latest?.currency ?? "$",
           price: latest ? Number(latest.price) : undefined,
+          previousPrice: latest && saved !== undefined && saved !== Number(latest.price) ? saved : undefined,
           inStock: latest?.inStock ?? undefined,
           priceHistory: extra.history ?? [],
           alertThreshold: alert ? Number(alert.thresholdPrice) : undefined,
         }
       : undefined,
+    // Videos saved before template_data existed still get their player.
+    templateData:
+      (row.templateData as TemplateData | null) ?? (row.contentType === "video" ? videoFromUrl(row.url) : undefined),
   };
 }
 

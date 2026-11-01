@@ -45,6 +45,14 @@ const BATCH = 75;
  * this stays in the inbox and can be grouped in a second pass. */
 const MAX_BATCHES = 8;
 
+/** Links the grouper is allowed to look at in one pass. Past this they stay in the
+ * inbox — see MAX_BATCHES. */
+export const GROUP_LIMIT = 600;
+
+/** Cycled through as system collections are created, so a fresh result screen doesn't
+ * come out all one colour. Straight from the design tokens. */
+export const SYSTEM_COLORS = ["#ff5a1f", "#7c8cff", "#d6f24b", "#e0855a", "#9aa3ad", "#17181b"];
+
 const SYSTEM_PROMPT = `You are triaging a person's saved links into a few collections they'd actually open.
 
 You get their stated priorities and a numbered list of links (title, domain, and sometimes

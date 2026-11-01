@@ -146,9 +146,12 @@ final class AnyLinkUITests: XCTestCase {
         app.buttons["tile-nasa"].tap()
         let text = app.textViews.firstMatch
         XCTAssertTrue(text.waitForExistence(timeout: 3))
-        text.doubleTap()
+        app.swipeUp()   // the byline and summary push the text down, under the bottom toolbar
+        // A word in the first paragraph: the middle of the text can fall between two paragraphs, which selects nothing.
+        let word = text.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.1))
+        word.doubleTap()
         let highlight = app.buttons["Highlight"].firstMatch   // the edit menu shows as buttons or menu items by OS version
-        if !highlight.waitForExistence(timeout: 2) { text.press(forDuration: 1.0) }
+        if !highlight.waitForExistence(timeout: 2) { word.press(forDuration: 1.0) }
         XCTAssertTrue(app.menuItems["Highlight"].firstMatch.waitForExistence(timeout: 2) || highlight.exists)
         (app.menuItems["Highlight"].firstMatch.exists ? app.menuItems["Highlight"].firstMatch : highlight).tap()
         XCTAssertTrue(app.staticTexts["Highlighted"].waitForExistence(timeout: 3))
@@ -161,6 +164,31 @@ final class AnyLinkUITests: XCTestCase {
         app.buttons["tile-iph"].tap()
         XCTAssertTrue(app.staticTexts["Price"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Tell me under"].exists)
+    }
+
+    /// The video and the recipe are both on the first screen of All; the player itself would load YouTube, so it isn't tapped.
+    @MainActor
+    func testTemplatesForProGenericLayoutForFree() throws {
+        let app = launch()
+        app.buttons["tile-ytrt"].tap()
+        XCTAssertTrue(app.buttons["Play video"].waitForExistence(timeout: 3))
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["tile-ramen"].tap()
+        XCTAssertTrue(app.staticTexts["Ingredients"].waitForExistence(timeout: 3))
+        let noodles = app.buttons["2 portions fresh ramen noodles"]
+        noodles.tap()
+        XCTAssertTrue(noodles.isSelected)
+        app.terminate()
+
+        let free = launch(["-free"])
+        free.buttons["tile-ramen"].tap()
+        XCTAssertTrue(free.staticTexts["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."].waitForExistence(timeout: 3))
+        XCTAssertFalse(free.staticTexts["Ingredients"].exists)
+        free.navigationBars.buttons.firstMatch.tap()
+        free.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Products")).firstMatch.tap()
+        free.buttons["tile-iph"].tap()
+        XCTAssertTrue(free.staticTexts["Pro tracks this price for you and charts its history."].waitForExistence(timeout: 3))
+        XCTAssertFalse(free.staticTexts["Tell me under"].exists)
     }
 
     // MARK: - Collections, Trash, Settings (S10–S18)
@@ -205,6 +233,18 @@ final class AnyLinkUITests: XCTestCase {
         app.buttons["Dark"].tap()
         XCTAssertTrue(app.buttons["Dark"].isSelected)
         app.buttons["System"].tap()
+    }
+
+    @MainActor
+    func testExportHandsTheFileToFiles() throws {
+        let app = launch()
+        app.tabBars.buttons["Profile"].tap()
+        let export = app.buttons["Export library"]
+        if !export.waitForExistence(timeout: 2) { app.swipeUp() }
+        export.tap()
+        app.buttons["Everything (JSON)"].tap()
+        // The Files save sheet only opens once the file is written.
+        XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 5))
     }
 
     // MARK: - Search (S13)
@@ -444,8 +484,8 @@ final class AnyLinkUITests: XCTestCase {
         audit(welcome, "Welcome")
     }
 
-    /// Labels the audit calls "partially unsupported" although they grow (system Toggle/Picker labels, hero eyebrow).
-    static let verifiedScaling: Set<String> = ["Clipboard suggestions", "New links go to", "NASA.GOV · 6 MIN READ", AnyLinkUITests.shareFooter]
+    /// Labels the audit calls "partially unsupported" although they grow (system Toggle/Picker labels, eyebrows).
+    static let verifiedScaling: Set<String> = ["Clipboard suggestions", "New links go to", "NASA.GOV · 6 MIN READ", "SUMMARY", AnyLinkUITests.shareFooter]
     static let shareFooter = "To save from Safari, tap Share, scroll the app row, tap More and pin AnyLink."
 
     @MainActor
@@ -457,6 +497,7 @@ final class AnyLinkUITests: XCTestCase {
             var out: [String: CGFloat] = [:]
             app.buttons["tile-nasa"].tap()
             out["NASA.GOV · 6 MIN READ"] = app.staticTexts["NASA.GOV · 6 MIN READ"].frame.height
+            out["SUMMARY"] = app.staticTexts["SUMMARY"].frame.height
             app.navigationBars.buttons.firstMatch.tap()
             app.tabBars.buttons["Profile"].tap()
             for l in ["Clipboard suggestions", "New links go to", Self.shareFooter] {

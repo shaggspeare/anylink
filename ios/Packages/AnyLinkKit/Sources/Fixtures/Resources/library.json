@@ -43,7 +43,11 @@
      "note": null
     }
    ],
-   "product": null
+   "product": null,
+   "templateData": {
+    "author": "Mark Garcia",
+    "publishedAt": "2026-09-29T14:00:00Z"
+   }
   },
   {
    "id": "ytrt",
@@ -76,7 +80,13 @@
    "archived": false,
    "deleted": false,
    "highlights": [],
-   "product": null
+   "product": null,
+   "templateData": {
+    "provider": "youtube",
+    "videoId": "rt-demo-01",
+    "channel": "Systems Live",
+    "durationSeconds": 7262
+   }
   },
   {
    "id": "iph",
@@ -257,8 +267,8 @@
    "tint": "#E0855A",
    "stripe": "#FFFFFF",
    "initial": "S",
-   "contentType": "article",
-   "readingTimeMinutes": 9,
+   "contentType": "recipe",
+   "readingTimeMinutes": null,
    "collectionId": "cooking",
    "tags": [
     "recipe"
@@ -275,7 +285,30 @@
    "archived": false,
    "deleted": false,
    "highlights": [],
-   "product": null
+   "product": null,
+   "templateData": {
+    "ingredients": [
+     "2 portions fresh ramen noodles",
+     "1 litre chicken stock",
+     "4 tbsp soy sauce",
+     "2 tbsp mirin",
+     "1 tbsp toasted sesame oil",
+     "2 eggs",
+     "2 spring onions, sliced",
+     "1 sheet nori, cut in strips"
+    ],
+    "steps": [
+     "Pressure-cook the stock with ginger and garlic for 30 minutes, then strain it.",
+     "Simmer the soy sauce, mirin and sesame oil for ten minutes to make the tare.",
+     "Boil the eggs for 6½ minutes, cool them in iced water and peel them.",
+     "Cook the noodles. Divide the tare between two bowls and pour the hot stock over it.",
+     "Add the noodles, the halved eggs, the spring onions and the nori."
+    ],
+    "prepMinutes": 15,
+    "cookMinutes": 45,
+    "totalMinutes": 60,
+    "yield": "2 bowls"
+   }
   },
   {
    "id": "water",

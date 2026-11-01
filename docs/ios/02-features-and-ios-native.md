@@ -410,7 +410,7 @@ grouped:
 | `"exact phrase"` | Phrase as one term |
 | `#tag` | Has a tag **starting with** `tag` (prefix, so `#des` matches `design`) |
 | `title:x` `excerpt:x` `note:x` `link:x` | Substring in that field (`link:` = domain + URL) |
-| `type:article` / `video` / `product` | Content type |
+| `type:article` / `video` / `product` / `recipe` / `note` / `image` | Content type |
 | `is:favorite` `is:noted` `is:untagged` `is:duplicate` `is:broken` `is:archived` | Flags |
 | `created:2026-01` | Saved on a date with that prefix (year, month or day) |
 | `created:>2026-01-15` / `created:<2026-01` | After / before (string comparison) |

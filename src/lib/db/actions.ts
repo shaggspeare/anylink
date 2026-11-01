@@ -14,7 +14,7 @@ import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
 import { crawlUrl } from "../crawler";
 import { IMAGE_IDENTITY, NOTE_IDENTITY, identityForDomain } from "../card-identity";
 import { isDeadStatus } from "../link-health";
-import { groupByMetadata, groupLinks, type Priorities } from "../rank/group-links";
+import { GROUP_LIMIT, groupByMetadata, groupLinks, SYSTEM_COLORS, type Priorities } from "../rank/group-links";
 import { ensureInbox, sharedCollectionRows, toLinkItem } from "./queries";
 import type { ImportedLink } from "../import/parse";
 import type { CardSize, Collection, LinkItem, ProductDetails } from "../types";
@@ -120,6 +120,7 @@ export async function createLink(input: NewLinkInput): Promise<LinkItem> {
       size: input.size,
       status: input.status ?? (unread ? "crawling" : "ready"),
       productData: productJson(input.product),
+      templateData: input.templateData ?? null,
       source: input.source || undefined,
       note: input.note?.trim() || null,
     })
@@ -180,6 +181,7 @@ async function fillFromPage(uid: string, id: string, url: string, sentTitle: str
       contentType: r.contentType,
       readingTimeMinutes: r.readingTimeMinutes ?? null,
       productData: productJson(r.product),
+      templateData: r.templateData ?? null,
     };
     await savePrice(id, r.product);
     await addTags(uid, id, r.suggestedTags);
@@ -576,6 +578,7 @@ export async function saveFromShare(
         // Nothing would ever finish a crawl started in someone else's library.
         status: "ready" as const,
         productData: r.productData,
+        templateData: r.templateData,
         source: "shared",
       };
     })
@@ -727,14 +730,6 @@ export async function importLinks(items: ImportedLink[]): Promise<ImportLinksRes
     skipped: items.length - rows.length,
   };
 }
-
-/** Cycled through as system collections are created, so a fresh result screen doesn't
- * come out all one colour. Straight from the design tokens. */
-const SYSTEM_COLORS = ["#ff5a1f", "#7c8cff", "#d6f24b", "#e0855a", "#9aa3ad", "#17181b"];
-
-/** Links the grouper is allowed to look at in one pass. Past this they stay in the
- * inbox — see MAX_BATCHES in group-links.ts. */
-const GROUP_LIMIT = 600;
 
 export type GroupedResult = { collection: Collection; linkIds: string[]; reasoning: string };
 

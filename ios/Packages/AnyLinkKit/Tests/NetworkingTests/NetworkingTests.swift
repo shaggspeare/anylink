@@ -122,6 +122,7 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
         let body = Fixtures.crawlSuccessLines.joined(separator: "\n")
         #expect(try await events(200, body) == ["step:fetch", "step:parse", "preview", "step:tags", "done"])
         #expect(StubProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer secret")
+        #expect(StubProtocol.lastRequest?.value(forHTTPHeaderField: "X-AnyLink-Types")?.contains("recipe") == true, "a build lists the types it reads")
         #expect(StubProtocol.lastRequest?.url?.path() == "/api/crawl")
     }
 

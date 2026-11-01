@@ -55,6 +55,7 @@ public protocol AnyLinkAPI: Sendable {
     func groupInbox(_ priorities: GroupingPriorities) async throws -> [GroupedResult]  // groupInbox [{focus, topics, kept, …}] → [{ collection, linkIds, reasoning }]
     func logSignal(_ signal: Signal) async                                              // logSignal [action, { linkId?, linkIds?, collectionId?, payload? }] (never throws)
     func deleteAccount() async throws                                                   // BACKEND: no endpoint yet; Mock only
+    func export(format: ExportFormat) async throws -> URL                               // GET /api/v1/export?format=html|json|csv → a temp file; 403 { reason: "pro" } → .proRequired
 }
 
 public enum BulkAction: Sendable { case move(to: LinkCollection.ID), tag(String), archive, trash, restore, purge }
@@ -121,6 +122,13 @@ library and their stored images (App Store 5.1.1(v)).
 `guestLimit` (2) saves of their own; the next save shows the sign-up sheet. Signing in queues the guest's saves as
 `PendingSave`s, which the signed-in app saves on its first run. The web app does the same with `localStorage`.
 
+**Installs without an account** sign their server calls with Apple's App Attest instead of a session
+(`AppAttestClient`, one per process: `AppEnvironment.attest`). It registers one key per install, keeps the key id in
+the shared keychain, and signs each call's body. Guest previews (`LiveCrawler` with no token) crawl on that key's daily
+cap; `LocalServices` signs the import's link check and grouping the same way. Where the device can't attest, a crawl
+goes out signed out and gets the per-IP limit. The contract is in `../../docs/ios/03-api.md` § Installs without an
+account.
+
 ## 4. Sync and offline
 
 1. Launch: load SwiftData into the store (instant), then `library(since: lastSync)`. Use full sync until `since`
@@ -156,10 +164,15 @@ library and their stored images (App Store 5.1.1(v)).
 ANYLINK_API_BASE = https:/$()/www.anylink.space
 SUPABASE_URL = https:/$()/xxxx.supabase.co
 SUPABASE_ANON_KEY = …
+APP_ATTEST_DEV_SECRET =
 ```
 
 These are exposed through Info.plist keys and read by `AppConfig`. A missing value in DEBUG means MockAPI. In
 Release it is a fatal configuration error.
+
+`APP_ATTEST_DEV_SECRET` is for DEBUG builds on the simulator, which can't use App Attest: they send it instead of an
+assertion. Only a server with the same `APP_ATTEST_DEV_SECRET`, at least 32 characters long, accepts it, and Vercel's
+production deployment never does. Release builds blank it.
 
 ## 7. Backend gaps: what the app does meanwhile
 
@@ -168,7 +181,7 @@ Release it is a fatal configuration error.
 | Edit title/excerpt, `library(since:)` | Not editable; full snapshot on each sync | An update action; a `since` filter |
 | Save mid-crawl / share-extension save before enrichment | App keeps the stream alive and PATCHes on `done` | Server-side enrichment job keyed by link id |
 | Enrichment of imported links | "Plain" cards with HeroFallback, no excerpt | Backfill job |
-| Price-drop push | Toggle hidden (`FeatureFlags.pricePush = false`) | Compare and send APNs; device-token endpoint |
+| Price-drop push | No toggle; an "Under your price" badge shows in the app instead | Compare and send APNs; device-token endpoint |
 | "% since saved" | Computed from `priceHistory.first` vs last | — (fine) |
 | Unarchive | Archived filter is read-only | `bulk(restoreArchive)` |
 | Delete/annotate highlights | Add only | Endpoints |
