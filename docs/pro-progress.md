@@ -5,56 +5,70 @@ only the user can do.
 
 ## Waiting on you
 
+All nine phases are built, merged into `main`, deployed, and their migrations are applied. These steps are the ones
+only you can do, in order.
+
+### 1. Unblock testing (about 10 minutes)
+- [ ] **Vercel → Production: set `APP_ATTEST_SECRET`**, then redeploy. Use any long random string, e.g. from
+      `openssl rand -base64 48`. I wasn't allowed to write secrets.
+  - Until it's set, `/api/attest/*` answer 503, and iOS installs without an account fall back to the per-IP crawl
+    limit.
+  - Their import checks and grouping fail.
 - [ ] Supabase → Authentication → URL Configuration → Redirect URLs: add
-      `https://naiejkkikjnpbfhdppghkehemjlmocjk.chromiumapp.org/**` for the unpacked Chrome extension (Phase 8).
-- [ ] Create a Chrome Web Store developer account. Upload `build/anylink-extension.zip` (from `npm run zip:extension`)
-      without publishing, then add `https://<store id>.chromiumapp.org/**` to the same Supabase list (Phase 8).
-- [ ] Optional: `example_user@anylink.local` (a placeholder account) was grandfathered to Pro too, so the crons
-      still check its links. Set it back to free if you don't want to pay for those checks (Phase 1).
-- [ ] Two iOS UI tests, `testAccessibilityAuditTopLevelScreens` and `testAccessibilityAuditSecondaryScreens`, fail on
-      iOS 26.5 with contrast warnings on Trash, Profile and Search. They fail before the Pro work too (Phase 1).
+      `https://naiejkkikjnpbfhdppghkehemjlmocjk.chromiumapp.org/**`, for the unpacked Chrome extension.
+- [ ] Apple Developer → Identifiers → `com.shaggspeare.anylink`: turn on App Attest, iCloud (container
+      `iCloud.com.shaggspeare.anylink`) and Push Notifications. Automatic signing may already add them on the first
+      build to a device.
 
-- [ ] **Set `APP_ATTEST_SECRET` in Vercel → Production**, then redeploy. Use any long random string, e.g. the
-      output of `openssl rand -base64 48`. I wasn't allowed to write secrets. Until it's set, `/api/attest/*` answer
-      503: iOS installs without an account fall back to the per-IP crawl limit, and import checks and grouping fail
-      for them (Phase 2).
-- [ ] Never set `APP_ATTEST_DEV_SECRET` in Production. It's only for testing the simulator against a local or preview
-      server, with the same value in `ios/Config.xcconfig` (Phase 2).
-- [ ] Make sure App Attest is on for the App ID `com.shaggspeare.anylink`. Automatic signing usually adds it on the
-      first build to a device (Phase 2).
-- [ ] Run Phase 2's real-iPhone checks below (Phase 2).
+### 2. App Store Connect (unblocks purchases)
+- [ ] The Paid Apps agreement, tax and banking, and the Small Business Program.
+- [ ] The app record for `com.shaggspeare.anylink`.
+- [ ] The subscription group "AnyLink Pro", with:
+  - `com.shaggspeare.anylink.pro.monthly` at $2.99
+  - `com.shaggspeare.anylink.pro.yearly` at $19.99, at the same level
+- [ ] The non-consumable `com.shaggspeare.anylink.pro.lifetime` at $49.99.
+- [ ] The V2 server notification URL `https://www.anylink.space/api/billing/apple/notifications`, for production
+      and sandbox.
+- [ ] A sandbox tester.
+- [ ] Vercel → Production: set `APPLE_APP_ID`, the numeric Apple ID from App Information. Until it's set,
+      production purchases and notifications are refused.
 
-- [ ] Ship a new iOS build (TestFlight) soon. Builds from before Phase 6 can't read the `recipe` type, so the server
-      sends them `article` instead. Once no older build is installed, delete `src/lib/ios-types.ts` and the
-      `X-AnyLink-Types` header; its `ponytail:` comment marks them (Phase 6).
-
-- [ ] **App Store Connect** (Phase 4):
-  - the Paid Apps agreement, tax and banking
-  - the Small Business Program
-  - the app record for `com.shaggspeare.anylink`
-  - the subscription group "AnyLink Pro":
-    - `com.shaggspeare.anylink.pro.monthly` at $2.99
-    - `com.shaggspeare.anylink.pro.yearly` at $19.99, at the same level
-  - `com.shaggspeare.anylink.pro.lifetime` at $49.99, a non-consumable
-  - the V2 server notification URL `https://www.anylink.space/api/billing/apple/notifications`, for production and
-    sandbox
-  - a sandbox tester
-- [ ] Set `APPLE_APP_ID` in Vercel → Production: the numeric Apple ID from App Store Connect → App Information. Until
-      it's set, Production purchases and notifications are refused. Never set `APP_STORE_ALLOW_XCODE` on Vercel
-      (Phase 4).
-- [ ] Once the listing exists, set `APP_STORE_URL` in `src/lib/pro.ts`. Until then, the dialog says
-      the app is coming to the App Store (Phase 4).
+### 3. Test
+- [ ] Build the iOS app on a real iPhone. The server it needs is already deployed.
+- [ ] Run `docs/pro-qa.md`. It covers:
+  - App Attest
+  - the local library and iCloud sync on two devices
+  - sandbox purchases
+  - upgrade, lapse and resubscribe
+  - templates
+  - export
+  - share links
 - [ ] Run `AnyLinkTests` → `ProStoreTests` from Xcode. Apple's simulator bug FB22237318 stops them under
-      `xcodebuild`, so they skip themselves there (Phase 4).
+      `xcodebuild`.
+- [ ] Load the Chrome extension unpacked and sign in. The steps are in `extension/README.md`.
+- [ ] Ship a TestFlight build soon. Builds from before Phase 6 can't read the `recipe` type. The server sends them
+      `article` until `src/lib/ios-types.ts` is removed.
 
-- [ ] Make sure the App ID has **iCloud** (CloudKit container `iCloud.com.shaggspeare.anylink`) and **Push
-      Notifications** turned on, if automatic signing doesn't add them on the first build to a device (Phase 3).
-- [ ] Two-device iCloud sync check, and the real-iPhone pass for the local library. Both are listed under Phase 3
-      below (Phase 3).
+### 4. Before submitting
+- [ ] Work through the hardening checklist at the end of `docs/pro-qa.md`. It includes:
+  - refuse development App Attest keys in production
+  - deploy the CloudKit schema to production
+  - set `APP_STORE_URL` in `src/lib/pro.ts`
+- [ ] Approve `docs/app-store-listing.md`: the copy, the privacy labels and its open questions.
+- [ ] Create the two App Review demo accounts.
+- [ ] Chrome Web Store:
+  - Open a developer account.
+  - Upload `build/anylink-extension.zip` (from `npm run zip:extension`) without publishing.
+  - Add `https://<store id>.chromiumapp.org/**` to Supabase's redirect URLs.
 
-- [ ] Ship a new iOS build only now that the server is deployed. Phase 5's app calls `uploadLibrary` and `enrichLink`.
-      Then do one sandbox run on a real iPhone: buy, check web, let it expire, check iOS. `docs/pro-qa.md` §3, §6 and
-      §9 have the steps (Phase 5).
+### Notes
+- Never set `APP_ATTEST_DEV_SECRET` or `APP_STORE_ALLOW_XCODE` on Vercel. Both are for local testing only, and the
+  code also refuses them on production.
+- Optional: the placeholder account `example_user@anylink.local` was grandfathered to Pro. Set it back to free if you
+  don't want the crons checking its links.
+- Two iOS UI tests, `testAccessibilityAuditTopLevelScreens` and `testAccessibilityAuditSecondaryScreens`, fail on
+  iOS 26.5. They flagged Search, Trash and Profile before the Pro work, and now also flag the iCloud and Manage
+  Subscription rows. A screenshot shows the iCloud row label isn't actually clipped.
 
 ## Deploys and database changes
 
