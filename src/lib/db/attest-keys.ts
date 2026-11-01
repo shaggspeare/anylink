@@ -16,12 +16,13 @@ function dailyCap(error: string): Response {
   return Response.json({ error, reason: "daily-cap" }, { status: 429 });
 }
 
-/** The simulator can't attest, so DEBUG builds send `X-AnyLink-Dev`. It counts only where APP_ATTEST_DEV_SECRET is set,
- * which is never production. */
+/** The simulator can't attest, so DEBUG builds send `X-AnyLink-Dev`. It counts only where APP_ATTEST_DEV_SECRET is set
+ * to 32 characters or more, and never on Vercel's production deployment, whatever the variable says. */
 function devBypass(request: Request): boolean {
+  if (process.env.VERCEL_ENV === "production") return false;
   const secret = Buffer.from(process.env.APP_ATTEST_DEV_SECRET ?? "");
   const given = Buffer.from(request.headers.get("x-anylink-dev") ?? "");
-  return secret.length > 0 && given.length === secret.length && timingSafeEqual(given, secret);
+  return secret.length >= 32 && given.length === secret.length && timingSafeEqual(given, secret);
 }
 
 /** Whether the call presents an assertion (or the dev secret), so /api/crawl checks it instead of the per-IP limit. */

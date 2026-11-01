@@ -5,5 +5,5 @@ SUPABASE_URL =
 SUPABASE_ANON_KEY =
 DEVELOPMENT_TEAM = 376HNWM383
 // DEBUG builds on the simulator, which can't use App Attest, send this instead. It only works against a server whose
-// APP_ATTEST_DEV_SECRET matches (never production). Letters and digits only. Leave empty to test the refusal.
+// APP_ATTEST_DEV_SECRET matches, never on production. At least 32 letters and digits. Leave empty to test the refusal.
 APP_ATTEST_DEV_SECRET =

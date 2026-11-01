@@ -97,8 +97,9 @@ Refusals are never a 401:
 - `503`: the server has no `APP_ATTEST_SECRET`.
 
 The simulator can't attest, so DEBUG builds there send `X-AnyLink-Dev: <APP_ATTEST_DEV_SECRET from Config.xcconfig>`
-instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is set and matches. Never set that in
-production.
+instead. A server accepts it only where its own `APP_ATTEST_DEV_SECRET` is at least 32 characters and matches, and
+never on Vercel's production deployment (`VERCEL_ENV=production`), whatever the variable says. Don't set it in
+production anyway.
 
 The server reads `APP_ATTEST_SECRET` (a long random string that signs the challenges) and, in development only,
 `APP_ATTEST_DEV_SECRET`. Apply `supabase/migrations/20261103000000_app_attest_keys.sql` before deploying.
