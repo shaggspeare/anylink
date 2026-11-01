@@ -6,6 +6,14 @@ import Persistence
 import Fixtures
 @testable import Store
 
+@Test func onlyASignedInProAccountUsesTheServerLibrary() {
+    #expect(LibraryMode(signedIn: true, plan: "pro") == .server)
+    #expect(LibraryMode(signedIn: true, plan: "free") == .local, "a free account keeps its local library")
+    #expect(LibraryMode(signedIn: true, plan: nil) == .local, "until the server says which plan")
+    #expect(LibraryMode(signedIn: false, plan: "pro") == .local, "a stale plan doesn't count once signed out")
+    #expect(LibraryMode(signedIn: false, plan: nil) == .local)
+}
+
 /// No Secure Enclave in tests: calls go out unsigned, as on a device that can't attest.
 struct NoAttest: AppAttesting {
     func headers(for body: Data) async -> [String: String] { [:] }

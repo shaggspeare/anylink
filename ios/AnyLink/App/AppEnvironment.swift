@@ -12,27 +12,42 @@ struct AppEnvironment {
     let router: Router
     let clipboard: ClipboardWatcher
     let reachability: Reachability
+    let mode: LibraryMode
+    /// Re-reads the library each time the app becomes active: a server or a local library, not the mock.
     let isLive: Bool
-    /// App Group store shared with the share extension (pending saves, recent collections). nil for a guest.
+    /// App Group store shared with the share extension (pending saves, recent collections).
     let shared: LocalCache?
+    /// A local library's store: CloudKit brings other devices' changes in through it.
+    let local: LocalStore?
 
-    init(api: any AnyLinkAPI, snapshot: LibrarySnapshot? = nil, cache: LocalCache? = nil, shared: LocalCache? = nil,
+    init(api: any AnyLinkAPI, mode: LibraryMode = .server, snapshot: LibrarySnapshot? = nil, cache: LocalCache? = nil,
+         shared: LocalCache? = nil, local: LocalStore? = nil,
          crawl: (@Sendable (URL) async -> AsyncThrowingStream<CrawlEvent, Error>)? = nil, isLive: Bool = false) {
         store = LibraryStore(api: api, snapshot: snapshot, crawl: crawl, cache: cache)
         router = Router()
         clipboard = ClipboardWatcher(store: store)
         reachability = Reachability(store: store)
+        self.mode = mode
         self.isLive = isLive
         self.shared = shared
-        // A 401 (after the token can't be refreshed) signs out to Welcome.
+        self.local = local
+        // A 401 (after the token can't be refreshed) signs out, back to the local library.
         store.onUnauthorized = { UserDefaults.standard.set(false, forKey: "signedIn") }
-        // The widgets read the App Group, so only an App Group library feeds them (not a guest's).
+        // The widgets read the App Group, so only an App Group library feeds them.
         if shared != nil {
             store.onSave = { [weak store] in
                 guard let summary = store?.widgetSummary, summary != WidgetSummary.load() else { return }
                 summary.save()
                 WidgetCenter.shared.reloadAllTimelines()
             }
+        }
+    }
+
+    /// The environment for a library mode. Pro phase 5 adds the upgrade and lapse moves between them.
+    static func make(_ mode: LibraryMode) -> AppEnvironment {
+        switch mode {
+        case .server: FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting)
+        case .local: local()
         }
     }
 
@@ -49,8 +64,41 @@ struct AppEnvironment {
         return AppEnvironment(api: LiveAPI(base: base) { await AuthService.accessToken() }, cache: cache, shared: cache, isLive: true)
     }
 
-    static func current() -> AppEnvironment {
-        FeatureFlags.useLiveAPI ? live() : mock(latency: !AppConfig.isUITesting)
+    /// A free library on this device (ADR 0002): `LocalAPI` over `Local.store`, synced through the user's iCloud.
+    /// Pages are read by the server's crawler and imports checked and grouped there, signed with App Attest. Without a
+    /// backend, and under -ui-testing (in memory), MockAPI's recorded streams read them.
+    static func local() -> AppEnvironment {
+        let testing = AppConfig.isUITesting
+        let base = testing ? nil : AppConfig.apiBase
+        // ponytail: falls back to memory if the store won't open, so the app still runs; nothing seen so far opens it badly.
+        let store = (testing ? nil : LocalStore.appGroup()) ?? (try? LocalStore())
+        guard let store else { return mock() }
+        let crawler: LocalAPI.Crawl
+        if let base {
+            let live = LiveCrawler(base: base, token: nil, attest: attest)
+            crawler = { url in live.crawl(url) }
+        } else {
+            let recorded = MockAPI.fixtures(latency: !testing)
+            crawler = { url in await recorded.crawl(url) }
+        }
+        let api = LocalAPI(
+            store: store, crawler: crawler,
+            services: base.flatMap { b in attest.map { LocalServices(base: b, attest: $0) } },
+            shared: base.map { b in LiveAPI(base: b) { nil } }
+        )
+        let env = AppEnvironment(api: api, mode: .local, snapshot: api.snapshot(), shared: LocalCache.appGroup(), local: store, isLive: true)
+        // A page read in the background: show what it filled in.
+        api.onChange = { [weak library = env.store] in
+            guard let library else { return }
+            Task { await library.refresh() }
+        }
+        return env
+    }
+
+    /// The signed-in account's plan, "pro" or "free", from its server library. MockAPI's account is Pro.
+    static func serverPlan() async throws -> String {
+        guard FeatureFlags.useLiveAPI, let base = AppConfig.apiBase else { return "pro" }
+        return try await LiveAPI(base: base) { await AuthService.accessToken() }.library(since: nil).plan ?? "free"
     }
 
     /// Signs calls from an install without an account (App Attest). One per process, so the key registers once.
@@ -58,50 +106,10 @@ struct AppEnvironment {
         AppAttestClient(base: $0, keychainGroup: AppConfig.sharedKeychainGroup, devSecret: AppConfig.appAttestDevSecret)
     }
 
-    // MARK: - Guest
-
-    /// Saves a guest can make before being asked to sign up (same as the web app).
-    static let guestLimit = 2
-    private static let guestStore = URL.applicationSupportDirectory.appending(path: "Guest.store")
-
-    /// Skipped sign-in: the sample library plus their own saves, kept on this device only. Previews still come
-    /// from the real crawler, signed with App Attest (rate-limited per IP where the device can't attest).
-    static func guest() -> AppEnvironment {
-        try? FileManager.default.createDirectory(at: .applicationSupportDirectory, withIntermediateDirectories: true)
-        let cache = AppConfig.isUITesting ? try? LocalCache(inMemory: true) : try? LocalCache(url: guestStore)
-        let library = cache?.loadSnapshot() ?? Fixtures.library
-        let crawler = AppConfig.isUITesting ? nil : AppConfig.apiBase.map { LiveCrawler(base: $0, token: nil, attest: attest) }
-        let env = AppEnvironment(
-            api: MockAPI(links: library.links, trashed: library.trashed, collections: library.collections, latency: false),
-            snapshot: library, cache: cache, crawl: crawler.map { c in { @Sendable url in c.crawl(url) } }
-        )
-        let store = env.store, router = env.router
-        // Share links someone sent still open: reading one needs no account.
-        if !AppConfig.isUITesting { store.sharedAPI = AppConfig.apiBase.map { LiveAPI(base: $0) { nil } } }
-        store.saveLimitReached = { guestSaves(in: store).count >= guestLimit }
-        store.onSaveLimit = { router.sheet = .signUp }
-        return env
-    }
-
-    /// What the guest saved themselves: anything that isn't part of the sample library.
-    static func guestSaves(in store: LibraryStore) -> [LinkItem] {
-        let samples = Set(Fixtures.library.links.map(\.id) + Fixtures.library.trashed.map(\.id))
-        return store.links.values.filter { !samples.contains($0.id) }
-    }
-
-    /// Signing in from guest mode: their saves go into the App Group outbox the share extension uses, so the
-    /// signed-in app saves them on its first run, then the guest library is deleted.
-    // ponytail: items land in Unsorted (web keeps guest-made collections); carry collections over if guests use them.
-    static func adoptGuest(_ guest: AppEnvironment, into shared: LocalCache?) {
-        for l in guestSaves(in: guest.store) where l.deleted != true {
-            shared?.upsertPendingSave(PendingSave(
-                url: l.url, title: l.title, note: l.note,
-                text: l.contentType == .note ? l.excerpt : nil,
-                imageFile: l.contentType == .image ? l.id : nil
-            ))
-        }
-        for suffix in ["", "-wal", "-shm"] {
-            try? FileManager.default.removeItem(at: URL(filePath: guestStore.path() + suffix))
-        }
+    /// Guest mode kept a sample library in Application Support until the local library replaced it (Pro phase 3).
+    static func removeGuestStore() {
+        let path = URL.applicationSupportDirectory.appending(path: "Guest.store").path(percentEncoded: false)
+        for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
+        UserDefaults.standard.removeObject(forKey: "guest")
     }
 }

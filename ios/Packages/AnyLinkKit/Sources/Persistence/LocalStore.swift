@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 import CoreData
 import SwiftData
 import Models
@@ -59,6 +60,12 @@ public final class LocalStore {
         let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) ?? .applicationSupportDirectory
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return try? LocalStore(url: base.appending(path: "Local.store"), cloudKit: cloudKitContainer)
+    }
+
+    /// Whether this device has an iCloud account CloudKit can sync with. Without one, saves stay on the device and
+    /// SwiftData syncs them once there is. Needs the app's iCloud entitlement: don't call it from tests or previews.
+    public static func iCloudAvailable() async -> Bool {
+        (try? await CKContainer(identifier: cloudKitContainer).accountStatus()) == .available
     }
 
     // MARK: - Links

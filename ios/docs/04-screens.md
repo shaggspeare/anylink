@@ -496,7 +496,8 @@ Back button; large title (the filter's name); an ink query chip (monospaced 11) 
 
 **Local library** (signed out, or signed in on Free: `LibraryMode.local`, ADR 0002):
 - The account card reads "Your library" (or the email when signed in) and "{n} links".
-  - Signed out, a **Sign in** button (footnote semibold) sits under it and opens S1 as a sheet.
+  - Signed out, the card ends with **Sign in** (footnote semibold), and the whole card is the button that opens S1
+    as a sheet.
 - An **iCloud sync** row (`icloud`) shows "On" or "Off" on the right, and nothing while it checks
   (`CKContainer.accountStatus()`, asked each time Settings appears). Its footer:
   - On: `settings.icloudOn` "Your library syncs between your Apple devices through iCloud. AnyLink's server never

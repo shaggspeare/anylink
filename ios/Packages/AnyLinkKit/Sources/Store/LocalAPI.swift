@@ -32,12 +32,18 @@ public final class LocalAPI: AnyLinkAPI {
     // MARK: - Reading
 
     public func library(since: Date?) async throws -> LibrarySnapshot {
-        let all = store.links()
+        let library = snapshot()
         // An image saved on another device arrives as bytes; cards show files.
-        for l in all where l.isImage && LocalImages.existing(for: l.id) == nil {
+        for l in library.links + library.trashed where l.isImage && LocalImages.existing(for: l.id) == nil {
             if let jpeg = store.image(for: l.id) { LocalImages.write(jpeg, id: l.id) }
         }
         readUnread()
+        return library
+    }
+
+    /// The library as stored, at once: what a cold launch shows before anything else runs.
+    public func snapshot() -> LibrarySnapshot {
+        let all = store.links()
         return LibrarySnapshot(links: all.filter { $0.deleted != true }, trashed: all.filter { $0.deleted == true },
                                collections: [Self.inbox] + store.collections())
     }

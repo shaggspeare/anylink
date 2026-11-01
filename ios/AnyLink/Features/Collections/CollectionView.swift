@@ -12,7 +12,6 @@ struct CollectionView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(Router.self) private var router
     @AppStorage("keptCollections") private var keptRaw = ""
-    @AppStorage("guest") private var guest = false
     @State private var tag: String?
 
     private var collection: LinkCollection? { store.collection(id) }
@@ -57,8 +56,8 @@ struct CollectionView: View {
                     Button("Select") { router.beginSelecting() }.disabled(shown.isEmpty)
                     if !isInbox {
                         Menu {
-                            // Sharing needs an account: the link points at the server's copy.
-                            if collection?.isShareable == true && !guest {
+                            // Sharing is Pro: a local library's switch answers with the Pro notice.
+                            if collection?.isShareable == true {
                                 Button(collection?.shareToken == nil ? "Share…" : "Shared — manage…", systemImage: "person.2") {
                                     router.sheet = .share(id)
                                 }

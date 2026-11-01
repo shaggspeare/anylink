@@ -97,14 +97,10 @@ struct SheetHost: View {
     var body: some View {
         switch sheet {
         case .addLink(let prefill, let collectionID):
-            // A guest out of free saves gets the sign-up sheet instead of a form they can't submit.
-            if store.saveLimitReached?() == true {
-                SignUpSheet()
-            } else {
-                AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID ?? defaultCollection)
-            }
-        case .signUp:
-            SignUpSheet()
+            AddLinkSheet(store: store, prefill: prefill, collectionID: collectionID ?? defaultCollection)
+        case .signIn:
+            // RootView sees the flag, asks the server for the plan and switches library if it's Pro.
+            WelcomeView(onSignedIn: { UserDefaults.standard.set(true, forKey: "signedIn"); dismiss() }, onClose: { dismiss() })
         case .newCollection:
             CollectionNameSheet()
         case .rename(let id):
@@ -175,7 +171,7 @@ struct SheetHost: View {
             }
             .navigationTitle("Tag \(ids.count.linkCount)")
             .navigationBarTitleDisplayMode(.inline)
-        case .newCollection, .rename, .signUp, .share:
+        case .newCollection, .rename, .signIn, .share:
             EmptyView()
         }
     }
