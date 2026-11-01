@@ -128,8 +128,13 @@ extension ProStore {
         let store = env.store
         guard env.isLive, let base = AppConfig.apiBase else {
             let mockAccount = UUID(uuid: (0, 0, 0, 0, 0, 0, 0x40, 0, 0x80, 0, 0, 0, 0, 0, 0, 1))
-            return ProStore(account: { UserDefaults.standard.bool(forKey: "signedIn") ? mockAccount : nil },
-                            post: { _ in }, confirmed: { await store.refresh() })
+            let pro = ProStore(account: { UserDefaults.standard.bool(forKey: "signedIn") ? mockAccount : nil },
+                               post: { _ in }, confirmed: { await store.refresh() })
+            #if DEBUG
+            // UI tests never reach the App Store: the paywall shows fixed prices and doesn't load products.
+            if AppConfig.isUITesting { pro.options = previewOptions }
+            #endif
+            return pro
         }
         let api = LiveAPI(base: base) { await AuthService.accessToken() }
         return ProStore(account: { AuthService.client?.currentUser?.id },

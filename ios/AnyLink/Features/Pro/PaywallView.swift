@@ -10,6 +10,8 @@ struct PaywallView: View {
     @State private var selected = ProStore.yearly
     /// What to do once the sign-in sheet has signed them in.
     @State private var signingIn: Intent?
+    /// One column for the benefit symbols, so their text lines up.
+    @ScaledMetric(relativeTo: .callout) private var symbolWidth: CGFloat = 26
 
     enum Intent: Identifiable {
         case buy, restore
@@ -46,7 +48,7 @@ struct PaywallView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(Self.benefits, id: \.symbol) { benefit in
                             Label { Text(benefit.text).font(AL.Font.lead).foregroundStyle(AL.ink) } icon: {
-                                Image(systemName: benefit.symbol).foregroundStyle(AL.periwinkle)
+                                Image(systemName: benefit.symbol).foregroundStyle(AL.periwinkle).frame(width: symbolWidth)
                             }
                         }
                     }
