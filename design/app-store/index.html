@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <title>AnyLink — App Store screenshots</title>
+<script>
+// ?lang=xx loads i18n/xx.js (window.T = {english: translated}); missing keys stay English
+const LANG = new URLSearchParams(location.search).get('lang');
+if (LANG && LANG !== 'en') document.write('<script src="i18n/' + LANG + '.js"><\/script>');
+</script>
 <style>
 @font-face{font-family:"Instrument Sans";src:url("/ios/AnyLink/Resources/Fonts/InstrumentSans-Variable.ttf") format("truetype");font-weight:400 700}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -12,6 +17,16 @@
   --img:url("/public/images/");
 }
 body{background:#1a1b1e;font-family:var(--brand);color:var(--ink);-webkit-font-smoothing:antialiased}
+/* non-Latin scripts: Instrument Sans has no Cyrillic/CJK/Arabic, so use the system stack (what iOS falls back to) */
+:lang(ru),:lang(uk){--brand:-apple-system,"SF Pro Display",sans-serif}
+:lang(ja){--brand:-apple-system,"Hiragino Sans",sans-serif;--sf:-apple-system,"Hiragino Sans",sans-serif}
+:lang(zh-Hans){--brand:-apple-system,"PingFang SC",sans-serif;--sf:-apple-system,"PingFang SC",sans-serif}
+:lang(ko){--brand:-apple-system,"Apple SD Gothic Neo",sans-serif;--sf:-apple-system,"Apple SD Gothic Neo",sans-serif}
+:lang(ar){--brand:-apple-system,"SF Arabic","Geeza Pro",sans-serif;--sf:-apple-system,"SF Arabic","Geeza Pro",sans-serif}
+:lang(ja) h1,:lang(zh-Hans) h1,:lang(ko) h1{letter-spacing:-.02em!important;line-height:1.14!important}
+:lang(ar) *{letter-spacing:0!important}
+[dir=rtl] .card .spec{left:auto;right:24px}
+[dir=rtl] .card .pill{right:auto;left:20px}
 .board{display:flex;flex-wrap:wrap;gap:32px;padding:32px}
 body.single{background:#050506}
 body.single .board{display:block;padding:0}
@@ -559,6 +574,35 @@ const P = {
   tray:'<path d="M3.5 13.5h5l1.5 2.5h4l1.5-2.5h5"/><path d="M6 5h12l2.5 8.5v5h-17v-5z"/>',
   tag:'<path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9z"/><circle cx="8" cy="8" r="1.4"/>',
 };
+// translate before icons are injected: elements mixing text with <br>/<em>/<mark>/<b> are keyed by
+// their innerHTML, everything else by trimmed text node. ?keys dumps the English key list.
+const T = window.T || {}, KEYS = new Set();
+const norm = t => t.replace(/\s+/g, ' ').trim();
+(function walk(el) {
+  const mixed = [...el.childNodes].some(c => c.nodeType === 3 && c.nodeValue.trim()) && el.querySelector(':scope > br, :scope > em, :scope > mark, :scope > b');
+  if (mixed) { const k = norm(el.innerHTML); KEYS.add(k); if (T[k] != null) el.innerHTML = T[k]; return; }
+  for (const c of [...el.childNodes]) {
+    if (c.nodeType === 3) { const k = norm(c.nodeValue); if (!k) continue; KEYS.add(k); if (T[k] != null) c.nodeValue = c.nodeValue.replace(c.nodeValue.trim(), T[k]); }
+    else if (c.nodeType === 1 && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE') walk(c);
+  }
+})(document.querySelector('.board'));
+if (LANG) { document.documentElement.lang = LANG; if (LANG === 'ar') document.querySelectorAll('.screen,.card,.cap,.float').forEach(e => e.dir = 'rtl'); }
+if (new URLSearchParams(location.search).has('keys')) document.body.innerHTML = '<pre id="keys"></pre>', document.getElementById('keys').textContent = JSON.stringify([...KEYS].filter(k => /\p{L}/u.test(k)), null, 1);
+// shrink a headline until each <br> line fits on one line (long German/French copy)
+document.fonts.ready.then(() => document.querySelectorAll('.card').forEach(c => {
+  // keep spec rows clear of the pill: cap width, then shrink type if the rows climb into the headline
+  const sp = c.querySelector('.spec'), pl = c.querySelector('.pill'), h = c.querySelector('h1');
+  const rtl = c.dir === 'rtl';
+  sp.style.maxWidth = (rtl ? sp.offsetLeft + sp.offsetWidth - pl.offsetLeft - pl.offsetWidth : pl.offsetLeft - sp.offsetLeft) - 14 + 'px';
+  let fs = 10.5;
+  while (fs > 8 && sp.offsetTop < h.offsetTop + h.offsetHeight + 10) sp.style.fontSize = (fs -= .5) + 'px';
+}));
+document.fonts.ready.then(() => document.querySelectorAll('.shot h1').forEach(h => {
+  const lines = (h.innerHTML.match(/<br>/g) || []).length + 1;
+  let fs = parseFloat(getComputedStyle(h).fontSize);
+  const lh = parseFloat(getComputedStyle(h).lineHeight) / fs;
+  while (fs > 20 && (h.scrollWidth > h.clientWidth + 1 || h.offsetHeight > lines * fs * lh + 2)) h.style.fontSize = --fs + 'px';
+}));
 document.querySelectorAll('i[data-i]').forEach(el => {
   el.classList.add('ic');
   el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${P[el.dataset.i]}</svg>`;
