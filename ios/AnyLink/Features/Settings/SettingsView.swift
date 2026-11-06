@@ -111,6 +111,12 @@ struct SettingsView: View {
                     Text("AnyLink").tag(OpenIn.app)
                     Text("Safari").tag(OpenIn.safari)
                 }
+                // iOS owns the per-app language (Settings › Apps › AnyLink › Language); this opens that page.
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                } label: {
+                    LabeledContent { Text(language) } label: { Label("Language", systemImage: "globe").foregroundStyle(.primary) }
+                }
                 Button {
                     resetTips = true   // TipKit resets its datastore on next launch (Tips.resetDatastore must run before configure).
                     store.toasts.show("Tips will show again.")
@@ -255,6 +261,12 @@ struct SettingsView: View {
         } else {
             Button { router.sheet = .paywall } label: { content }
         }
+    }
+
+    /// The language the app is showing, named in that language.
+    private var language: String {
+        let id = Bundle.main.preferredLocalizations.first ?? "en"
+        return Locale(identifier: id).localizedString(forIdentifier: id)?.localizedCapitalized ?? id
     }
 
     private var version: String {
