@@ -7,6 +7,7 @@ import "driver.js/dist/driver.css";
 import { useLibrary } from "@/lib/store";
 import { TOUR_STEPS, type TourPage, type TourStep } from "@/lib/tour";
 import type { Collection } from "@/lib/types";
+import { useT } from "@/i18n/client";
 
 const STORAGE_KEY = "anylink:tour";
 const TOUR_EVENT = "anylink:tour-start";
@@ -14,6 +15,7 @@ const TOUR_EVENT = "anylink:tour-start";
 /** The button lives in the sidebar, the runner in the root layout (it has to survive
  * the navigations the tour itself makes) — a window event is the whole wiring. */
 export function TourButton({ className, children }: { className?: string; children?: React.ReactNode }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -23,7 +25,7 @@ export function TourButton({ className, children }: { className?: string; childr
       {children ?? (
         <>
           <span className="flex h-4 w-4 items-center justify-center text-[10px] leading-none">▶</span>
-          Guided tour
+          {t("Guided tour")}
         </>
       )}
     </button>
@@ -37,6 +39,7 @@ export function TourRunner() {
   const pathname = usePathname();
   const router = useRouter();
   const driverRef = useRef<Driver | null>(null);
+  const t = useT();
 
   // Pages the demo can actually visit right now: a collection that has links, an
   // article, a product, a non-empty trash. Steps for the rest are dropped.
@@ -109,18 +112,18 @@ export function TourRunner() {
       // Referenced by the callbacks below, which only ever run after drive().
       const instance: Driver = driver({
         showProgress: true,
-        progressText: `{{current}} of ${slice.length}`,
-        nextBtnText: "Next →",
-        prevBtnText: "← Back",
-        doneBtnText: hasMore ? "Continue →" : "Done",
+        progressText: t("{current} of {total}", { current: "{{current}}", total: slice.length }),
+        nextBtnText: t("Next →"),
+        prevBtnText: t("← Back"),
+        doneBtnText: hasMore ? t("Continue →") : t("Done"),
         popoverClass: "anylink-tour",
         steps: slice.map(({ step }, i) => ({
           element: step.element,
           // Collapsed sections (the sidebar's tags) have to be open to be explained.
           onHighlightStarted: (el?: Element) => el?.closest("details")?.setAttribute("open", ""),
           popover: {
-            title: step.title,
-            description: step.description,
+            title: t(step.title),
+            description: t(step.description),
             side: step.side ?? "bottom",
             align: step.align ?? "center",
             // Only on the last step of a page, where Next hands over to the next page:
@@ -172,7 +175,7 @@ export function TourRunner() {
       window.removeEventListener(TOUR_EVENT, onStart);
       clearTimeout(timer);
     };
-  }, [pathname, steps, router]);
+  }, [pathname, steps, router, t]);
 
   return null;
 }

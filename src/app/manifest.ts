@@ -1,12 +1,15 @@
 import type { MetadataRoute } from "next";
+import { getT } from "@/i18n/server";
 
 // Installable from the browser, and on Android it shows up in the share sheet: sharing a
 // page to AnyLink lands on /app?shared_url=…, which GlobalCaptureListener opens in "Add a link".
-export default function manifest(): MetadataRoute.Manifest {
+// Browsers fetch the manifest without cookies, so it follows Accept-Language rather than the Settings pick.
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const t = await getT();
   return {
     name: "AnyLink",
     short_name: "AnyLink",
-    description: "Paste anything. We read the rest.",
+    description: t("Paste anything. We read the rest."),
     start_url: "/app",
     display: "standalone",
     background_color: "#eceef0",

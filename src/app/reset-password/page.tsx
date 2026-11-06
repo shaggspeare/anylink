@@ -2,8 +2,12 @@ import { redirect } from "next/navigation";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { NewPasswordForm } from "@/components/auth-panel";
 import { currentUser } from "@/lib/db/current-user";
+import { getT } from "@/i18n/server";
 
-export const metadata = { title: "New password — AnyLink" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("New password — AnyLink") };
+}
 
 /** The reset link signs them in on its way here (via /auth/callback); without that session the link failed. */
 export default async function ResetPasswordPage() {

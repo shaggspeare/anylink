@@ -6,11 +6,14 @@ import Image from "next/image";
 import { useLibrary } from "@/lib/store";
 import { isPro } from "@/lib/plan";
 import type { LinkItem } from "@/lib/types";
+import { useLocale, useT } from "@/i18n/client";
 
 export function ProductPanel({ link }: { link: LinkItem }) {
   const product = link.product!;
   const { setAlertThreshold, plan, openPro } = useLibrary();
   const [showAllSpecs, setShowAllSpecs] = useState(false);
+  const t = useT();
+  const locale = useLocale();
   const [threshold, setThreshold] = useState(product.alertThreshold ?? product.price ?? 0);
 
   // Only a drop is shown, struck through with its size, as on iOS: a rise isn't a deal.
@@ -43,7 +46,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
               </span>
               <span className="text-[11.5px] text-ink/50">
                 {product.retailer}
-                {product.code ? ` · code ${product.code}` : ""}
+                {product.code ? ` · ${t("code {code}", { code: product.code })}` : ""}
               </span>
             </div>
             <div className="text-[26px] font-semibold leading-[1.1] tracking-[-.04em] text-ink text-pretty sm:text-[28px]">
@@ -53,34 +56,34 @@ export function ProductPanel({ link }: { link: LinkItem }) {
               <div className="flex flex-wrap items-baseline gap-3">
                 <span className="text-[28px] font-semibold tracking-[-.04em] text-ink sm:text-[30px]">
                   {product.currency}
-                  {product.price.toLocaleString()}
+                  {product.price.toLocaleString(locale)}
                 </span>
                 {dropPct > 0 && (
                   <span className="text-[15px] text-ink/40 line-through">
                     {product.currency}
-                    {product.previousPrice?.toLocaleString()}
+                    {product.previousPrice?.toLocaleString(locale)}
                   </span>
                 )}
                 {dropPct > 0 && (
                   <span className="rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-bold text-on-accent">
-                    −{dropPct}% since saved
+                    {t("−{percent}% since saved", { percent: dropPct })}
                   </span>
                 )}
                 {underAlert && (
                   <span className="rounded-full bg-signal px-2.5 py-1 text-[11.5px] font-bold text-on-accent">
-                    Under your price
+                    {t("Under your price")}
                   </span>
                 )}
               </div>
             )}
             <div className="flex flex-wrap gap-2">
               {product.inStock !== undefined && (
-                <StatusChip active={product.inStock}>{product.inStock ? "In stock" : "Out of stock"}</StatusChip>
+                <StatusChip active={product.inStock}>{product.inStock ? t("In stock") : t("Out of stock")}</StatusChip>
               )}
               {product.delivery && <StatusChip>{product.delivery}</StatusChip>}
               {product.rating !== undefined && (
                 <StatusChip>
-                  {product.rating} <Icon name="star" size={11} className="inline-block align-[-1px]" />{product.reviewCount ? ` · ${product.reviewCount.toLocaleString()} reviews` : ""}
+                  {product.rating} <Icon name="star" size={11} className="inline-block align-[-1px]" />{product.reviewCount ? ` · ${t("{count} review|{count} reviews", { count: product.reviewCount })}` : ""}
                 </StatusChip>
               )}
               {product.warranty && <StatusChip>{product.warranty}</StatusChip>}
@@ -107,15 +110,15 @@ export function ProductPanel({ link }: { link: LinkItem }) {
           <div className="flex flex-col gap-3 p-5 sm:p-6">
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-periwinkle" />
-              <span className="text-eyebrow text-ink/45">Specs AnyLink pulled</span>
+              <span className="text-eyebrow text-ink/45">{t("Specs AnyLink pulled")}</span>
               {product.specs.length > 8 && (
                 <button
                   type="button"
                   onClick={() => setShowAllSpecs((v) => !v)}
                   className="ml-auto text-[11.5px] text-ink/45"
                 >
-                  {specsToShow.length} of {product.totalSpecCount} shown ·{" "}
-                  <span className="font-semibold text-ink">{showAllSpecs ? "show less" : "show all"}</span>
+                  {t("{shown} of {total} shown", { shown: specsToShow.length, total: product.totalSpecCount })} ·{" "}
+                  <span className="font-semibold text-ink">{showAllSpecs ? t("show less") : t("show all")}</span>
                 </button>
               )}
             </div>
@@ -137,16 +140,16 @@ export function ProductPanel({ link }: { link: LinkItem }) {
           className="flex flex-col gap-3 rounded-[22px] p-4"
           style={{ background: "rgb(var(--surface-rgb) / .55)", border: "1px solid rgb(var(--rim-rgb) / .8)", backdropFilter: "blur(20px) saturate(1.4)" }}
         >
-          <span className="text-eyebrow text-ink/40">Price history</span>
+          <span className="text-eyebrow text-ink/40">{t("Price history")}</span>
           {product.priceHistory.length >= 2 ? (
             <PriceChart history={product.priceHistory} currency={product.currency} />
           ) : (
             <p className="text-body text-ink/45">
-              Checked twice daily — history will show up after the next check.
+              {t("Checked twice daily — history will show up after the next check.")}
             </p>
           )}
           <div data-tour="price-alert" className="flex flex-col gap-1.5 border-t border-ink/6 pt-3">
-            <span className="text-[12px] font-medium text-ink/60">Alert me under</span>
+            <span className="text-[12px] font-medium text-ink/60">{t("Alert me under")}</span>
             {isPro(plan) ? (
               <div className="flex items-center gap-2">
                 <span className="text-[13px] text-ink/50">{product.currency}</span>
@@ -160,7 +163,7 @@ export function ProductPanel({ link }: { link: LinkItem }) {
               </div>
             ) : (
               <button type="button" onClick={openPro} className="self-start text-[13px] text-ink/50 underline underline-offset-2">
-                Price alerts are a Pro feature.
+                {t("Price alerts are a Pro feature.")}
               </button>
             )}
           </div>
@@ -183,6 +186,7 @@ function StatusChip({ active, children }: { active?: boolean; children: React.Re
 }
 
 function PriceChart({ history, currency }: { history: { date: string; price: number }[]; currency: string }) {
+  const locale = useLocale();
   const width = 260;
   const height = 80;
   const prices = history.map((h) => h.price);
@@ -208,11 +212,11 @@ function PriceChart({ history, currency }: { history: { date: string; price: num
       <div className="mt-1 flex justify-between text-[11px] text-ink/40">
         <span>
           {currency}
-          {min.toLocaleString()}
+          {min.toLocaleString(locale)}
         </span>
         <span>
           {currency}
-          {max.toLocaleString()}
+          {max.toLocaleString(locale)}
         </span>
       </div>
     </div>

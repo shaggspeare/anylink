@@ -1,10 +1,12 @@
 "use client";
 
 import { APP_STORE_URL, PRO_BENEFITS } from "@/lib/pro";
+import { useT } from "@/i18n/client";
 
 /** Web can't sell Pro (docs/adr/0002), so this says where to get it. Every Pro refusal and every Pro control opens
  * it, through `openPro` in the library store. */
 export function ProDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <div
       role="dialog"
@@ -22,7 +24,7 @@ export function ProDialog({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("Close")}
           autoFocus
           className="absolute right-5 top-5 text-ink/50 hover:text-ink"
         >
@@ -31,10 +33,10 @@ export function ProDialog({ onClose }: { onClose: () => void }) {
         <h2 id="pro-dialog-title" className="text-title text-[22px]">
           AnyLink Pro
         </h2>
-        <p className="text-body text-ink">Pro is sold in the AnyLink iOS app.</p>
+        <p className="text-body text-ink">{t("Pro is sold in the AnyLink iOS app.")}</p>
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-body text-ink/75">
           {PRO_BENEFITS.map((b) => (
-            <li key={b}>{b}</li>
+            <li key={b}>{t(b)}</li>
           ))}
         </ul>
         {APP_STORE_URL ? (
@@ -42,10 +44,10 @@ export function ProDialog({ onClose }: { onClose: () => void }) {
             href={APP_STORE_URL}
             className="flex h-11 items-center justify-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink"
           >
-            Get AnyLink on the App Store
+            {t("Get AnyLink on the App Store")}
           </a>
         ) : (
-          <p className="text-meta text-ink/60">AnyLink for iPhone is coming to the App Store.</p>
+          <p className="text-meta text-ink/60">{t("AnyLink for iPhone is coming to the App Store.")}</p>
         )}
       </div>
     </div>

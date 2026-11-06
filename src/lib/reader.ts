@@ -20,10 +20,12 @@ export function readableParagraphs(articleText: string[] | undefined, excerpt: s
 }
 
 /** A recipe time: 45 → "45 min", 60 → "1 h", 75 → "1 h 15 min". Same as iOS. */
-export function minutesLabel(minutes: number): string {
+export function minutesLabel(minutes: number, locale = "en"): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
+  if (locale === "en") return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
+  const unit = (unit: string, n: number) => new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "short" }).format(n);
+  return h ? [unit("hour", h), m && unit("minute", m)].filter(Boolean).join(" ") : unit("minute", m);
 }
 
 /** A video's length: 253 → "4:13", 7262 → "2:01:02". */

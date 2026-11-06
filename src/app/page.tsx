@@ -11,6 +11,9 @@ import { PhoneArc } from "@/components/landing-phones";
 import { TiltSection } from "@/components/tilt-section";
 import { TourButton } from "@/components/tour";
 import { APP_STORE_URL, PRO_BENEFITS } from "@/lib/pro";
+import { linkCount } from "@/lib/format";
+import { getT } from "@/i18n/server";
+import { msg } from "@/i18n/translate";
 import appIcon from "../../public/images/landing/app-icon.webp";
 import chain from "../../public/images/landing/chain.webp";
 import plant from "../../public/images/hero/plant.webp";
@@ -38,11 +41,13 @@ import colEverything from "../../public/images/collections/everything.webp";
 /** Public landing page. Static on purpose — no library data, nothing to log in for.
  *  Styles: ./landing.css, ported from design/AnyLink — landing-html. */
 
-export const metadata = {
-  title: "AnyLink — paste anything, we read the rest",
-  description:
-    "A personal library for saved links: crawled, tagged, and filed into collections you actually browse.",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return {
+    title: t("AnyLink — paste anything, we read the rest"),
+    description: t("A personal library for saved links: crawled, tagged, and filed into collections you actually browse."),
+  };
+}
 
 const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument-serif" });
 const hand = Caveat({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-caveat" });
@@ -52,12 +57,12 @@ const hand = Caveat({ subsets: ["latin"], weight: ["500", "600"], variable: "--f
 const SHOW_PRICING = APP_STORE_URL !== null || process.env.NODE_ENV !== "production";
 
 const NAV = [
-  { label: "Features", href: "#features" },
-  { label: "Collections", href: "#collections" },
-  { label: "Search", href: "#search" },
+  { label: msg("Features"), href: "#features" },
+  { label: msg("Collections"), href: "#collections" },
+  { label: msg("Search"), href: "#search" },
   { label: "iPhone", href: "#iphone" },
-  { label: "How it works", href: "#how-it-works" },
-  ...(SHOW_PRICING ? [{ label: "Pricing", href: "#pricing" }] : []),
+  { label: msg("How it works"), href: "#how-it-works" },
+  ...(SHOW_PRICING ? [{ label: msg("Pricing"), href: "#pricing" }] : []),
 ];
 
 // Back to front. z/rotations place each tile in the 3D pile; --sx/--sy is where the
@@ -76,59 +81,59 @@ const TILES = [
 ];
 
 const MARQUEE: [string, "" | "s" | "f"][] = [
-  ["Articles", ""], ["videos", "s"], ["Products", "f"], ["Places", ""],
-  ["recipes", "s"], ["Posts", "f"], ["Notes", ""], ["images", "s"],
+  [msg("Articles"), ""], [msg("videos"), "s"], [msg("Products"), "f"], [msg("Places"), ""],
+  [msg("recipes"), "s"], [msg("Posts"), "f"], [msg("Notes"), ""], [msg("images"), "s"],
 ];
 
 // Photos: Unsplash. `back` is the two cards fanned out behind, farthest first.
 const DECKS = [
-  { name: "Reading", count: 12, color: "#ff5a1f", img: colReading, alt: "A stack of books under a cup", back: [coffee, book] },
-  { name: "Inspiration", count: 24, color: "#d6f24b", img: colInspiration, alt: "Palm leaves against a warm wall", back: [office, tokyo] },
-  { name: "Shopping", count: 16, color: "#7c8cff", img: colShopping, alt: "Sneakers on a chair", back: [heroCamera, sneakers], cutout: true },
-  { name: "Everything else", count: 20, color: "#9aa3ad", img: colEverything, alt: "A film camera on a map", back: [kyoto, bcnGuell] },
+  { name: msg("Reading"), count: 12, color: "#ff5a1f", img: colReading, alt: msg("A stack of books under a cup"), back: [coffee, book] },
+  { name: msg("Inspiration"), count: 24, color: "#d6f24b", img: colInspiration, alt: msg("Palm leaves against a warm wall"), back: [office, tokyo] },
+  { name: msg("Shopping"), count: 16, color: "#7c8cff", img: colShopping, alt: msg("Sneakers on a chair"), back: [heroCamera, sneakers], cutout: true },
+  { name: msg("Everything else"), count: 20, color: "#9aa3ad", img: colEverything, alt: msg("A film camera on a map"), back: [kyoto, bcnGuell] },
 ];
 
 const STEPS = [
   {
     n: "01",
-    title: "Save",
+    title: msg("Save"),
     color: "#ff5a1f",
-    body: "Paste any link, or import your browser bookmarks and Telegram saved messages in one go.",
-    details: ["Title, image, price and read time pulled for you", "Blocked pages get a fallback read, not a dead row"],
+    body: msg("Paste any link, or import your browser bookmarks and Telegram saved messages in one go."),
+    details: [msg("Title, image, price and read time pulled for you"), msg("Blocked pages get a fallback read, not a dead row")],
   },
   {
     n: "02",
-    title: "Organise",
+    title: msg("Organise"),
     color: "#d6f24b",
-    body: "Links land in collections by what they actually are — things to buy, to read, to try.",
-    details: ["Dead links flagged before they pile up", "Trash keeps your mistakes recoverable"],
+    body: msg("Links land in collections by what they actually are — things to buy, to read, to try."),
+    details: [msg("Dead links flagged before they pile up"), msg("Trash keeps your mistakes recoverable")],
   },
   {
     n: "03",
-    title: "Find",
+    title: msg("Find"),
     color: "#7c8cff",
-    body: "One query language behind search, filters and saved views. Learn it once, use it everywhere.",
-    details: ["Searches the page text, not just titles", "Save the searches you repeat as smart collections"],
+    body: msg("One query language behind search, filters and saved views. Learn it once, use it everywhere."),
+    details: [msg("Searches the page text, not just titles"), msg("Save the searches you repeat as smart collections")],
   },
 ];
 
 // The Free column of "What ships" in docs/pro-build-plan.md. Pro's column is PRO_BENEFITS, the paywall's list.
 const FREE = [
-  "A library on your iPhone, synced with iCloud",
-  "Or a library on the web, with a free account",
-  "Collections, tags, notes, images and highlights",
-  "Reader view, search and smart collections",
-  "Import your bookmarks, grouped by AI",
-  "Share sheet, widgets, Shortcuts and Spotlight",
-  "Save from Chrome, with a web account",
-  "Title, image and reading time on every save",
+  msg("A library on your iPhone, synced with iCloud"),
+  msg("Or a library on the web, with a free account"),
+  msg("Collections, tags, notes, images and highlights"),
+  msg("Reader view, search and smart collections"),
+  msg("Import your bookmarks, grouped by AI"),
+  msg("Share sheet, widgets, Shortcuts and Spotlight"),
+  msg("Save from Chrome, with a web account"),
+  msg("Title, image and reading time on every save"),
 ];
 
 // ponytail: user count is hand-set — keep it honest as the library grows.
 const STATS = [
-  { value: "1K+", label: "happy users" },
-  { value: "1", label: "search for everything" },
-  { value: "100%", label: "private by default" },
+  { value: "1K+", label: msg("happy users") },
+  { value: "1", label: msg("search for everything") },
+  { value: "100%", label: msg("private by default") },
 ];
 
 const ARROW = (
@@ -162,26 +167,27 @@ function Brand(props: React.ComponentProps<"a">) {
   );
 }
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const t = await getT();
   return (
     <div className={`al ${serif.variable} ${hand.variable}`}>
       <header className="nav">
         <div className="nav-in">
-          <Brand aria-label="AnyLink home" />
-          <nav className="nav-links" aria-label="Sections">
+          <Brand aria-label={t("AnyLink home")} />
+          <nav className="nav-links" aria-label={t("Sections")}>
             {NAV.map((n) => (
               <a key={n.href} href={n.href}>
-                {n.label}
+                {t(n.label)}
               </a>
             ))}
           </nav>
           <div className="nav-cta">
             <ThemeToggle />
             <Link className="signin" href="/login">
-              Sign in
+              {t("Sign in")}
             </Link>
             <Link className="btn btn-acc" href="/start">
-              Get started
+              {t("Get started")}
             </Link>
           </div>
         </div>
@@ -195,47 +201,48 @@ export default function LandingPage() {
             <div className="hero-copy">
               <span className="eyebrow">
                 <span className="dot" />
-                Your saved links, finally readable
+                {t("Your saved links, finally readable")}
               </span>
               <h1 className="h1">
-                The internet
+                {t("The internet")}
                 <br />
-                is a <span className="it">beautiful</span>
+                {t("is a")} <span className="it">{t("beautiful")}</span>
                 <br />
-                <span className="it">mess.</span>
+                <span className="it">{t("mess.")}</span>
               </h1>
               <p className="lead">
-                Save anything — articles, products, videos, places. AnyLink turns chaotic bookmarks into a clean,
-                visual library you’ll actually browse.
+                {t(
+                  "Save anything — articles, products, videos, places. AnyLink turns chaotic bookmarks into a clean, visual library you’ll actually browse.",
+                )}
               </p>
               <div className="btns">
                 <Link className="btn btn-acc" href="/start">
-                  Get started {ARROW}
+                  {t("Get started")} {ARROW}
                 </Link>
                 {/* Starts the app's guided tour; it navigates to /app itself. */}
-                <TourButton className="btn btn-glass">See how it works</TourButton>
+                <TourButton className="btn btn-glass">{t("See how it works")}</TourButton>
               </div>
             </div>
             <div className="pile-wrap" aria-hidden>
-              {TILES.map((t) => (
+              {TILES.map((tile) => (
                 <div
-                  key={t.img.src}
-                  className={t.far ? "tile far" : "tile"}
+                  key={tile.img.src}
+                  className={tile.far ? "tile far" : "tile"}
                   style={{
-                    left: `${t.left}%`,
-                    top: `${t.top}%`,
-                    width: `${t.width}%`,
-                    transform: t.t,
-                    ...({ "--f": t.f, "--dl": t.dl, "--sx": `${t.sx}px`, "--sy": `${t.sy}px` } as React.CSSProperties),
+                    left: `${tile.left}%`,
+                    top: `${tile.top}%`,
+                    width: `${tile.width}%`,
+                    transform: tile.t,
+                    ...({ "--f": tile.f, "--dl": tile.dl, "--sx": `${tile.sx}px`, "--sy": `${tile.sy}px` } as React.CSSProperties),
                   }}
                 >
-                  <Image src={t.img} alt="" loading="eager" sizes="(max-width: 760px) 40vw, 300px" />
+                  <Image src={tile.img} alt="" loading="eager" sizes="(max-width: 760px) 40vw, 300px" />
                 </div>
               ))}
               <div className="scribble sc-from">
-                FROM
+                {t("FROM")}
                 <br />
-                THIS…
+                {t("THIS…")}
                 <svg viewBox="0 0 80 70" style={{ width: 80, height: 64, marginLeft: -56 }} aria-hidden>
                   <path d="M60 4C66 30 44 52 14 58M14 58l10-8M14 58l11 6" />
                 </svg>
@@ -243,7 +250,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="scribble sc-to" aria-hidden>
-            …TO THIS
+            {t("…TO THIS")}
             <svg viewBox="0 0 80 60" style={{ width: 80, height: 56, margin: "-4px 0 0 96px" }} aria-hidden>
               <path d="M4 8c30-6 48 8 44 44M48 52l-10-8M48 52l6-11" />
             </svg>
@@ -251,13 +258,13 @@ export default function LandingPage() {
         </div>
       </TiltSection>
 
-      <section className="app" id="app" aria-label="Your library, live">
+      <section className="app" id="app" aria-label={t("Your library, live")}>
         <div className="horizon" aria-hidden />
         <div className="wrap">
           <div className="win-stage">
             <div className="scribble sc-try" aria-hidden>
-              HOVER A CARD —<br />
-              RESIZE, PIN, BIN IT
+              {t("HOVER A CARD —")}<br />
+              {t("RESIZE, PIN, BIN IT")}
             </div>
             <div className="win-fly">
               <div className="win-rig">
@@ -277,7 +284,7 @@ export default function LandingPage() {
             <div key={set} className="marq-set">
               {MARQUEE.map(([word, style]) => (
                 <Fragment key={word}>
-                  <span className={`mq ${style}`}>{word}</span>
+                  <span className={`mq ${style}`}>{t(word)}</span>
                   {STAR}
                 </Fragment>
               ))}
@@ -293,14 +300,14 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot" />
-              Collections
+              {t("Collections")}
             </span>
             <h2 className="h2">
-              A place for every
+              {t("A place for every")}
               <br />
-              <span className="it">rabbit hole.</span>
+              <span className="it">{t("rabbit hole.")}</span>
             </h2>
-            <p className="lead">Keep your links in collections by what they actually are — not just another folder.</p>
+            <p className="lead">{t("Keep your links in collections by what they actually are — not just another folder.")}</p>
           </div>
           <div className="decks">
             {DECKS.map((d) => (
@@ -315,12 +322,12 @@ export default function LandingPage() {
                     <div className="dk-head">
                       <span className="dk-mark" style={{ background: d.color }} />
                       <div className="dk-name">
-                        <b>{d.name}</b>
-                        <span>{d.count} links</span>
+                        <b>{t(d.name)}</b>
+                        <span>{linkCount(d.count, t)}</span>
                       </div>
                     </div>
                     <div className="dk-img">
-                      <Image src={d.img} alt={d.alt} sizes="(max-width: 760px) 50vw, 300px" />
+                      <Image src={d.img} alt={t(d.alt)} sizes="(max-width: 760px) 50vw, 300px" />
                     </div>
                   </div>
                 </div>
@@ -338,23 +345,24 @@ export default function LandingPage() {
           <div className="sec-head">
             <span className="eyebrow">
               <span className="dot" />
-              AnyLink for iPhone
+              {t("AnyLink for iPhone")}
             </span>
             <h2 className="h2">
-              Save from any app
+              {t("Save from any app")}
               <br />
-              <span className="it">in one tap.</span>
+              <span className="it">{t("in one tap.")}</span>
             </h2>
           </div>
           <div className="sec-head" style={{ gap: 26 }}>
             <p className="lead">
-              Share to AnyLink from anywhere and it’s filed before the sheet closes. Clear Unsorted with a swipe, read
-              without the clutter, and share a whole collection with one link.
+              {t(
+                "Share to AnyLink from anywhere and it’s filed before the sheet closes. Clear Unsorted with a swipe, read without the clutter, and share a whole collection with one link.",
+              )}
             </p>
             <div className="btns">
               <a className="btn btn-glass" href={APP_STORE_URL ?? "#iphone"}>
                 {PHONE}
-                Get the iPhone app
+                {t("Get the iPhone app")}
               </a>
             </div>
           </div>
@@ -368,15 +376,15 @@ export default function LandingPage() {
             <div className="sec-head">
               <span className="eyebrow">
                 <span className="dot" />
-                How it works
+                {t("How it works")}
               </span>
               <h2 className="h2">
-                From a pile
+                {t("From a pile")}
                 <br />
-                to a library.
+                {t("to a library.")}
               </h2>
               <p className="lead">
-                Three steps, no filing required. AnyLink does the sorting so you can get back to the good stuff.
+                {t("Three steps, no filing required. AnyLink does the sorting so you can get back to the good stuff.")}
               </p>
             </div>
             <div className="steps">
@@ -392,13 +400,13 @@ export default function LandingPage() {
                     </div>
                     <span className="step-n">{s.n}</span>
                   </div>
-                  <h3>{s.title}</h3>
-                  <p>{s.body}</p>
+                  <h3>{t(s.title)}</h3>
+                  <p>{t(s.body)}</p>
                   <ul>
                     {s.details.map((d) => (
                       <li key={d}>
                         {CHECK}
-                        {d}
+                        {t(d)}
                       </li>
                     ))}
                   </ul>
@@ -415,31 +423,32 @@ export default function LandingPage() {
             <div className="sec-head">
               <span className="eyebrow">
                 <span className="dot" />
-                Pricing
+                {t("Pricing")}
               </span>
               <h2 className="h2">
-                Free to use.
+                {t("Free to use.")}
                 <br />
-                <span className="it">Pro when you want more.</span>
+                <span className="it">{t("Pro when you want more.")}</span>
               </h2>
               <p className="lead">
-                AnyLink is free on your iPhone and on the web. Pro joins the two into one library, and reads every page
-                more closely.
+                {t(
+                  "AnyLink is free on your iPhone and on the web. Pro joins the two into one library, and reads every page more closely.",
+                )}
               </p>
             </div>
             <div className="plans">
               <article className="plan">
-                <h3>Free</h3>
+                <h3>{t("Free")}</h3>
                 <p className="plan-price">
                   <b>$0</b>
                 </p>
-                <p className="plan-sub">No account needed on iPhone.</p>
-                <p className="plan-eb">Included</p>
+                <p className="plan-sub">{t("No account needed on iPhone.")}</p>
+                <p className="plan-eb">{t("Included")}</p>
                 <ul>
                   {FREE.map((f) => (
                     <li key={f}>
                       {CHECK}
-                      {f}
+                      {t(f)}
                     </li>
                   ))}
                 </ul>
@@ -447,15 +456,15 @@ export default function LandingPage() {
               <article className="plan plan-pro">
                 <h3>Pro</h3>
                 <p className="plan-price">
-                  <b>$2.99</b> a month
+                  <b>$2.99</b> {t("a month")}
                 </p>
-                <p className="plan-sub">or $19.99 a year · $49.99 lifetime</p>
-                <p className="plan-eb">Everything in Free, plus</p>
+                <p className="plan-sub">{t("or {yearly} a year · {lifetime} lifetime", { yearly: "$19.99", lifetime: "$49.99" })}</p>
+                <p className="plan-eb">{t("Everything in Free, plus")}</p>
                 <ul>
                   {PRO_BENEFITS.map((b) => (
                     <li key={b}>
                       {CHECK}
-                      {b}
+                      {t(b)}
                     </li>
                   ))}
                 </ul>
@@ -463,16 +472,17 @@ export default function LandingPage() {
             </div>
             <div className="plans-foot">
               <p>
-                Pro is bought in the AnyLink iPhone app, and works on the web with the same account. Lifetime includes
-                about 1,000 AI saves a month.
+                {t(
+                  "Pro is bought in the AnyLink iPhone app, and works on the web with the same account. Lifetime includes about 1,000 AI saves a month.",
+                )}
               </p>
               {APP_STORE_URL ? (
                 <a className="btn btn-acc" href={APP_STORE_URL}>
                   {PHONE}
-                  Get AnyLink on the App Store
+                  {t("Get AnyLink on the App Store")}
                 </a>
               ) : (
-                <p>AnyLink for iPhone is coming to the App Store.</p>
+                <p>{t("AnyLink for iPhone is coming to the App Store.")}</p>
               )}
             </div>
           </div>
@@ -483,23 +493,23 @@ export default function LandingPage() {
         <div className="wrap cta-grid">
           <div className="cta-copy">
             <h2 className="h2">
-              Everything worth
+              {t("Everything worth")}
               <br />
-              keeping. <span className="it">In one place.</span>
+              {t("keeping.")} <span className="it">{t("In one place.")}</span>
             </h2>
-            <p className="lead">Save, organise and rediscover your favourite links — whenever inspiration strikes.</p>
+            <p className="lead">{t("Save, organise and rediscover your favourite links — whenever inspiration strikes.")}</p>
             <div className="btns">
               <Link className="btn btn-acc" href="/start">
-                Get started for free {ARROW}
+                {t("Get started for free")} {ARROW}
               </Link>
               <Link className="btn btn-glass" href="/app">
-                Open my library
+                {t("Open my library")}
               </Link>
             </div>
             <dl className="stats">
               {STATS.map((s) => (
                 <div key={s.label}>
-                  <dt>{s.label}</dt>
+                  <dt>{t(s.label)}</dt>
                   <dd>{s.value}</dd>
                 </div>
               ))}
@@ -514,13 +524,13 @@ export default function LandingPage() {
               <Image src={chain} alt="" sizes="(max-width: 760px) 300px, 560px" />
             </div>
             <div className="scribble sc-same">
-              SAME
+              {t("SAME")}
               <br />
-              IDEAS.
+              {t("IDEAS.")}
               <br />
-              LESS
+              {t("LESS")}
               <br />
-              CHAOS.
+              {t("CHAOS.")}
               <svg viewBox="0 0 80 40" style={{ width: 80, height: 40, margin: "-8px 0 0 -96px" }} aria-hidden>
                 <path d="M76 16C58 30 30 32 6 22M6 22l11-7M6 22l9 9" />
               </svg>
@@ -532,13 +542,13 @@ export default function LandingPage() {
       <footer className="foot">
         <div className="wrap foot-row">
           <Brand />
-          <nav className="foot-links" aria-label="Footer">
+          <nav className="foot-links" aria-label={t("Footer")}>
             {NAV.map((n) => (
               <a key={n.href} href={n.href}>
-                {n.label}
+                {t(n.label)}
               </a>
             ))}
-            <Link href="/privacy-policy">Privacy Policy</Link>
+            <Link href="/privacy-policy">{t("Privacy Policy")}</Link>
           </nav>
           <span>© {new Date().getFullYear()} AnyLink</span>
         </div>

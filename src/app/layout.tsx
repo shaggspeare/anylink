@@ -9,6 +9,8 @@ import { TourRunner } from "@/components/tour";
 import { getLibraryData } from "@/lib/db/queries";
 import { currentUser } from "@/lib/db/current-user";
 import { DEMO_COLLECTIONS, DEMO_LINKS } from "@/lib/demo-library";
+import { I18nProvider } from "@/i18n/client";
+import { getLocale, getMessages, getT } from "@/i18n/server";
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
@@ -16,14 +18,17 @@ const instrumentSans = Instrument_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  // Absolute URLs for share previews (Open Graph, icons) resolve against the production site.
-  metadataBase: new URL("https://www.anylink.space"),
-  title: "AnyLink",
-  description: "Paste anything. We read the rest.",
-  // Added to the home screen, iOS opens it full-screen like an app.
-  appleWebApp: { capable: true, title: "AnyLink", statusBarStyle: "default" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    // Absolute URLs for share previews (Open Graph, icons) resolve against the production site.
+    metadataBase: new URL("https://www.anylink.space"),
+    title: "AnyLink",
+    description: t("Paste anything. We read the rest."),
+    // Added to the home screen, iOS opens it full-screen like an app.
+    appleWebApp: { capable: true, title: "AnyLink", statusBarStyle: "default" },
+  };
+}
 
 // viewport-fit=cover lets the canvas run under the notch and home indicator; fixed
 // chrome pads itself with env(safe-area-inset-*).
@@ -49,14 +54,17 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { links, trashed, collections, displayName, plan } = user
     ? await getLibraryData()
     : { links: DEMO_LINKS, trashed: [], collections: DEMO_COLLECTIONS, displayName: null, plan: "free" as const };
+  const locale = await getLocale();
+  const messages = await getMessages(locale);
 
   return (
     // The head script adds `dark` before React hydrates.
-    <html lang="en" className={`${instrumentSans.variable} h-full`} suppressHydrationWarning>
+    <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={`${instrumentSans.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-full antialiased">
+        <I18nProvider locale={locale} messages={messages}>
         <LibraryProvider
           initialLinks={links}
           initialTrashed={trashed}
@@ -72,6 +80,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <GlobalCaptureListener />
           <TourRunner />
         </LibraryProvider>
+        </I18nProvider>
       </body>
     </html>
   );

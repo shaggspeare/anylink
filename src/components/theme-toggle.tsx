@@ -3,11 +3,13 @@
 import { useEffect } from "react";
 import { useLocalSetting } from "@/lib/use-local-setting";
 import { applyTheme, THEME_KEY, type Theme } from "@/lib/theme";
+import { useT } from "@/i18n/client";
 
 /** Flips between light and dark (leaving System, if that was on) and remembers the choice.
  * While System is on, it also follows the OS switching mid-session. */
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const [theme, setTheme] = useLocalSetting<Theme>(THEME_KEY, "light");
+  const t = useT();
 
   useEffect(() => {
     if (theme !== "system") return;
@@ -28,8 +30,8 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Toggle dark mode"
-      title="Toggle dark mode"
+      aria-label={t("Toggle dark mode")}
+      title={t("Toggle dark mode")}
       className={`flex h-11 w-11 flex-none lg:h-9 lg:w-9 items-center justify-center rounded-full text-ink/60 hover:bg-ink/6 hover:text-ink ${className}`}
     >
       <svg className="dark:hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

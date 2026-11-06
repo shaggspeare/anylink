@@ -1,6 +1,11 @@
+"use client";
+
+import { useT } from "@/i18n/client";
+
 /** ⌘V is the main way links get in, so the hint shows up twice: quietly in the
  *  sidebar, and as a wide strip under the mosaic where the eye ends up. */
 export function PasteHint({ wide = false }: { wide?: boolean }) {
+  const t = useT();
   return (
     <div
       className={
@@ -16,7 +21,7 @@ export function PasteHint({ wide = false }: { wide?: boolean }) {
       >
         ⌘V
       </kbd>
-      paste anywhere to add a link
+      {t("paste anywhere to add a link")}
     </div>
   );
 }

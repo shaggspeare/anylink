@@ -18,11 +18,13 @@ import { PANE_PX, useSplitView } from "@/lib/use-split-view";
 import { DetailPane } from "@/components/link-detail-view";
 import { BulkActionBar } from "@/components/bulk-action-bar";
 import Link from "next/link";
+import { useT } from "@/i18n/client";
 
 export default function LibraryPage() {
   const { links, collections, tags, inbox, reorderLinks, moveLinks, tagLinks, archiveLinks, deleteLinks, openAddLink, openPalette } =
     useLibrary();
   const router = useRouter();
+  const t = useT();
   const [sort, setSort] = useState<Sort>("newest");
   const [list] = useListView();
   // Every sidebar filter and saved search lands here as `?q=…` — one query language,
@@ -39,14 +41,14 @@ export default function LibraryPage() {
       <Sidebar />
       <div className="relative lg:pl-[250px]" style={{ paddingRight: split.openId ? PANE_PX : undefined }}>
         <header className="flex flex-wrap items-center gap-x-3.5 gap-y-2 sm:items-end px-4 pb-4 pt-[max(24px,env(safe-area-inset-top))] sm:px-5 lg:px-6.5">
-          <h1 className="text-hero whitespace-nowrap text-[30px]">All links</h1>
+          <h1 className="text-hero whitespace-nowrap text-[30px]">{t("All links")}</h1>
           <div className="flex min-w-0 items-center gap-2 sm:pb-1.5">
-            <span className="whitespace-nowrap text-meta text-ink/50">{linkCount(visible.length)}</span>
+            <span className="whitespace-nowrap text-meta text-ink/50">{linkCount(visible.length, t)}</span>
             {query ? (
               <button
                 type="button"
                 onClick={() => router.push("/app")}
-                title="Clear filter"
+                title={t("Clear filter")}
                 className="flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[11px] text-on-ink"
               >
                 {query}
@@ -57,7 +59,7 @@ export default function LibraryPage() {
               !split.openId && <>
                 <span className="hidden h-1 w-1 rounded-full bg-ink/25 sm:inline" />
                 <span className="hidden text-meta text-ink/50 sm:inline">
-                  drag cards to arrange, corners to resize
+                  {t("drag cards to arrange, corners to resize")}
                 </span>
               </>
             )}
@@ -74,36 +76,35 @@ export default function LibraryPage() {
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
-              Search
+              {t("Search")}
               <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
             </button>
             <button
               type="button"
               data-tour="add"
               onClick={() => openAddLink()}
-              title="New link (N)"
+              title={t("New link (N)")}
               className="hidden h-10 items-center gap-1.5 rounded-full bg-ink px-4.5 sm:flex text-body font-semibold text-on-ink"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              Add
+              {t("Add")}
             </button>
           </div>
         </header>
 
         {links.length === 0 ? (
           <div className="glass-55 mx-4 flex flex-col items-start gap-3 rounded-[27px] p-7 sm:mx-5 lg:mx-6.5">
-            <h2 className="text-title">Start with the links you already have</h2>
+            <h2 className="text-title">{t("Start with the links you already have")}</h2>
             <p className="max-w-[440px] text-lead text-ink/55">
-              Import your browser bookmarks or your Telegram saved messages. Dead links get
-              stripped out and the rest come back grouped by what you actually care about.
+              {t("Import your browser bookmarks or your Telegram saved messages. Dead links get stripped out and the rest come back grouped by what you actually care about.")}
             </p>
             <a
               href="/start"
               className="flex h-11 items-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink"
             >
-              Import my links
+              {t("Import my links")}
             </a>
           </div>
         ) : (
@@ -113,14 +114,14 @@ export default function LibraryPage() {
             {unsorted > 0 && !query && (
               <div className="glass-55 mx-4 mb-2 flex items-center gap-3 rounded-[22px] py-2.5 pl-5 pr-2.5 sm:mx-5 lg:mx-6.5">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-body font-semibold text-ink">{linkCount(unsorted)} in Unsorted</span>
-                  <span className="block text-meta text-ink/55">Sort them in about a minute</span>
+                  <span className="block text-body font-semibold text-ink">{t("{links} in Unsorted", { links: linkCount(unsorted, t) })}</span>
+                  <span className="block text-meta text-ink/55">{t("Sort them in about a minute")}</span>
                 </span>
                 <Link
                   href="/triage"
                   className="flex h-11 flex-none items-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink"
                 >
-                  Sort
+                  {t("Sort")}
                 </Link>
               </div>
             )}

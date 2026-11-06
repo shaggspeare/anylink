@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { swipeDirection } from "@/lib/geometry";
 import { Icon } from "@/components/icon";
+import { useT } from "@/i18n/client";
 
 function TabIcon({ d }: { d: string }) {
   return (
@@ -44,6 +45,7 @@ export function BottomTabBar() {
   const { openAddLink, openPalette, closePalette, setMenuOpen, menuOpen, addLinkOpen, paletteOpen } = useLibrary();
   const [hidden, setHidden] = useState(false);
   const [list, toggleList] = useListView();
+  const t = useT();
   const inCollections = menuOpen || pathname.startsWith("/collections") || pathname === "/trash";
 
   // Phone gestures: swipe left/right steps to the next/previous tab — Links, Collections,
@@ -60,15 +62,15 @@ export function BottomTabBar() {
     if (window.matchMedia("(min-width: 1024px)").matches) return;
     let start: { x: number; y: number } | null = null;
     const onStart = (e: TouchEvent) => {
-      const t = e.touches[0];
+      const touch = e.touches[0];
       // A swipe from the very edge is the browser's Back gesture, not ours.
-      const edge = t.clientX < 24 || t.clientX > window.innerWidth - 24;
-      start = e.touches.length === 1 && !edge && !inHorizontalScroller(e.target) ? { x: t.clientX, y: t.clientY } : null;
+      const edge = touch.clientX < 24 || touch.clientX > window.innerWidth - 24;
+      start = e.touches.length === 1 && !edge && !inHorizontalScroller(e.target) ? { x: touch.clientX, y: touch.clientY } : null;
     };
     const onEnd = (e: TouchEvent) => {
       if (!start) return;
-      const t = e.changedTouches[0];
-      const dir = swipeDirection(t.clientX - start.x, t.clientY - start.y);
+      const touch = e.changedTouches[0];
+      const dir = swipeDirection(touch.clientX - start.x, touch.clientY - start.y);
       start = null;
       if (!dir || addLinkOpen) return;
       const next = current + (dir === "left" ? 1 : -1);
@@ -113,23 +115,23 @@ export function BottomTabBar() {
         <Link href="/app" className={itemClass(pathname === "/app" && !menuOpen)} aria-current={pathname === "/app" ? "page" : undefined}>
           {/* A chain, not a grid — the grid glyph belongs to the layout tab beside it. */}
           <TabIcon d="M9.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
-          <span className={label}>Links</span>
+          <span className={label}>{t("Links")}</span>
         </Link>
         {/* Library only, phone widths: the tab names the layout a tap switches to. */}
         {pathname === "/app" && (
           <button type="button" onClick={toggleList} className={`${itemClass(false)} sm:hidden`} aria-pressed={list}>
             <Icon name={list ? "grid" : "list"} size={21} strokeWidth={2.4} />
-            <span className={label}>{list ? "Grid" : "List"}</span>
+            <span className={label}>{list ? t("Grid") : t("List")}</span>
           </button>
         )}
         {/* Collections live in the drawer — this tab is the way in. */}
         <button type="button" onClick={() => setMenuOpen(true)} className={itemClass(inCollections)}>
           <TabIcon d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <span className={label}>Collections</span>
+          <span className={label}>{t("Collections")}</span>
         </button>
         <button type="button" onClick={openPalette} className={itemClass(paletteOpen)}>
           <TabIcon d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16ZM21 21l-4.3-4.3" />
-          <span className={label}>Search</span>
+          <span className={label}>{t("Search")}</span>
         </button>
       </div>
       {/* The primary action floats on its own glass bubble, accent-tinted, like iOS 26's
@@ -139,7 +141,7 @@ export function BottomTabBar() {
         onClick={() => openAddLink()}
         className="flex h-14 w-14 flex-none items-center justify-center rounded-full bg-signal text-doc-shell transition-transform duration-200 active:scale-90"
         style={{ ...GLASS, background: undefined }}
-        aria-label="Add a link"
+        aria-label={t("Add a link")}
       >
         <TabIcon d="M12 5v14M5 12h14" />
       </button>

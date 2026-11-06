@@ -11,6 +11,7 @@ import { FILTERS } from "@/components/sidebar";
 import { Logo } from "@/components/logo";
 import type { Breakpoints } from "@/lib/geometry";
 import { DEMO_COLLECTIONS, DEMO_LINKS } from "@/lib/demo-library";
+import { useT } from "@/i18n/client";
 
 /** Landing-page copy of the library: the real mosaic on a demo store, so drag, resize
  *  and favorite all work but nothing leaves the browser. A guest sees their own guest
@@ -43,6 +44,7 @@ const ORBS = [
 
 function DemoWindow() {
   const { links, collections, reorderLinks } = useLibrary();
+  const t = useT();
   // "all", a collection id, or a sidebar filter query — the same shapes the real app routes on.
   const [view, setView] = useState("all");
   const [search, setSearch] = useState("");
@@ -56,10 +58,11 @@ function DemoWindow() {
   const visible = sortLinks(searchLinks(inView, search), "manual");
   const filters = FILTERS.map((f) => ({ ...f, count: searchLinks(links, f.query).length })).filter((f) => f.count > 0);
   const title =
-    collections.find((c) => c.id === view)?.name ?? FILTERS.find((f) => f.query === view)?.label ?? "All links";
+    collections.find((c) => c.id === view)?.name ??
+    t(FILTERS.find((f) => f.query === view)?.label ?? "All links");
   // A guest's Unsorted shows up once they've saved something into it.
   const views = [
-    { id: "all", name: "All links", color: "var(--ink)", icon: undefined, count: links.length },
+    { id: "all", name: t("All links"), color: "var(--ink)", icon: undefined, count: links.length },
     ...collections.map((c) => ({ ...c, count: links.filter((l) => l.collectionId === c.id).length })),
   ].filter((c) => !("isInbox" in c && c.isInbox && c.count === 0));
 
@@ -94,35 +97,35 @@ function DemoWindow() {
         </div>
         <span className="win-live">
           <i aria-hidden />
-          Live demo — try it
+          {t("Live demo — try it")}
         </span>
       </div>
       <div className="ui">
         {ORBS.map((o, i) => (
           <span key={i} className="ui-orb" style={o} aria-hidden />
         ))}
-        <aside className="sb" aria-label="Collections">
+        <aside className="sb" aria-label={t("Collections")}>
           <div className="sb-brand">
             <Logo className="h-9 w-9" />
             AnyLink
           </div>
-          <nav className="sb-nav" aria-label="Library">
+          <nav className="sb-nav" aria-label={t("Library")}>
             {views.map((c) => row(c.id, c.name, c.count, <CollectionMarker color={c.color} icon={c.icon} />))}
           </nav>
-          <div className="sb-eb">Filters</div>
+          <div className="sb-eb">{t("Filters")}</div>
           <div className="sb-nav" style={{ marginTop: 0 }}>
-            {filters.map((f) => row(f.query, f.label, f.count))}
+            {filters.map((f) => row(f.query, t(f.label), f.count))}
           </div>
           <div className="sb-hint">
             <span className="kbd">⌘</span>
             <span className="kbd">V</span>
-            <span>pastes a link, anywhere</span>
+            <span>{t("pastes a link, anywhere")}</span>
           </div>
         </aside>
         <div className="main">
           <div className="mh">
             <h3>{title}</h3>
-            <span className="cnt">{linkCount(visible.length)}</span>
+            <span className="cnt">{linkCount(visible.length, t)}</span>
             <label className="mh-search">
               <svg className="ic" viewBox="0 0 24 24" aria-hidden>
                 <circle cx="11" cy="11" r="6.5" />
@@ -132,11 +135,11 @@ function DemoWindow() {
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search anything…"
-                aria-label="Search the demo library"
+                placeholder={t("Search anything…")}
+                aria-label={t("Search the demo library")}
               />
               {search && (
-                <button type="button" className="s-x" aria-label="Clear search" onClick={() => setSearch("")}>
+                <button type="button" className="s-x" aria-label={t("Clear search")} onClick={() => setSearch("")}>
                   <svg className="ic" viewBox="0 0 24 24" aria-hidden>
                     <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
                   </svg>
@@ -144,7 +147,7 @@ function DemoWindow() {
               )}
             </label>
             <a className="mh-add" href="/app">
-              + Add
+              + {t("Add")}
             </a>
           </div>
           {/* Phones get no sidebar — the same views as a swipeable chip row. */}

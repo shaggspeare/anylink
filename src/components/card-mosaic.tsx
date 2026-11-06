@@ -4,6 +4,7 @@ import { useColumnCount, type Breakpoints } from "@/lib/geometry";
 import { useDragReorder } from "@/lib/use-drag-reorder";
 import { Card } from "./card";
 import type { LinkItem } from "@/lib/types";
+import { useT } from "@/i18n/client";
 
 /** Native drag type for a card, so a sidebar collection can accept it as a move. */
 export const LINK_DRAG_TYPE = "application/x-anylink-link";
@@ -38,6 +39,7 @@ export function CardMosaic({
   breakpoints?: Breakpoints;
 }) {
   const columnCount = useColumnCount(reservedPx, breakpoints);
+  const t = useT();
   // Phones get a two-up grid of small uniform tiles instead of one full-width card per row.
   const tile = columnCount === 1;
   const row = tile && list;
@@ -60,9 +62,9 @@ export function CardMosaic({
             <path d="M14.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
           </svg>
         </div>
-        <div className="text-title">Nothing here yet</div>
+        <div className="text-title">{t("Nothing here yet")}</div>
         <div className="max-w-[320px] text-body text-ink/55">
-          Paste a URL to save your first link into this collection.
+          {t("Paste a URL to save your first link into this collection.")}
         </div>
       </div>
     );

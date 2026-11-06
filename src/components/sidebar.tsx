@@ -18,6 +18,8 @@ import { LINK_DRAG_TYPE } from "./card-mosaic";
 import { suggestThemes } from "@/lib/organize";
 import type { Collection } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useT } from "@/i18n/client";
+import { msg } from "@/i18n/translate";
 
 export const SWATCHES = [
   "#ff5a1f", "#e0855a", "#ffc23d", "#d6f24b", "#3cc6a0",
@@ -32,18 +34,18 @@ export const COLLECTION_ICONS = [
 /** Candidate filters, in sidebar order. Each is just a query string — one that
  * matches nothing is never rendered, so the list always mirrors the library. */
 export const FILTERS: { label: string; query: string }[] = [
-  { label: "Favorites", query: "is:favorite" },
-  { label: "Articles", query: "type:article" },
-  { label: "Videos", query: "type:video" },
-  { label: "Products", query: "type:product" },
-  { label: "Recipes", query: "type:recipe" },
-  { label: "Notes", query: "type:note" },
-  { label: "Images", query: "type:image" },
-  { label: "With a note", query: "is:noted" },
-  { label: "Untagged", query: "is:untagged" },
-  { label: "Duplicates", query: "is:duplicate" },
-  { label: "Broken links", query: "is:broken" },
-  { label: "Archived", query: "is:archived" },
+  { label: msg("Favorites"), query: "is:favorite" },
+  { label: msg("Articles"), query: "type:article" },
+  { label: msg("Videos"), query: "type:video" },
+  { label: msg("Products"), query: "type:product" },
+  { label: msg("Recipes"), query: "type:recipe" },
+  { label: msg("Notes"), query: "type:note" },
+  { label: msg("Images"), query: "type:image" },
+  { label: msg("With a note"), query: "is:noted" },
+  { label: msg("Untagged"), query: "is:untagged" },
+  { label: msg("Duplicates"), query: "is:duplicate" },
+  { label: msg("Broken links"), query: "is:broken" },
+  { label: msg("Archived"), query: "is:archived" },
 ];
 
 const MAX_SIDEBAR_TAGS = 12;
@@ -93,6 +95,7 @@ export function Sidebar() {
   const activeQuery = useSearchParams().get("q") ?? "";
   const [creating, setCreating] = useState(false);
   const [dismissedThemes, dismissTheme] = useDismissedThemes();
+  const t = useT();
 
   const isAllActive = pathname === "/app" && !activeQuery;
 
@@ -107,7 +110,7 @@ export function Sidebar() {
   const filterDrag = useDragReorder(customFilters.map((c) => c.id), reorderCollections);
 
   const themes = useMemo(
-    () => suggestThemes(links, collections).filter((t) => !dismissedThemes.includes(t.name)),
+    () => suggestThemes(links, collections).filter((th) => !dismissedThemes.includes(th.name)),
     [links, collections, dismissedThemes]
   );
 
@@ -136,7 +139,7 @@ export function Sidebar() {
     {menuOpen && (
       <button
         type="button"
-        aria-label="Close menu"
+        aria-label={t("Close menu")}
         onClick={() => setMenuOpen(false)}
         className="fixed inset-0 z-40 bg-ink/25 lg:hidden"
       />
@@ -161,7 +164,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => setMenuOpen(false)}
-          aria-label="Close menu"
+          aria-label={t("Close menu")}
           className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full text-ink/60 lg:hidden"
         >
           <Icon name="close" size={14} />
@@ -175,7 +178,7 @@ export function Sidebar() {
           style={{ background: isAllActive ? "rgb(var(--ink-rgb) / .06)" : "transparent" }}
         >
           <RowMarker color="var(--ink)" />
-          <span className="flex-1 truncate">All links</span>
+          <span className="flex-1 truncate">{t("All links")}</span>
           <span className="text-meta text-ink/45">{countForCollection(ALL_COLLECTION_ID)}</span>
         </Link>
         {inbox && (
@@ -215,7 +218,7 @@ export function Sidebar() {
             className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
           >
             <RowIcon name="plus" />
-            New collection
+            {t("New collection")}
           </button>
         )}
         {/* A full page load: /start imports, checks and re-groups, so the library it
@@ -226,16 +229,16 @@ export function Sidebar() {
           className="flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-body text-ink/50 hover:bg-ink/6 hover:text-ink"
         >
           <RowIcon name="arrow-down" />
-          Import links
+          {t("Import links")}
         </a>
 
         {filters.length > 0 && (
           <div data-tour="filters">
-            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Filters</div>
+            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">{t("Filters")}</div>
             {filters.map((f) => (
               <FilterRow
                 key={f.query}
-                label={f.label}
+                label={t(f.label)}
                 query={f.query}
                 count={f.count}
                 active={activeQuery === f.query}
@@ -246,7 +249,7 @@ export function Sidebar() {
 
         {customFilters.length > 0 && (
           <div data-tour="custom-filters" {...filterDrag.zone}>
-            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Custom filters</div>
+            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">{t("Custom filters")}</div>
             {filterDrag.order.flatMap((id) => {
               const c = byId.get(id);
               if (!c) return [];
@@ -266,7 +269,7 @@ export function Sidebar() {
 
         {themes.length > 0 && (
           <div data-tour="themes">
-            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">Suggested collections</div>
+            <div className="mt-4 px-3 py-1.5 text-eyebrow text-ink/40">{t("Suggested collections")}</div>
             {themes.map((theme) => (
               <div
                 key={theme.query}
@@ -277,15 +280,15 @@ export function Sidebar() {
                 <button
                   type="button"
                   onClick={() => saveSmartCollection(theme.query, theme.name)}
-                  title={`Collect the ${theme.count} links tagged ${theme.query}`}
+                  title={t("Collect the {count} links tagged {query}", { count: theme.count, query: theme.query })}
                   className="hidden rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold text-on-ink group-hover:block"
                 >
-                  Create
+                  {t("Create")}
                 </button>
                 <button
                   type="button"
                   onClick={() => dismissTheme(theme.name)}
-                  aria-label={`Dismiss ${theme.name}`}
+                  aria-label={t("Dismiss {name}", { name: theme.name })}
                   className="hidden h-5 w-5 flex-none items-center justify-center rounded-full text-ink/40 hover:bg-surface hover:text-ink group-hover:flex"
                 >
                   <Icon name="close" size={10} />
@@ -313,7 +316,7 @@ export function Sidebar() {
               >
                 <path d="m9 5 7 7-7 7" />
               </svg>
-              Tags
+              {t("Tags")}
               <span className="ml-auto normal-case tracking-normal">{tags.length}</span>
             </summary>
             {tags.map(([tag, count]) => (
@@ -336,7 +339,7 @@ export function Sidebar() {
             style={{ background: pathname === "/trash" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
           >
             <RowIcon name="trash" />
-            <span className="flex-1 truncate">Trash</span>
+            <span className="flex-1 truncate">{t("Trash")}</span>
             <span className="text-meta text-ink/45">{trashed.length}</span>
           </Link>
         )}
@@ -347,7 +350,7 @@ export function Sidebar() {
         <CleanUpCollectionsButton onRun={deleteEmptyCollections} />
         <TourButton className={`${QUIET_ROW} w-full`}>
           <RowIcon name="play" />
-          Guided tour
+          {t("Guided tour")}
         </TourButton>
         <Link
           href="/settings"
@@ -355,17 +358,17 @@ export function Sidebar() {
           style={{ background: pathname === "/settings" ? "rgb(var(--ink-rgb) / .06)" : undefined }}
         >
           <RowIcon name="sliders" />
-          Settings
+          {t("Settings")}
         </Link>
         {guest ? (
           <button type="button" onClick={openSignUp} className={`${QUIET_ROW} w-full`}>
             <RowIcon name="user" />
-            Sign in
+            {t("Sign in")}
           </button>
         ) : (
           <button type="button" onClick={signOut} className={`${QUIET_ROW} w-full`}>
             <RowIcon name="logout" />
-            Sign out
+            {t("Sign out")}
           </button>
         )}
       </div>
@@ -419,6 +422,7 @@ function FilterRow({
 
 function CleanUpCollectionsButton({ onRun }: { onRun: () => Promise<number> }) {
   const [removed, setRemoved] = useState<number | null>(null);
+  const t = useT();
 
   return (
     <button
@@ -428,7 +432,7 @@ function CleanUpCollectionsButton({ onRun }: { onRun: () => Promise<number> }) {
       className={QUIET_ROW}
     >
       <RowIcon name="folder-minus" />
-      {removed === null ? "Delete empty collections" : `Removed ${removed}`}
+      {removed === null ? t("Delete empty collections") : t("Removed {count}", { count: removed })}
     </button>
   );
 }
@@ -444,6 +448,7 @@ function NewCollectionForm({
   const [color, setColor] = useState(SWATCHES[0]);
   const [icon, setIcon] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const t = useT();
 
   const submit = async () => {
     if (!name.trim() || saving) return;
@@ -464,7 +469,7 @@ function NewCollectionForm({
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onCancel()}
-        placeholder="Collection name"
+        placeholder={t("Collection name")}
         className="h-8 rounded-[10px] border border-ink/10 bg-surface px-2.5 text-[12.5px] text-ink outline-none"
       />
       <div className="grid grid-cols-5 justify-items-center gap-y-2 py-1">
@@ -473,7 +478,7 @@ function NewCollectionForm({
             key={s}
             type="button"
             onClick={() => setColor(s)}
-            aria-label={`Colour ${s}`}
+            aria-label={t("Colour {color}", { color: s })}
             aria-pressed={s === color}
             className="h-5 w-5 rounded-full"
             style={{
@@ -489,7 +494,7 @@ function NewCollectionForm({
             key={i ?? "none"}
             type="button"
             onClick={() => setIcon(i)}
-            aria-label={i ? `Icon ${i}` : "No icon"}
+            aria-label={i ? t("Icon {icon}", { icon: i }) : t("No icon")}
             aria-pressed={i === icon}
             className={`flex h-8 items-center justify-center rounded-[10px] text-[16px] ${
               i === icon ? "bg-surface shadow-[0_0_0_1.5px_var(--ink)]" : "hover:bg-ink/6"
@@ -502,14 +507,14 @@ function NewCollectionForm({
       <div className="flex items-center px-0.5">
         <div className="ml-auto flex items-center gap-1.5">
           <button type="button" onClick={onCancel} className="rounded-full px-2.5 py-1 text-[11.5px] text-ink/50 hover:text-ink">
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="submit"
             disabled={!name.trim() || saving}
             className="rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-on-ink disabled:opacity-50"
           >
-            Add
+            {t("Add")}
           </button>
         </div>
       </div>
@@ -540,6 +545,7 @@ function CollectionRow({
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(collection.name);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const submitRename = () => {
     const trimmed = name.trim();
@@ -553,7 +559,7 @@ function CollectionRow({
       await deleteCollection(collection.id, true);
       if (pathname === `/collections/${collection.id}`) router.push("/app");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete this collection.");
+      setError(err instanceof Error ? err.message : t("Couldn't delete this collection."));
     }
   };
 
@@ -615,9 +621,9 @@ function CollectionRow({
         <RowMarker color={collection.color} icon={collection.icon} />
         <span className="flex-1 truncate">{collection.name}</span>
         {collection.shareToken && (
-          <span title="Shared" className="text-ink/45">
+          <span title={t("Shared")} className="text-ink/45">
             <Icon name="link" size={12} />
-            <span className="sr-only">Shared</span>
+            <span className="sr-only">{t("Shared")}</span>
           </span>
         )}
         <span className="text-meta text-ink/45 group-hover:hidden">{count}</span>
@@ -630,7 +636,7 @@ function CollectionRow({
               e.preventDefault();
               setRenaming(true);
             }}
-            aria-label="Rename"
+            aria-label={t("Rename")}
             className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
             <Icon name="pencil" size={12} />
@@ -641,8 +647,8 @@ function CollectionRow({
               e.preventDefault();
               handleDelete();
             }}
-            aria-label="Delete"
-            title={collection.isSmart || count === 0 ? "Delete" : `Dissolve — ${linkCount(count)} go back to Unsorted`}
+            aria-label={t("Delete")}
+            title={collection.isSmart || count === 0 ? t("Delete") : t("Dissolve — {links} go back to Unsorted", { links: linkCount(count, t) })}
             className="flex h-6 w-6 items-center justify-center rounded-full text-ink/45 hover:bg-surface hover:text-ink"
           >
             <Icon name="close" size={11} />

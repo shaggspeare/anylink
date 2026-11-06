@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
 import { useLibrary } from "@/lib/store";
+import { useT } from "@/i18n/client";
 import { linkify } from "@/lib/linkify";
 import type { Collection } from "@/lib/types";
 
@@ -16,6 +17,7 @@ type Shared = {
 
 /** Plain text, links clickable once saved — no formatting toolbar on purpose. */
 export function NoteComposer({ initialText = "", collectionId, setCollectionId, onSaved }: Shared & { initialText?: string }) {
+  const t = useT();
   const { addNote, collections, showToast } = useLibrary();
   const [text, setText] = useState(initialText);
   const [saving, setSaving] = useState(false);
@@ -29,7 +31,7 @@ export function NoteComposer({ initialText = "", collectionId, setCollectionId, 
       await addNote(text, collectionId);
       onSaved();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Couldn't save the note.");
+      showToast(err instanceof Error ? err.message : t("Couldn't save the note."));
       setSaving(false);
     }
   };
@@ -52,8 +54,8 @@ export function NoteComposer({ initialText = "", collectionId, setCollectionId, 
               void save();
             }
           }}
-          placeholder={"Write it down.\nLinks you paste stay clickable."}
-          aria-label="Note text"
+          placeholder={t("Write it down.\nLinks you paste stay clickable.")}
+          aria-label={t("Note text")}
           className="block max-h-[46dvh] min-h-[180px] w-full resize-none bg-transparent px-5 pb-4 pt-5 text-[17px] leading-[1.5] tracking-[-.012em] text-ink outline-none [field-sizing:content] placeholder:text-ink/35"
         />
         {found.length > 0 && (
@@ -74,7 +76,7 @@ export function NoteComposer({ initialText = "", collectionId, setCollectionId, 
         setCollectionId={setCollectionId}
         onSave={save}
         canSave={canSave}
-        label={saving ? "Saving…" : "Save note"}
+        label={saving ? t("Saving…") : t("Save note")}
         hint="⌘↵"
       />
     </div>
@@ -83,6 +85,7 @@ export function NoteComposer({ initialText = "", collectionId, setCollectionId, 
 
 /** One image per save. Drop, paste (⌘V while the sheet is open) or pick from disk. */
 export function ImageComposer({ initialFile, collectionId, setCollectionId, onSaved }: Shared & { initialFile?: File }) {
+  const t = useT();
   const { addImage, collections, showToast } = useLibrary();
   const [file, setFile] = useState<File | undefined>(initialFile);
   const [caption, setCaption] = useState("");
@@ -116,7 +119,7 @@ export function ImageComposer({ initialFile, collectionId, setCollectionId, onSa
       await addImage(file, collectionId, caption);
       onSaved();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Couldn't save the image.");
+      showToast(err instanceof Error ? err.message : t("Couldn't save the image."));
       setSaving(false);
     }
   };
@@ -136,14 +139,14 @@ export function ImageComposer({ initialFile, collectionId, setCollectionId, onSa
           <img src={preview} alt="" className="mx-auto block max-h-[42dvh] w-auto max-w-full object-contain" />
           <div className="absolute inset-x-3 bottom-3 flex items-center gap-2">
             <span className="min-w-0 truncate rounded-full bg-black/55 px-3 py-1 text-[11.5px] font-medium text-white backdrop-blur-md">
-              {file.name || "Pasted image"} · {formatBytes(file.size)}
+              {file.name || t("Pasted image")} · {formatBytes(file.size)}
             </span>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
               className="ml-auto flex-none rounded-full bg-black/55 px-3 py-1 text-[11.5px] font-semibold text-white backdrop-blur-md hover:bg-black/70"
             >
-              Replace
+              {t("Replace")}
             </button>
           </div>
         </div>
@@ -169,10 +172,11 @@ export function ImageComposer({ initialFile, collectionId, setCollectionId, onSa
           <span className="flex h-[46px] w-[46px] items-center justify-center rounded-[14px] bg-periwinkle/20 text-periwinkle">
             <Icon name="image" size={22} />
           </span>
-          <span className="text-[18px] font-semibold tracking-[-.035em] text-ink">Drop a screenshot</span>
+          <span className="text-[18px] font-semibold tracking-[-.035em] text-ink">{t("Drop a screenshot")}</span>
           <span className="max-w-[420px] text-[13px] leading-[1.6] text-ink/55">
-            Or paste one with <kbd className="font-sans font-semibold text-ink/75">⌘V</kbd>, or click to choose a file.
-            It&apos;s kept as-is, sized down for the web.
+            {t("Or paste one with {shortcut}, or click to choose a file. It's kept as-is, sized down for the web.")
+              .split("{shortcut}")
+              .flatMap((part, i) => (i ? [<kbd key={i} className="font-sans font-semibold text-ink/75">⌘V</kbd>, part] : [part]))}
           </span>
         </button>
       )}
@@ -181,8 +185,8 @@ export function ImageComposer({ initialFile, collectionId, setCollectionId, onSa
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void save()}
-          placeholder="Caption (optional)"
-          aria-label="Caption"
+          placeholder={t("Caption (optional)")}
+          aria-label={t("Caption")}
           className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-ink outline-none placeholder:text-ink/40"
           style={FIELD_STYLE}
         />
@@ -193,7 +197,7 @@ export function ImageComposer({ initialFile, collectionId, setCollectionId, onSa
         setCollectionId={setCollectionId}
         onSave={save}
         canSave={canSave}
-        label={saving ? "Uploading…" : "Save image"}
+        label={saving ? t("Uploading…") : t("Save image")}
       />
     </div>
   );
@@ -216,6 +220,7 @@ function SaveRow({
   label: string;
   hint?: string;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center gap-2">
       <label className="flex min-w-0 flex-1 items-center gap-2">
@@ -223,7 +228,7 @@ function SaveRow({
         <select
           value={collectionId}
           onChange={(e) => setCollectionId(e.target.value)}
-          aria-label="Collection"
+          aria-label={t("Collection")}
           className="h-[42px] min-w-0 flex-1 rounded-full border px-3.5 text-[13px] text-ink outline-none"
           style={FIELD_STYLE}
         >

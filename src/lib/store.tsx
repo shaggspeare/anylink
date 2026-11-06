@@ -7,11 +7,11 @@ import { searchLinks } from "./search";
 import type { ImportedLink } from "./import/parse";
 import type { Priorities } from "./rank/group-links";
 import type { CardSize, Collection, LinkItem } from "./types";
-import { linkCount } from "./format";
 import { noteTitle } from "./linkify";
 import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
 import { isPro, isProRefusal, proAware, type Plan } from "./plan";
 import { AuthDialog } from "@/components/auth-panel";
+import { useT } from "@/i18n/client";
 import { ProDialog } from "@/components/pro-dialog";
 
 type NewLinkInput = Omit<LinkItem, "id" | "createdAt" | "status" | "archived" | "highlights"> & {
@@ -201,6 +201,7 @@ export function LibraryProvider({
   guest?: boolean;
   email?: string | null;
 }) {
+  const t = useT();
   const [proOpen, setProOpen] = useState(false);
   // Every Pro refusal opens the Pro dialog, whichever call site it came from.
   const api = useMemo(() => proAware(demo || guest ? LOCAL_ACTIONS : actions, () => setProOpen(true)), [demo, guest]);
@@ -279,10 +280,10 @@ export function LibraryProvider({
       }
       setCollections((prev) => [...prev, ...created]);
       setLinks((prev) => [...added, ...prev]);
-      setToast({ message: `Moved ${linkCount(added.length)} into your library`, key: Date.now() });
+      setToast({ message: t("Moved {count} link into your library|Moved {count} links into your library", { count: added.length }), key: Date.now() });
     })().catch(() => {
       if (raw) localStorage.setItem(GUEST_KEY, raw);
-      setToast({ message: "Couldn't move your saved items in. Reload to retry.", key: Date.now() });
+      setToast({ message: t("Couldn't move your saved items in. Reload to retry."), key: Date.now() });
     });
     // Once, on mount: initialCollections is the server's answer for this session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -349,9 +350,11 @@ export function LibraryProvider({
             if (!idSet.has(l.id) || l.collectionId === collectionId) continue;
             from.set(l.collectionId, [...(from.get(l.collectionId) ?? []), l.id]);
           }
-          const name = collections.find((c) => c.id === collectionId)?.name ?? "collection";
+          const name = collections.find((c) => c.id === collectionId)?.name ?? t("collection");
           setToast({
-            message: ids.length > 1 ? `${linkCount(ids.length)} moved to ${name}` : `Moved to ${name}`,
+            message: ids.length > 1
+              ? t("{count} link moved to {name}|{count} links moved to {name}", { count: ids.length, name })
+              : t("Moved to {name}", { name }),
             undo: () => from.forEach((back, prevId) => latest.current.moveLinks(back, prevId)),
             key: Date.now(),
           });
@@ -384,7 +387,7 @@ export function LibraryProvider({
         api.deleteLinks(ids).catch(console.error);
         // Every delete path (tile menu, hover trash, bulk bar) gets the same way back.
         setToast({
-          message: ids.length > 1 ? `${linkCount(ids.length)} moved to Trash` : "Moved to Trash",
+          message: ids.length > 1 ? t("{count} link moved to Trash|{count} links moved to Trash", { count: ids.length }) : t("Moved to Trash"),
           undo: () => latest.current.restoreLinks(ids),
           key: Date.now(),
         });
@@ -407,7 +410,7 @@ export function LibraryProvider({
         if (pinPending.current) return;
         const link = links.find((l) => l.id === id && !l.archived);
         if (!link) return;
-        const limitMessage = "You can pin up to 2 links. Unpin one first.";
+        const limitMessage = t("You can pin up to 2 links. Unpin one first.");
         if (pinned && !link.pinned && links.filter((l) => l.pinned && !l.archived).length >= 2) {
           setToast({ message: limitMessage, key: Date.now() });
           return;
@@ -420,9 +423,9 @@ export function LibraryProvider({
             return;
           }
           setLinks((prev) => prev.map((l) => l.id === id && !l.archived ? { ...l, pinned } : l));
-          setToast({ message: pinned ? "Pinned to top" : "Unpinned", key: Date.now() });
+          setToast({ message: pinned ? t("Pinned to top") : t("Unpinned"), key: Date.now() });
         } catch {
-          setToast({ message: "Couldn't update the pin. Try again.", key: Date.now() });
+          setToast({ message: t("Couldn't update the pin. Try again."), key: Date.now() });
         } finally {
           pinPending.current = false;
         }
@@ -473,8 +476,11 @@ export function LibraryProvider({
         // a soft-deleted collection row would keep its id and slot.
         setToast({
           message: collection.isSmart
-            ? `“${collection.name}” deleted`
-            : `${collection.name} dissolved — ${linkCount(memberIds.length)} back in Unsorted`,
+            ? t("“{name}” deleted", { name: collection.name })
+            : t("{name} dissolved — {count} link back in Unsorted|{name} dissolved — {count} links back in Unsorted", {
+                name: collection.name,
+                count: memberIds.length,
+              }),
           undo: async () => {
             const lib = latest.current;
             if (collection.isSmart) {
@@ -604,11 +610,11 @@ export function LibraryProvider({
     }),
     // guestFull is derived from links/trashed; guestLimitHit only sets state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName, plan]
+    [links, trashed, collections, addLinkOpen, addLinkPrefill, paletteOpen, menuOpen, api, demo, guest, email, displayName, plan, t]
   );
   function guestLimitHit() {
     setSignUpOpen(true);
-    return new Error("Create a free account to save more.");
+    return new Error(t("Create a free account to save more."));
   }
 
   useEffect(() => {
@@ -636,7 +642,7 @@ export function LibraryProvider({
               }}
               className="h-9 flex-none rounded-full px-4 font-semibold text-signal"
             >
-              Undo
+              {t("Undo")}
             </button>
           )}
         </div>

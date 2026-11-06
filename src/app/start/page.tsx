@@ -9,6 +9,9 @@ import { mergeImports, parseImportBytes, parseText, type ImportedLink } from "@/
 import { useLibrary } from "@/lib/store";
 import type { GroupedResult } from "@/lib/db/actions";
 import type { LinkItem } from "@/lib/types";
+import { linkCount } from "@/lib/format";
+import { useT } from "@/i18n/client";
+import { msg } from "@/i18n/translate";
 
 /** Import → dead-link sweep → a few questions → collections. The whole v1 wedge:
  * a user arrives with a pile of links somewhere else and leaves with a library. */
@@ -18,10 +21,10 @@ type DeadLink = { id: string; url: string; title: string; status: number };
 type Verdict = "keep" | "kill";
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: "upload", label: "Import" },
-  { id: "checking", label: "Clean" },
-  { id: "questions", label: "Calibrate" },
-  { id: "results", label: "Collections" },
+  { id: "upload", label: msg("Import") },
+  { id: "checking", label: msg("Clean") },
+  { id: "questions", label: msg("Calibrate") },
+  { id: "results", label: msg("Collections") },
 ];
 
 export default function StartPage() {
@@ -44,6 +47,7 @@ export default function StartPage() {
 }
 
 function Header({ step }: { step: Step }) {
+  const t = useT();
   // "grouping" has no chip of its own — it's the wait before the last one.
   const current = Math.max(0, STEPS.findIndex((s) => s.id === (step === "grouping" ? "results" : step)));
 
@@ -60,7 +64,7 @@ function Header({ step }: { step: Step }) {
               className="h-[3px] rounded-full transition-colors"
               style={{ background: i <= current ? "var(--ink)" : "var(--ink-6)" }}
             />
-            <span className={`text-meta ${i <= current ? "text-ink/60" : "text-ink/25"}`}>{s.label}</span>
+            <span className={`text-meta ${i <= current ? "text-ink/60" : "text-ink/25"}`}>{t(s.label)}</span>
           </div>
         ))}
       </div>
@@ -96,56 +100,57 @@ const SOURCES: { id: SourceId; name: string; blurb: string; where: string; steps
   {
     id: "safari",
     name: "Safari",
-    blurb: "Bookmarks and folders",
-    where: "iPhone or Mac",
+    blurb: msg("Bookmarks and folders"),
+    where: msg("iPhone or Mac"),
     steps: [
-      "iPhone (iOS 18.2+): Settings → Apps → Safari → Export → tick Bookmarks → Save to Downloads.",
-      "Mac: Safari → File → Export Browsing Data to File.",
-      "Choose the “Safari Export” zip as it is — there's nothing to unzip.",
+      msg("iPhone (iOS 18.2+): Settings → Apps → Safari → Export → tick Bookmarks → Save to Downloads."),
+      msg("Mac: Safari → File → Export Browsing Data to File."),
+      msg("Choose the “Safari Export” zip as it is — there's nothing to unzip."),
     ],
-    note: "Only bookmarks are read, and their folders help build your collections. Leave passwords and cards unticked anyway.",
+    note: msg("Only bookmarks are read, and their folders help build your collections. Leave passwords and cards unticked anyway."),
   },
   {
     id: "whatsapp",
     name: "WhatsApp",
-    blurb: "Links from a chat",
-    where: "phone",
-    steps: ["Open the chat → tap its name at the top.", "Export Chat → Without Media.", "Choose the zip (iPhone) or .txt (Android)."],
-    note: "The message around each link is kept as context. In a group chat, links other people sent come in too.",
+    blurb: msg("Links from a chat"),
+    where: msg("phone"),
+    steps: [msg("Open the chat → tap its name at the top."), msg("Export Chat → Without Media."), msg("Choose the zip (iPhone) or .txt (Android).")],
+    note: msg("The message around each link is kept as context. In a group chat, links other people sent come in too."),
   },
   {
     id: "text",
-    name: "Text with links",
-    blurb: "Paste from anywhere",
-    where: "anywhere",
-    steps: ["Copy the text — notes, an email, a list.", "Paste it below."],
-    note: "Only links starting with http or www are picked out. The line each one is on is kept as context.",
+    name: msg("Text with links"),
+    blurb: msg("Paste from anywhere"),
+    where: msg("anywhere"),
+    steps: [msg("Copy the text — notes, an email, a list."), msg("Paste it below.")],
+    note: msg("Only links starting with http or www are picked out. The line each one is on is kept as context."),
   },
   {
     id: "chrome",
     name: "Chrome, Firefox, Edge",
-    blurb: "HTML bookmarks file",
-    where: "computer",
-    steps: ["Open the bookmark manager.", "Export bookmarks → an HTML file.", "Choose that file."],
-    note: "Their phone apps can't export bookmarks — it has to be the computer.",
+    blurb: msg("HTML bookmarks file"),
+    where: msg("computer"),
+    steps: [msg("Open the bookmark manager."), msg("Export bookmarks → an HTML file."), msg("Choose that file.")],
+    note: msg("Their phone apps can't export bookmarks — it has to be the computer."),
   },
   {
     id: "telegram",
     name: "Telegram",
-    blurb: "Saved Messages",
+    blurb: msg("Saved Messages"),
     where: "Telegram Desktop",
     steps: [
-      "Install Telegram Desktop from desktop.telegram.org.",
-      "Saved Messages → ⋮ → Export chat history.",
-      "Untick photos and files, format: Machine-readable JSON.",
-      "Choose result.json.",
+      msg("Install Telegram Desktop from desktop.telegram.org."),
+      msg("Saved Messages → ⋮ → Export chat history."),
+      msg("Untick photos and files, format: Machine-readable JSON."),
+      msg("Choose result.json."),
     ],
-    note: "The phone apps can't export, and neither can the Mac App Store “Telegram” — only Telegram Desktop. A new desktop login waits 24 hours before it can export, unless you approve the request on your phone. Only Saved Messages is read.",
+    note: msg("The phone apps can't export, and neither can the Mac App Store “Telegram” — only Telegram Desktop. A new desktop login waits 24 hours before it can export, unless you approve the request on your phone. Only Saved Messages is read."),
   },
 ];
 
 function Upload({ onDone }: { onDone: () => void }) {
   const { importLinks } = useLibrary();
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState<SourceId | null>(null);
   const [fileItems, setFileItems] = useState<ImportedLink[]>([]);
@@ -165,14 +170,14 @@ function Upload({ onDone }: { onDone: () => void }) {
       );
       const merged = mergeImports(parsed);
       if (merged.length === 0) {
-        setError("No links in that file. Check it's the export the steps describe.");
+        setError(t("No links in that file. Check it's the export the steps describe."));
         return;
       }
       // Sources are picked one at a time, so each file adds to what's there.
       setFileItems((prev) => mergeImports([prev, merged]));
       setOpen(null);
     } catch {
-      setError("Couldn't read that file. Choose the export itself — the zip, HTML, result.json or .txt the steps make.");
+      setError(t("Couldn't read that file. Choose the export itself — the zip, HTML, result.json or .txt the steps make."));
     }
   };
 
@@ -194,7 +199,7 @@ function Upload({ onDone }: { onDone: () => void }) {
       await importLinks(items);
       onDone();
     } catch {
-      setError("The import didn't go through. Nothing was saved — try again.");
+      setError(t("The import didn't go through. Nothing was saved — try again."));
       setBusy(false);
     }
   };
@@ -208,8 +213,8 @@ function Upload({ onDone }: { onDone: () => void }) {
       }}
     >
       <Panel>
-        <Title sub="Pick where your links are. Nothing is uploaded anywhere except your own library.">
-          Bring your links
+        <Title sub={t("Pick where your links are. Nothing is uploaded anywhere except your own library.")}>
+          {t("Bring your links")}
         </Title>
 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
@@ -225,10 +230,10 @@ function Upload({ onDone }: { onDone: () => void }) {
                   open === s.id || n ? "ring-2 ring-ink" : "hover:ring-1 hover:ring-ink/20"
                 }`}
               >
-                <span className="text-meta text-ink/40">{s.where}</span>
+                <span className="text-meta text-ink/40">{t(s.where)}</span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-[15px] font-semibold">{s.name}</span>
-                  <span className="text-meta text-ink/55">{n ? `✓ ${n} links` : s.blurb}</span>
+                  <span className="text-[15px] font-semibold">{t(s.name)}</span>
+                  <span className="text-meta text-ink/55">{n ? `✓ ${linkCount(n, t)}` : t(s.blurb)}</span>
                 </span>
               </button>
             );
@@ -237,25 +242,25 @@ function Upload({ onDone }: { onDone: () => void }) {
 
         {source && (
           <div className="flex flex-col gap-4 rounded-[22px] border border-dashed border-ink/20 px-6 py-6">
-            <div className="text-[15px] font-semibold">{source.name}</div>
+            <div className="text-[15px] font-semibold">{t(source.name)}</div>
             <ol className="flex flex-col gap-2 text-[13.5px] leading-[1.55] text-ink/75">
               {source.steps.map((step, i) => (
                 <li key={step} className="flex gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[11px] font-bold text-on-ink">
                     {i + 1}
                   </span>
-                  {step}
+                  {t(step)}
                 </li>
               ))}
             </ol>
-            <p className="text-[13px] leading-[1.6] text-ink/50">{source.note}</p>
+            <p className="text-[13px] leading-[1.6] text-ink/50">{t(source.note)}</p>
             {source.id === "text" ? (
               <textarea
                 autoFocus
                 value={pasted}
                 onChange={(e) => setPasted(e.target.value)}
                 rows={5}
-                placeholder="https://… one per line, or buried in a paragraph"
+                placeholder={t("https://… one per line, or buried in a paragraph")}
                 className="rounded-[14px] border border-rim/80 bg-surface/70 px-4 py-3 text-body outline-none placeholder:text-ink/30"
               />
             ) : (
@@ -264,7 +269,7 @@ function Upload({ onDone }: { onDone: () => void }) {
                 onClick={() => inputRef.current?.click()}
                 className="self-start rounded-full bg-signal px-5 py-2.5 text-[13px] font-semibold text-on-accent"
               >
-                Choose file…
+                {t("Choose file…")}
               </button>
             )}
           </div>
@@ -285,14 +290,16 @@ function Upload({ onDone }: { onDone: () => void }) {
 
         {items.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-[15px] font-semibold">{items.length} links found</span>
+            <span className="mr-1 text-[15px] font-semibold">
+              {t("{count} link found|{count} links found", { count: items.length })}
+            </span>
             {[...counts.entries()].map(([id, n]) => (
               <span key={id} className="flex items-center gap-1.5 rounded-full bg-ink/6 py-1 pl-3 pr-1.5 text-meta text-ink/60">
-                {n} from {SOURCES.find((s) => s.id === id)?.name ?? id}
+                {t("{count} from {source}", { count: n, source: t(SOURCES.find((s) => s.id === id)?.name ?? id) })}
                 <button
                   type="button"
                   onClick={() => remove(id)}
-                  aria-label={`Remove links from ${SOURCES.find((s) => s.id === id)?.name ?? id}`}
+                  aria-label={t("Remove links from {source}", { source: t(SOURCES.find((s) => s.id === id)?.name ?? id) })}
                   className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-ink/10"
                 >
                   <Icon name="close" size={9} />
@@ -303,7 +310,11 @@ function Upload({ onDone }: { onDone: () => void }) {
         )}
 
         <button type="button" onClick={runImport} disabled={items.length === 0 || busy} className={PRIMARY}>
-          {busy ? "Importing…" : items.length > 0 ? `Import ${items.length} links` : "Pick a source to import"}
+          {busy
+            ? t("Importing…")
+            : items.length > 0
+              ? t("Import {count} link|Import {count} links", { count: items.length })
+              : t("Pick a source to import")}
         </button>
       </Panel>
     </div>
@@ -314,6 +325,7 @@ function Upload({ onDone }: { onDone: () => void }) {
 
 function Checking({ onDone }: { onDone: () => void }) {
   const { deleteLinks, logSignal } = useLibrary();
+  const t = useT();
   const started = useRef(false);
   const [done, setDone] = useState(0);
   const [remaining, setRemaining] = useState(0);
@@ -379,13 +391,13 @@ function Checking({ onDone }: { onDone: () => void }) {
 
   return (
     <Panel>
-      <Title sub="Every link gets a request. Anything that 404s, times out or has turned into a parked domain is flagged.">
-        Checking what still exists
+      <Title sub={t("Every link gets a request. Anything that 404s, times out or has turned into a parked domain is flagged.")}>
+        {t("Checking what still exists")}
       </Title>
 
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center gap-3">
-          <span className="text-[15px] font-semibold">{finished ? "Done" : "Checking…"}</span>
+          <span className="text-[15px] font-semibold">{finished ? t("Done") : t("Checking…")}</span>
           <span className="ml-auto font-mono text-[13px] font-semibold tabular-nums text-ink/60">
             {done}/{total || "…"}
           </span>
@@ -403,13 +415,13 @@ function Checking({ onDone }: { onDone: () => void }) {
           {dead.slice(0, 40).map((link) => (
             <div key={link.id} className="flex items-center gap-2.5 text-[12.5px]">
               <span className="font-mono text-[11px] text-signal">
-                {link.status === 0 ? "gone" : link.status === 1 ? "parked" : link.status}
+                {link.status === 0 ? t("gone") : link.status === 1 ? t("parked") : link.status}
               </span>
               <span className="truncate text-ink/55">{link.title}</span>
             </div>
           ))}
           {dead.length > 40 && (
-            <span className="text-meta text-ink/45">and {dead.length - 40} more</span>
+            <span className="text-meta text-ink/45">{t("and {count} more", { count: dead.length - 40 })}</span>
           )}
         </div>
       )}
@@ -418,12 +430,15 @@ function Checking({ onDone }: { onDone: () => void }) {
         <div className="flex flex-col gap-3">
           <p className="text-lead text-ink/60">
             {dead.length === 0
-              ? "Every link answered. Nothing to clean up."
-              : `${dead.length} of ${total} are dead. They go to Trash, not the void — restore any of them later.`}
+              ? t("Every link answered. Nothing to clean up.")
+              : t(
+                  "{count} of {total} is dead. It goes to Trash, not the void — restore it later.|{count} of {total} are dead. They go to Trash, not the void — restore any of them later.",
+                  { count: dead.length, total },
+                )}
           </p>
           <div className="flex flex-wrap gap-2.5">
             <button type="button" onClick={dead.length > 0 ? removeDead : onDone} className={PRIMARY}>
-              {dead.length > 0 ? `Remove ${dead.length} dead links` : "Next"}
+              {dead.length > 0 ? t("Remove {count} dead link|Remove {count} dead links", { count: dead.length }) : t("Next")}
             </button>
             {dead.length > 0 && (
               <button
@@ -431,7 +446,7 @@ function Checking({ onDone }: { onDone: () => void }) {
                 onClick={onDone}
                 className="flex h-12 items-center rounded-full bg-ink/6 px-5 text-body font-semibold text-ink/60"
               >
-                Keep them for now
+                {t("Keep them for now")}
               </button>
             )}
           </div>
@@ -449,6 +464,7 @@ let pendingPriorities: import("@/lib/rank/group-links").Priorities | null = null
 
 function Questions({ onDone }: { onDone: () => void }) {
   const { links, deleteLinks, logSignal } = useLibrary();
+  const t = useT();
   const [focus, setFocus] = useState("");
   const [avoid, setAvoid] = useState("");
   const [topics, setTopics] = useState<string[]>([]);
@@ -479,23 +495,23 @@ function Questions({ onDone }: { onDone: () => void }) {
 
   return (
     <Panel>
-      <Title sub="Four quick answers. This is what your collections get built against — not a profile, just what matters this month.">
-        What are you keeping links for?
+      <Title sub={t("Four quick answers. This is what your collections get built against — not a profile, just what matters this month.")}>
+        {t("What are you keeping links for?")}
       </Title>
 
       <label className="flex flex-col gap-2">
-        <span className="text-eyebrow text-ink/50">What are you working on right now?</span>
+        <span className="text-eyebrow text-ink/50">{t("What are you working on right now?")}</span>
         <input
           value={focus}
           onChange={(e) => setFocus(e.target.value)}
-          placeholder="Rewriting the onboarding, learning Rust, planning a kitchen…"
+          placeholder={t("Rewriting the onboarding, learning Rust, planning a kitchen…")}
           className="h-[46px] rounded-[14px] border border-rim/80 bg-surface/70 px-4 text-body outline-none placeholder:text-ink/30"
         />
       </label>
 
       {suggested.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-eyebrow text-ink/50">Which of these still interest you?</span>
+          <span className="text-eyebrow text-ink/50">{t("Which of these still interest you?")}</span>
           <div className="flex flex-wrap gap-2">
             {suggested.map((topic) => {
               const on = topics.includes(topic);
@@ -504,7 +520,7 @@ function Questions({ onDone }: { onDone: () => void }) {
                   key={topic}
                   type="button"
                   onClick={() =>
-                    setTopics((prev) => (on ? prev.filter((t) => t !== topic) : [...prev, topic]))
+                    setTopics((prev) => (on ? prev.filter((x) => x !== topic) : [...prev, topic]))
                   }
                   className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
                     on ? "bg-ink text-on-ink" : "bg-ink/6 text-ink/60"
@@ -520,7 +536,9 @@ function Questions({ onDone }: { onDone: () => void }) {
 
       {sample.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-eyebrow text-ink/50">Keep or bin? ({Object.keys(verdicts).length}/{sample.length})</span>
+          <span className="text-eyebrow text-ink/50">
+            {t("Keep or bin? ({done}/{total})", { done: Object.keys(verdicts).length, total: sample.length })}
+          </span>
           <div className="flex flex-col gap-1.5">
             {sample.map((link) => (
               <div key={link.id} className="flex items-center gap-3 rounded-[14px] bg-surface/60 px-3.5 py-2.5">
@@ -541,7 +559,7 @@ function Questions({ onDone }: { onDone: () => void }) {
                         : "bg-ink/6 text-ink/50"
                     }`}
                   >
-                    {verdict === "keep" ? "Keep" : "Bin"}
+                    {verdict === "keep" ? t("Keep") : t("Bin")}
                   </button>
                 ))}
               </div>
@@ -551,17 +569,17 @@ function Questions({ onDone }: { onDone: () => void }) {
       )}
 
       <label className="flex flex-col gap-2">
-        <span className="text-eyebrow text-ink/50">{"Anything you'd rather never see again?"}</span>
+        <span className="text-eyebrow text-ink/50">{t("Anything you'd rather never see again?")}</span>
         <input
           value={avoid}
           onChange={(e) => setAvoid(e.target.value)}
-          placeholder="Old job stuff, crypto, recipes I'll never cook…"
+          placeholder={t("Old job stuff, crypto, recipes I'll never cook…")}
           className="h-[46px] rounded-[14px] border border-rim/80 bg-surface/70 px-4 text-body outline-none placeholder:text-ink/30"
         />
       </label>
 
       <button type="button" onClick={submit} className={PRIMARY}>
-        Build my collections
+        {t("Build my collections")}
       </button>
     </Panel>
   );
@@ -604,6 +622,7 @@ function sampleLinks(links: LinkItem[], count: number): LinkItem[] {
 
 function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }) {
   const { groupInbox, moveLinks, deleteCollection, logSignal, inbox } = useLibrary();
+  const t = useT();
   const started = useRef(false);
   const [results, setResults] = useState<GroupedResult[]>([]);
   const [verdicts, setVerdicts] = useState<Record<string, "up" | "down">>({});
@@ -648,8 +667,8 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
   if (grouping) {
     return (
       <Panel>
-        <Title sub="Reading every title against what you just told us. About twenty seconds.">
-          Building your collections
+        <Title sub={t("Reading every title against what you just told us. About twenty seconds.")}>
+          {t("Building your collections")}
         </Title>
         <div className="h-[5px] overflow-hidden rounded-full bg-ink/6">
           <div className="h-full w-1/3 animate-pulse rounded-full bg-signal" />
@@ -664,11 +683,11 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
         <Title
           sub={
             failed || results.length === 0
-              ? "Nothing to group — everything is either filed already or in the trash."
-              : "Each one says why it exists. Bin the ones that miss; those links go back to Unsorted and the choice is remembered."
+              ? t("Nothing to group — everything is either filed already or in the trash.")
+              : t("Each one says why it exists. Bin the ones that miss; those links go back to Unsorted and the choice is remembered.")
           }
         >
-          {results.length > 0 ? `${results.length} collections` : "All done"}
+          {results.length > 0 ? t("{count} collection|{count} collections", { count: results.length }) : t("All done")}
         </Title>
 
         <div className="flex flex-col gap-2.5">
@@ -681,12 +700,12 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
               <div className="flex items-center gap-2.5">
                 <CollectionMarker color={result.collection.color} />
                 <span className="text-[15px] font-semibold">{result.collection.name}</span>
-                <span className="text-meta text-ink/45">{result.linkIds.length} links</span>
+                <span className="text-meta text-ink/45">{linkCount(result.linkIds.length, t)}</span>
                 <div className="ml-auto flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => accept(result)}
-                    aria-label={`Keep ${result.collection.name}`}
+                    aria-label={t("Keep {name}", { name: result.collection.name })}
                     className={`flex h-8 w-8 items-center justify-center rounded-full text-[13px] ${
                       verdicts[result.collection.id] === "up" ? "bg-lime" : "bg-ink/6 text-ink/50"
                     }`}
@@ -696,7 +715,7 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
                   <button
                     type="button"
                     onClick={() => reject(result)}
-                    aria-label={`Bin ${result.collection.name}`}
+                    aria-label={t("Bin {name}", { name: result.collection.name })}
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-ink/6 text-[13px] text-ink/50"
                   >
                     <Icon name="close" size={12} />
@@ -714,7 +733,7 @@ function Results({ grouping, onDone }: { grouping: boolean; onDone: () => void }
             soft navigation would keep showing pre-check link health. Reloading re-reads
             every link from Postgres, which is the cheapest way to end up consistent. */}
         <a href="/app" className={PRIMARY}>
-          Open my library
+          {t("Open my library")}
         </a>
       </Panel>
     </>

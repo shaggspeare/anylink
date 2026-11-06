@@ -3,6 +3,7 @@
 import { Icon } from "@/components/icon";
 import { useState } from "react";
 import type { Collection } from "@/lib/types";
+import { useT } from "@/i18n/client";
 
 export function BulkActionBar({
   count,
@@ -26,6 +27,7 @@ export function BulkActionBar({
 }) {
   const [tagOpen, setTagOpen] = useState(false);
   const [tagValue, setTagValue] = useState("");
+  const t = useT();
 
   if (count === 0) return null;
 
@@ -36,7 +38,7 @@ export function BulkActionBar({
         style={{ background: "#17181b", boxShadow: "var(--shadow-window)" }}
       >
         <span className="flex h-8 items-center rounded-full bg-white/10 px-3 text-[12.5px] font-semibold">
-          {count} selected
+          {t("{count} selected|{count} selected", { count })}
         </span>
 
         <select
@@ -48,7 +50,7 @@ export function BulkActionBar({
           className="h-8 rounded-full bg-white/10 px-3 text-[12.5px] font-medium outline-none"
         >
           <option value="" disabled>
-            Move to…
+            {t("Move to…")}
           </option>
           {/* Custom filters aren't places links can live in, so they're not move targets. */}
           {collections
@@ -76,12 +78,12 @@ export function BulkActionBar({
               value={tagValue}
               onChange={(e) => setTagValue(e.target.value)}
               onBlur={() => setTagOpen(false)}
-              placeholder="tag name"
+              placeholder={t("tag name")}
               className="h-8 w-28 rounded-full bg-white/10 px-3 text-[12.5px] outline-none placeholder:text-white/40"
             />
             <datalist id="library-tags">
-              {tags.map((t) => (
-                <option key={t} value={t} />
+              {tags.map((tag) => (
+                <option key={tag} value={tag} />
               ))}
             </datalist>
           </form>
@@ -91,7 +93,7 @@ export function BulkActionBar({
             onClick={() => setTagOpen(true)}
             className="h-8 rounded-full bg-white/10 px-3 text-[12.5px] font-medium hover:bg-white/15"
           >
-            Tag
+            {t("Tag")}
           </button>
         )}
 
@@ -100,23 +102,23 @@ export function BulkActionBar({
           onClick={onArchive}
           className="h-8 rounded-full bg-white/10 px-3 text-[12.5px] font-medium hover:bg-white/15"
         >
-          Archive
+          {t("Archive")}
         </button>
         <button
           type="button"
           onClick={() => {
-            if (window.confirm(`Delete ${count} link${count > 1 ? "s" : ""}?`)) onDelete();
+            if (window.confirm(t("Delete {count} link?|Delete {count} links?", { count }))) onDelete();
           }}
           className="h-8 rounded-full px-3 text-[12.5px] font-medium hover:bg-white/10"
           style={{ color: "#ff8a5c" }}
         >
-          Delete
+          {t("Delete")}
         </button>
 
         <button
           type="button"
           onClick={onClear}
-          aria-label="Clear selection"
+          aria-label={t("Clear selection")}
           className="ml-1 flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10"
         >
           <Icon name="close" size={13} />

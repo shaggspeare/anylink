@@ -4,6 +4,8 @@ import { Icon } from "@/components/icon";
 import { useEffect, useRef, useState } from "react";
 import { useDefaultCollection } from "@/lib/use-default-collection";
 import { useLibrary } from "@/lib/store";
+import { msg } from "@/i18n/translate";
+import { useT } from "@/i18n/client";
 import { suggestTags } from "@/lib/organize";
 import type { CrawlResult, CrawlStep } from "@/lib/crawler";
 import { failureFor, type CrawlFailure } from "@/lib/crawler/url";
@@ -14,9 +16,9 @@ import { SWATCHES } from "./sidebar";
 
 type Mode = "link" | "note" | "image";
 const MODES: { id: Mode; label: string; icon: "link" | "note" | "image" }[] = [
-  { id: "link", label: "Link", icon: "link" },
-  { id: "note", label: "Note", icon: "note" },
-  { id: "image", label: "Image", icon: "image" },
+  { id: "link", label: msg("Link"), icon: "link" },
+  { id: "note", label: msg("Note"), icon: "note" },
+  { id: "image", label: msg("Image"), icon: "image" },
 ];
 const IS_URL = /^https?:\/\/\S+$/i;
 const NEW_COLLECTION = "__new__";
@@ -27,11 +29,12 @@ type ReadyResult = CrawlResult | CrawlFailure;
 // "tags" (the LLM pass) runs after the form is already open — see `refining`.
 const STEP_ORDER: CrawlStep[] = ["fetch", "parse"];
 const STEP_LABELS: Partial<Record<CrawlStep, string>> = {
-  fetch: "Fetching page",
-  parse: "Reading content",
+  fetch: msg("Fetching page"),
+  parse: msg("Reading content"),
 };
 
 export function AddLinkFlow() {
+  const t = useT();
   const {
     addLinkOpen,
     addLinkPrefill,
@@ -258,10 +261,10 @@ export function AddLinkFlow() {
           <AmbientOrbs variant="sheet" />
           <div className="relative flex h-full flex-col">
             <div className="sticky top-0 z-20 flex items-center gap-3 bg-canvas/45 px-6 pb-2 pt-6 backdrop-blur-xl">
-              <h3 className="sr-only">Add to library</h3>
+              <h3 className="sr-only">{t("Add to library")}</h3>
               <div
                 role="tablist"
-                aria-label="What to add"
+                aria-label={t("What to add")}
                 className="flex flex-1 items-center sm:flex-none"
               >
                 <div className="relative flex rounded-full p-1 max-sm:flex-1" style={{ background: "rgb(var(--ink-rgb) / .07)" }}>
@@ -281,17 +284,17 @@ export function AddLinkFlow() {
                         }`}
                       >
                         <Icon name={m.icon} size={14} className={active ? (m.id === "link" ? "text-signal" : m.id === "note" ? "text-[#8fa318] dark:text-lime" : "text-periwinkle") : ""} />
-                        {m.label}
+                        {t(m.label)}
                       </button>
                     );
                   })}
                 </div>
               </div>
-              <span className="ml-auto hidden text-eyebrow text-ink/40 pointer-fine:inline">⌘V anywhere</span>
+              <span className="ml-auto hidden text-eyebrow text-ink/40 pointer-fine:inline">{t("{shortcut} anywhere", { shortcut: "⌘V" })}</span>
               <button
                 type="button"
                 onClick={handleClose}
-                aria-label="Close"
+                aria-label={t("Close")}
                 className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-ink/55 hover:bg-ink/6"
               >
                 <Icon name="close" size={12} />
@@ -341,7 +344,7 @@ export function AddLinkFlow() {
                 className="h-[46px] rounded-full border px-4.5 text-[13px] max-sm:flex-1 sm:flex-none font-medium text-ink disabled:opacity-50"
                 style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)" }}
               >
-                Paste
+                {t("Paste")}
               </button>
               <button
                 type="button"
@@ -349,7 +352,7 @@ export function AddLinkFlow() {
                 disabled={phase !== "idle"}
                 className="h-[46px] rounded-full bg-signal px-5 text-[13px] max-sm:flex-1 sm:flex-none font-semibold text-on-accent disabled:opacity-50"
               >
-                Fetch
+                {t("Fetch")}
               </button>
             </div>
 
@@ -368,11 +371,10 @@ export function AddLinkFlow() {
                     </svg>
                   </div>
                   <div className="text-[18px] font-semibold tracking-[-.035em] text-ink">
-                    Nothing to read yet
+                    {t("Nothing to read yet")}
                   </div>
                   <div className="max-w-[420px] text-[13px] leading-[1.6] text-ink/55">
-                    Drop in any URL. The crawler pulls the title, hero image, domain and suggests
-                    two or three tags — you only fix what it gets wrong.
+                    {t("Drop in any URL. The crawler pulls the title, hero image, domain and suggests two or three tags — you only fix what it gets wrong.")}
                   </div>
                   {clipboardHint && (
                     <button
@@ -384,7 +386,7 @@ export function AddLinkFlow() {
                       className="flex w-full items-center gap-2.5 rounded-[14px] px-4 py-3 text-left text-[12.5px] text-ink/55 hover:text-ink"
                       style={{ background: "rgb(var(--ink-rgb) / 0.05)" }}
                     >
-                      <span className="text-signal">On your clipboard</span>
+                      <span className="text-signal">{t("On your clipboard")}</span>
                       <span className="truncate">{clipboardHint}</span>
                     </button>
                   )}
@@ -398,7 +400,7 @@ export function AddLinkFlow() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="text-[15px] font-semibold tracking-[-.03em] text-ink">
-                      Reading the page…
+                      {t("Reading the page…")}
                     </div>
                     <div className="ml-auto font-mono text-[13px] font-semibold text-signal tabular-nums">
                       {Math.round(((step + 1) / STEP_ORDER.length) * 100)}%
@@ -426,7 +428,7 @@ export function AddLinkFlow() {
                         >
                           {i < step ? <Icon name="check" size={10} /> : i + 1}
                         </span>
-                        {STEP_LABELS[s]}
+                        {t(STEP_LABELS[s]!)}
                       </div>
                     ))}
                   </div>
@@ -434,7 +436,7 @@ export function AddLinkFlow() {
               )}
 
               {phase === "ready" && result && refining && (
-                <div className="mb-3 text-[12.5px] text-ink/55">Refining title, summary and tags…</div>
+                <div className="mb-3 text-[12.5px] text-ink/55">{t("Refining title, summary and tags…")}</div>
               )}
               {phase === "ready" && result && (
                 <ReadyForm
@@ -465,7 +467,7 @@ export function AddLinkFlow() {
                   setSize={setSize}
                   collections={collections}
                   collectionError={collectionError}
-                  onCollectionBlur={() => setTouched((t) => ({ ...t, collection: true }))}
+                  onCollectionBlur={() => setTouched((prev) => ({ ...prev, collection: true }))}
                   onSave={handleSave}
                   saving={saving}
                 />
@@ -516,6 +518,7 @@ function ReadyForm({
   onSave: () => void;
   saving: boolean;
 }) {
+  const t = useT();
   const { addCollection } = useLibrary();
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState("");
@@ -536,16 +539,14 @@ function ReadyForm({
       <div className="flex flex-col gap-3">
         {excerptOnly && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-ink/55" style={{ background: "rgba(255,90,31,.14)" }}>
-            The site wouldn&apos;t give up the full page — this card is built from its metadata and
-            written up by AI. Worth a glance before you save.
+            {t("The site wouldn't give up the full page — this card is built from its metadata and written up by AI. Worth a glance before you save.")}
           </div>
         )}
         {failed && (
           <div className="rounded-[14px] px-4 py-3 text-[12.5px] text-ink/55" style={{ background: "rgba(255,90,31,.14)" }}>
             {result.reason === "rate-limited"
-              ? "Too many previews. Sign in to keep going — or save this one with the title guessed from the link."
-              : <>The page wouldn&apos;t open ({result.reason}) — the title is guessed from the link.
-                Edit it and save; nothing else is needed.</>}
+              ? t("Too many previews. Sign in to keep going — or save this one with the title guessed from the link.")
+              : t("The page wouldn't open ({reason}) — the title is guessed from the link. Edit it and save; nothing else is needed.", { reason: result.reason })}
           </div>
         )}
         <div className="overflow-hidden rounded-[22px]" style={{ background: "rgb(var(--surface-rgb) / .62)", border: "1px solid rgb(var(--rim-rgb) / .75)" }}>
@@ -566,19 +567,19 @@ function ReadyForm({
               {result.domain}
             </div>
             <div className="truncate text-[17px] font-semibold tracking-[-.038em] text-ink">
-              {title || "Untitled link"}
+              {title || t("Untitled link")}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[12px]">
           <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-lime text-[10px] font-bold text-on-accent"><Icon name="check" size={10} /></span>
-          <span className="text-ink/55">{failed ? "Filled in from the link — check it" : "Crawled — check the details"}</span>
+          <span className="text-ink/55">{failed ? t("Filled in from the link — check it") : t("Crawled — check the details")}</span>
         </div>
       </div>
 
       <div className="flex flex-col gap-3.5">
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-ink/40">Title</span>
+          <span className="text-eyebrow text-ink/40">{t("Title")}</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -587,7 +588,7 @@ function ReadyForm({
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-ink/40">Excerpt</span>
+          <span className="text-eyebrow text-ink/40">{t("Excerpt")}</span>
           <textarea
             value={excerpt}
             onChange={(e) => setExcerpt(e.target.value)}
@@ -597,11 +598,11 @@ function ReadyForm({
           />
         </label>
         <div className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-ink/40">Tags</span>
+          <span className="text-eyebrow text-ink/40">{t("Tags")}</span>
           <TagPicker value={tags} suggestions={suggestions} onChange={setTags} />
         </div>
         <label className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-ink/40">Collection</span>
+          <span className="text-eyebrow text-ink/40">{t("Collection")}</span>
           {naming ? (
             <input
               autoFocus
@@ -617,7 +618,7 @@ function ReadyForm({
                 }
               }}
               onBlur={() => setNaming(false)}
-              placeholder="New collection name, then Enter"
+              placeholder={t("New collection name, then Enter")}
               className="h-[42px] rounded-[12px] border px-3.5 text-[13.5px] text-ink outline-none placeholder:text-ink/40"
               style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
             />
@@ -633,7 +634,7 @@ function ReadyForm({
             }}
           >
             <option value="" disabled>
-              Choose a collection
+              {t("Choose a collection")}
             </option>
             {collections
               .filter((c) => !c.isSmart)
@@ -642,13 +643,13 @@ function ReadyForm({
                   {c.name}
                 </option>
               ))}
-            <option value={NEW_COLLECTION}>+ New collection…</option>
+            <option value={NEW_COLLECTION}>{t("+ New collection…")}</option>
           </select>
           )}
-          {collectionError && <span className="text-[11px] text-signal-soft">Pick a collection to save into.</span>}
+          {collectionError && <span className="text-[11px] text-signal-soft">{t("Pick a collection to save into.")}</span>}
         </label>
         <div className="flex flex-col gap-1.5">
-          <span className="text-eyebrow text-ink/40">Card size *</span>
+          <span className="text-eyebrow text-ink/40">{t("Card size *")}</span>
           <div className="flex gap-1.5">
             {CARD_SIZES.map((s) => (
               <button
@@ -674,7 +675,7 @@ function ReadyForm({
           // Pinned on phones so Save never ends up below the fold of a long form.
           className="z-10 mt-1 h-[46px] rounded-full bg-signal text-[13.5px] font-semibold text-on-accent shadow-[0_10px_30px_rgba(0,0,0,.45)] disabled:opacity-60 max-md:sticky max-md:bottom-[max(12px,env(safe-area-inset-bottom))]"
         >
-          {saving ? "Saving…" : "Save to library"}
+          {saving ? t("Saving…") : t("Save to library")}
         </button>
       </div>
     </div>
@@ -692,8 +693,9 @@ function TagPicker({
   suggestions: string[];
   onChange: (tags: string[]) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState("");
-  const unpicked = suggestions.filter((t) => !value.includes(t));
+  const unpicked = suggestions.filter((tag) => !value.includes(tag));
 
   const add = (tag: string) => {
     const clean = tag.trim();
@@ -708,15 +710,15 @@ function TagPicker({
           <button
             key={tag}
             type="button"
-            onClick={() => onChange(value.filter((t) => t !== tag))}
-            title="Remove"
+            onClick={() => onChange(value.filter((other) => other !== tag))}
+            title={t("Remove")}
             className="inline-flex items-center gap-1.5 rounded-full bg-lime px-2.5 py-1 text-[11.5px] font-medium text-on-accent"
           >
             {tag}
             <Icon name="close" size={9} className="text-ink/45" />
           </button>
         ))}
-        {value.length === 0 && <span className="text-[12px] text-ink/40">No tags yet</span>}
+        {value.length === 0 && <span className="text-[12px] text-ink/40">{t("No tags yet")}</span>}
       </div>
       <input
         value={draft}
@@ -728,7 +730,7 @@ function TagPicker({
           }
         }}
         onBlur={() => add(draft)}
-        placeholder="Add a tag, then Enter"
+        placeholder={t("Add a tag, then Enter")}
         className="h-[38px] rounded-[12px] border px-3.5 text-[13px] text-ink outline-none placeholder:text-ink/40"
         style={{ borderColor: "rgb(var(--ink-rgb) / 0.16)", background: "rgb(var(--ink-rgb) / 0.05)" }}
       />

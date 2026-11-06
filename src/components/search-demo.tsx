@@ -5,6 +5,8 @@ import Image from "next/image";
 import { searchLinks } from "@/lib/search";
 import { toDemoLinks } from "@/lib/demo-library";
 import type { ContentType, LinkItem } from "@/lib/types";
+import { useT } from "@/i18n/client";
+import { msg } from "@/i18n/translate";
 
 /** Landing "find that thing": the app's own search over a demo library, hits marked.
  *  Styled by app/landing.css; `light` keeps the sheet in daylight in either theme. */
@@ -30,10 +32,10 @@ const LINKS = toDemoLinks([
 ]);
 
 const TYPES: { type: ContentType | "all"; label: string }[] = [
-  { type: "all", label: "All" },
-  { type: "article", label: "Articles" },
-  { type: "product", label: "Products" },
-  { type: "video", label: "Videos" },
+  { type: "all", label: msg("All") },
+  { type: "article", label: msg("Articles") },
+  { type: "product", label: msg("Products") },
+  { type: "video", label: msg("Videos") },
 ];
 
 const ORBS = [
@@ -43,14 +45,15 @@ const ORBS = [
 ];
 
 export function SearchDemo() {
+  const t = useT();
   const [query, setQuery] = useState("barcelona");
   const [type, setType] = useState<ContentType | "all">("all");
 
   const matches = searchLinks(LINKS, query);
   const visible = type === "all" ? matches : matches.filter((l) => l.contentType === type);
-  const count = (t: ContentType | "all") => (t === "all" ? matches.length : matches.filter((l) => l.contentType === t).length);
+  const count = (ty: ContentType | "all") => (ty === "all" ? matches.length : matches.filter((l) => l.contentType === ty).length);
   // Words to mark; operators (type:video) never appear in the text.
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t && !t.includes(":"));
+  const terms = query.toLowerCase().split(/\s+/).filter((w) => w && !w.includes(":"));
 
   return (
     <section className="sheet light" id="search">
@@ -61,16 +64,15 @@ export function SearchDemo() {
         <div className="sec-head">
           <span className="eyebrow">
             <span className="dot" />
-            Search
+            {t("Search")}
           </span>
           <h2 className="h2">
-            Find that thing.
+            {t("Find that thing.")}
             <br />
-            <span className="it">Instantly.</span>
+            <span className="it">{t("Instantly.")}</span>
           </h2>
           <p className="lead">
-            One search for everything — titles, descriptions, and even text inside the page. Filter by type,
-            collection or tag.
+            {t("One search for everything — titles, descriptions, and even text inside the page. Filter by type, collection or tag.")}
           </p>
         </div>
         <div className="s-controls">
@@ -83,28 +85,28 @@ export function SearchDemo() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search anything…"
-              aria-label="Search the demo library"
+              placeholder={t("Search anything…")}
+              aria-label={t("Search the demo library")}
             />
             {query && (
-              <button type="button" className="s-x" aria-label="Clear search" onClick={() => setQuery("")}>
+              <button type="button" className="s-x" aria-label={t("Clear search")} onClick={() => setQuery("")}>
                 <svg className="ic" viewBox="0 0 24 24" aria-hidden>
                   <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
                 </svg>
               </button>
             )}
           </label>
-          {TYPES.map((t) => (
+          {TYPES.map((ty) => (
             <button
-              key={t.type}
+              key={ty.type}
               type="button"
-              onClick={() => setType(t.type)}
-              aria-pressed={type === t.type}
-              disabled={t.type !== "all" && t.type !== type && count(t.type) === 0}
-              className={type === t.type ? "s-chip on" : "s-chip"}
+              onClick={() => setType(ty.type)}
+              aria-pressed={type === ty.type}
+              disabled={ty.type !== "all" && ty.type !== type && count(ty.type) === 0}
+              className={type === ty.type ? "s-chip on" : "s-chip"}
             >
-              {t.label}
-              {t.type !== "all" && <span className="n">{count(t.type)}</span>}
+              {t(ty.label)}
+              {ty.type !== "all" && <span className="n">{count(ty.type)}</span>}
             </button>
           ))}
           {(query || type !== "all") && (
@@ -116,7 +118,7 @@ export function SearchDemo() {
                 setType("all");
               }}
             >
-              Clear filters
+              {t("Clear filters")}
             </button>
           )}
         </div>
@@ -125,7 +127,7 @@ export function SearchDemo() {
             {visible.map((l) => (
               <Result key={l.id} link={l} terms={terms} />
             ))}
-            {!visible.length && <p className="s-empty">Nothing matches “{query}” — try “japan” or “coffee”.</p>}
+            {!visible.length && <p className="s-empty">{t("Nothing matches “{query}” — try “japan” or “coffee”.", { query })}</p>}
           </div>
         </div>
       </div>
@@ -134,11 +136,12 @@ export function SearchDemo() {
 }
 
 function Result({ link, terms }: { link: LinkItem; terms: string[] }) {
+  const t = useT();
   const text = (link.articleText ?? []).join(" ");
-  const term = terms.find((t) => text.toLowerCase().includes(t));
+  const term = terms.find((w) => text.toLowerCase().includes(w));
   const at = term ? text.toLowerCase().indexOf(term) : 0;
   // Found only in the page text: show where, under a magnifier.
-  const lens = term && !terms.some((t) => link.title.toLowerCase().includes(t)) ? text.slice(Math.max(0, at - 6), at + term.length + 4) : null;
+  const lens = term && !terms.some((w) => link.title.toLowerCase().includes(w)) ? text.slice(Math.max(0, at - 6), at + term.length + 4) : null;
   const inText = lens !== null;
 
   return (
@@ -160,11 +163,11 @@ function Result({ link, terms }: { link: LinkItem; terms: string[] }) {
               {link.initial}
             </span>
             <span className="mc-dom">{link.domain}</span>
-            <a className="mc-open" href={link.url} target="_blank" rel="noreferrer noopener" aria-label={`Open ${link.domain} in a new tab`}>
+            <a className="mc-open" href={link.url} target="_blank" rel="noreferrer noopener" aria-label={t("Open {domain} in a new tab", { domain: link.domain })}>
               <svg className="ic" viewBox="0 0 24 24" aria-hidden>
                 <path d="M7 17 17 7M9 7h8v8" />
               </svg>
-              Open
+              {t("Open")}
             </a>
           </div>
           <div className="mc-title">
@@ -172,7 +175,7 @@ function Result({ link, terms }: { link: LinkItem; terms: string[] }) {
           </div>
           {inText && (
             <div className="snip">
-              <span className="eb">In the page</span>…<Marked text={text} terms={terms} />
+              <span className="eb">{t("In the page")}</span>…<Marked text={text} terms={terms} />
             </div>
           )}
         </div>

@@ -3,12 +3,17 @@ import { redirect } from "next/navigation";
 import { AmbientOrbs } from "@/components/ambient-orbs";
 import { AuthPanel } from "@/components/auth-panel";
 import { currentUser } from "@/lib/db/current-user";
+import { getT } from "@/i18n/server";
 
-export const metadata = { title: "Sign in — AnyLink" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("Sign in — AnyLink") };
+}
 
 export default async function LoginPage(props: PageProps<"/login">) {
   if (await currentUser()) redirect("/app");
   const { error } = await props.searchParams;
+  const t = await getT();
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-canvas p-6">
       <AmbientOrbs variant="library" />
@@ -16,13 +21,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
         <AuthPanel
           subtitle={
             error
-              ? "That link didn't work — links only open in the browser that asked for them, and only once. If you just confirmed your email, sign in with your password; otherwise ask for a new link."
+              ? t("That link didn't work — links only open in the browser that asked for them, and only once. If you just confirmed your email, sign in with your password; otherwise ask for a new link.")
               : undefined
           }
         />
       </div>
       <Link href="/privacy-policy" className="relative mt-4 text-meta text-ink/55 hover:text-ink hover:underline">
-        Privacy Policy
+        {t("Privacy Policy")}
       </Link>
     </div>
   );

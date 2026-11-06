@@ -10,6 +10,7 @@ import { swallowClick, type useDragReorder } from "@/lib/use-drag-reorder";
 import { CARD_GEOMETRY, CARD_TITLE_SIZE, GRID_ROW_UNIT, TILE_PX, sizeFromDrag } from "@/lib/geometry";
 import { CARD_SIZES, type LinkItem } from "@/lib/types";
 import { NoteText } from "./note-text";
+import { useT } from "@/i18n/client";
 
 const ROW_PX = 46;
 const ENTRANCE_SCALES = [0.72, 1.14, 0.86, 1.22, 0.64, 1.06];
@@ -58,6 +59,7 @@ export function Card({
   current?: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const { setLinkSize, setFavorite, setPinned, deleteLinks, demo } = useLibrary();
   const cardRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
@@ -198,7 +200,7 @@ export function Card({
               e.stopPropagation();
               setMenuOpen(true);
             }}
-            aria-label={`Actions for ${link.title}`}
+            aria-label={t("Actions for {title}", { title: link.title })}
             data-tour="card-menu"
             aria-haspopup="dialog"
             className={`absolute z-30 flex h-11 w-11 items-center justify-center ${row ? "right-0 top-1/2 -translate-y-1/2" : "right-0 top-0"}`}
@@ -220,7 +222,7 @@ export function Card({
               e.stopPropagation();
               onSelectClick?.(e);
             }}
-            aria-label={selected ? "Deselect" : "Select"}
+            aria-label={selected ? t("Deselect") : t("Select")}
             className={`absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold transition-opacity ${
               selected ? "bg-lime text-on-accent opacity-100" : "bg-surface/80 text-transparent opacity-0 group-hover:opacity-100"
             }`}
@@ -240,12 +242,12 @@ export function Card({
             <HeroArt link={link} />
             {!tile && link.tags.length > 0 && (
               <div className="absolute left-2.5 top-2.5 flex gap-1.5">
-                {link.tags.slice(0, 1).map((t) => (
+                {link.tags.slice(0, 1).map((tag) => (
                   <span
-                    key={t}
+                    key={tag}
                     className="rounded-full bg-surface/75 px-2.5 py-1 text-[10px] font-medium text-ink backdrop-blur-sm"
                   >
-                    {t}
+                    {tag}
                   </span>
                 ))}
               </div>
@@ -262,7 +264,7 @@ export function Card({
               {link.initial}
             </span>
             <span className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-[-.02em] text-ink">{link.title}</span>
-            {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
+            {link.pinned && <span title={t("Pinned")} aria-label={t("Pinned")}><Icon name="pin" size={12} className="text-signal" /></span>}
             {link.favorite && <Icon name="star" size={11} className="flex-none text-signal" />}
           </div>
         ) : isNote ? (
@@ -273,7 +275,7 @@ export function Card({
             <span className={`min-w-0 flex-1 truncate font-semibold tracking-[-.02em] text-ink ${tile ? "text-[11.5px]" : "text-[13px]"}`}>
               {link.title}
             </span>
-            {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
+            {link.pinned && <span title={t("Pinned")} aria-label={t("Pinned")}><Icon name="pin" size={12} className="text-signal" /></span>}
             {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="flex-none text-signal" />}
           </div>
         ) : (
@@ -297,17 +299,17 @@ export function Card({
                 rel="noreferrer noopener"
                 onClick={(e) => e.stopPropagation()}
                 data-tour="card-open"
-                title={`Open ${link.domain} in a new tab`}
-                aria-label={`Open ${link.domain} in a new tab`}
+                title={t("Open {domain} in a new tab", { domain: link.domain })}
+                aria-label={t("Open {domain} in a new tab", { domain: link.domain })}
                 className="flex h-7 flex-none items-center gap-1 rounded-full border border-ink/12 bg-surface/70 pl-2 pr-2.5 text-[11.5px] font-semibold text-ink/75 transition-colors hover:border-ink hover:bg-ink hover:text-on-ink"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
                   <path d="M7 17 17 7M9 7h8v8" />
                 </svg>
-                Open
+                {t("Open")}
               </a>
             )}
-            {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
+            {link.pinned && <span title={t("Pinned")} aria-label={t("Pinned")}><Icon name="pin" size={12} className="text-signal" /></span>}
             {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="ml-auto text-signal" />}
           </div>
           <div
@@ -325,9 +327,9 @@ export function Card({
           </div>
           {compact && link.tags.length > 0 && (
             <div className="flex gap-1.5">
-              {link.tags.slice(0, 1).map((t) => (
-                <span key={t} className="rounded-full bg-ink/6 px-2.5 py-1 text-[10px] font-medium text-ink/60">
-                  {t}
+              {link.tags.slice(0, 1).map((tag) => (
+                <span key={tag} className="rounded-full bg-ink/6 px-2.5 py-1 text-[10px] font-medium text-ink/60">
+                  {tag}
                 </span>
               ))}
             </div>
@@ -352,7 +354,7 @@ export function Card({
               key={s}
               type="button"
               onClick={() => setLinkSize(link.id, s)}
-              aria-label={`Size ${s}`}
+              aria-label={t("Size {size}", { size: s })}
               aria-pressed={s === link.size}
               className={`h-7 w-7 rounded-full text-[11px] font-semibold transition-colors ${
                 s === link.size ? "bg-ink text-on-ink" : "text-ink/75 hover:bg-lime hover:text-on-accent"
@@ -367,8 +369,8 @@ export function Card({
             type="button"
             data-tour="card-favorite"
             onClick={() => setFavorite(link.id, !link.favorite)}
-            title={link.favorite ? "Remove from favorites" : "Add to favorites"}
-            aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
+            title={link.favorite ? t("Remove from favorites") : t("Add to favorites")}
+            aria-label={link.favorite ? t("Remove from favorites") : t("Add to favorites")}
             className={`flex h-7 w-7 items-center justify-center rounded-full text-[16px] leading-none transition-colors hover:bg-amber-400/15 hover:text-amber-400 ${
               link.favorite ? "text-signal" : "text-ink/60"
             }`}
@@ -378,8 +380,8 @@ export function Card({
           <button
             type="button"
             onClick={() => void setPinned(link.id, !link.pinned)}
-            title={link.pinned ? "Unpin" : "Pin to top"}
-            aria-label={link.pinned ? "Unpin" : "Pin to top"}
+            title={link.pinned ? t("Unpin") : t("Pin to top")}
+            aria-label={link.pinned ? t("Unpin") : t("Pin to top")}
             aria-pressed={Boolean(link.pinned)}
             className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-ink/8 ${link.pinned ? "text-signal" : "text-ink/60"}`}
           >
@@ -390,8 +392,8 @@ export function Card({
             type="button"
             onClick={() => deleteLinks([link.id])}
             data-tour="card-trash"
-            title="Move to trash"
-            aria-label={`Move ${link.title} to trash`}
+            title={t("Move to trash")}
+            aria-label={t("Move {title} to trash", { title: link.title })}
             className="flex h-7 w-7 items-center justify-center rounded-full text-ink/70 transition-colors hover:bg-red-500/12 hover:text-red-500"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -406,7 +408,7 @@ export function Card({
         <div
           onPointerDown={handlePointerDown}
           data-tour="card-resize"
-          title="Drag to resize"
+          title={t("Drag to resize")}
           className="absolute bottom-0 right-0 z-10 h-[30px] w-[30px] touch-none cursor-nwse-resize opacity-0 transition-opacity group-hover:opacity-100"
           style={{
             backgroundImage:
@@ -431,13 +433,14 @@ function NoteCardBody({ link, tile }: { link: LinkItem; tile: boolean }) {
   const first = br === -1 ? text : text.slice(0, br);
   const rest = br === -1 ? "" : text.slice(br + 1).trim();
   const big = !tile && link.size === "L";
+  const t = useT();
   return (
     <div className={`relative flex min-h-0 min-w-0 flex-1 flex-col ${tile ? "px-2.5 pb-2 pt-2.5" : "px-4.5 pb-4 pt-4"}`}>
       <span aria-hidden className={`note-fold absolute right-0 top-0 ${tile ? "h-5 w-5" : "h-7 w-7"}`} />
       <div className={`flex items-center gap-1.5 pr-6 text-ink/45 ${tile ? "text-[10.5px]" : "text-[11.5px]"}`}>
         <Icon name="note" size={tile ? 11 : 13} className="flex-none text-[#7d8f12] dark:text-lime" />
-        <span>Note</span>
-        {link.pinned && <span title="Pinned" aria-label="Pinned"><Icon name="pin" size={12} className="text-signal" /></span>}
+        <span>{t("Note")}</span>
+        {link.pinned && <span title={t("Pinned")} aria-label={t("Pinned")}><Icon name="pin" size={12} className="text-signal" /></span>}
         {link.favorite && <Icon name="star" size={tile ? 11 : 13} className="text-signal" />}
       </div>
       <div

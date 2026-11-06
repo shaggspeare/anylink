@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getSharedCollection } from "@/lib/db/queries";
 import { linkCount } from "@/lib/format";
 import { SharedCollectionView } from "@/components/shared-collection-view";
+import { getT } from "@/i18n/server";
 
 /** A shared collection, for anyone holding the link (docs/adr/0001). */
 export default async function SharedPage(props: PageProps<"/s/[token]">) {
@@ -19,8 +20,9 @@ export default async function SharedPage(props: PageProps<"/s/[token]">) {
 export async function generateMetadata(props: PageProps<"/s/[token]">): Promise<Metadata> {
   const shared = await getSharedCollection((await props.params).token);
   if (!shared) return { robots: { index: false } };
+  const t = await getT();
   const cover = shared.links.find((l) => l.heroImage)?.heroImage;
-  const description = [linkCount(shared.links.length), shared.ownerName && `shared by ${shared.ownerName}`]
+  const description = [linkCount(shared.links.length, t), shared.ownerName && t("shared by {name}", { name: shared.ownerName })]
     .filter(Boolean)
     .join(" · ");
   return {

@@ -13,6 +13,7 @@ import { ImagePanel, NotePanel } from "./note-image-panels";
 import { Sidebar } from "./sidebar";
 import { PANE_PX, type SplitView } from "@/lib/use-split-view";
 import type { LinkItem } from "@/lib/types";
+import { useT } from "@/i18n/client";
 
 /** The full link page: /links/[id]. */
 export function LinkDetailView({ linkId }: { linkId: string }) {
@@ -70,6 +71,7 @@ export function DetailPane({ split }: { split: SplitView }) {
 function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void }) {
   const { collections, moveLinks, setFavorite, setNote, plan, enrichLink } = useLibrary();
   const router = useRouter();
+  const t = useT();
   const [noteOpen, setNoteOpen] = useState(Boolean(link.note));
   // Saved without its AI step: Pro gets the summary and tags now (the store skips Free).
   useEffect(() => {
@@ -79,7 +81,11 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
   const isProduct = link.contentType === "product";
   const isNote = link.contentType === "note";
   const isImage = link.contentType === "image";
-  const openLabel = isProduct ? `Open on ${link.product?.retailer.split(".")[0]}` : isImage ? "Full size" : "Open original";
+  const openLabel = isProduct
+    ? t("Open on {retailer}", { retailer: link.product?.retailer.split(".")[0] ?? "" })
+    : isImage
+      ? t("Full size")
+      : t("Open original");
   const pane = Boolean(onClose);
 
   return (
@@ -98,15 +104,15 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
-              title="Close (Esc)"
+              aria-label={t("Close")}
+              title={t("Close (Esc)")}
               className="-ml-2 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink/55 hover:bg-ink/6 hover:text-ink"
             >
               <Icon name="close" size={12} />
             </button>
             <Link
               href={`/links/${link.id}`}
-              title="Open as a page"
+              title={t("Open as a page")}
               className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink/55 hover:bg-ink/6 hover:text-ink"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -125,14 +131,14 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
           <svg className="flex-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
             <path d="m14 6-6 6 6 6" />
           </svg>
-          <span className="truncate">Back</span>
+          <span className="truncate">{t("Back")}</span>
         </button>}
         {!pane && <div className="flex min-w-0 items-center gap-2 text-[13px] text-ink/50 max-sm:hidden">
-          <Link href="/app" aria-label="Library" className="flex flex-none items-center gap-1.5 hover:text-ink">
+          <Link href="/app" aria-label={t("Library")} className="flex flex-none items-center gap-1.5 hover:text-ink">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
               <path d="m14 6-6 6 6 6" />
             </svg>
-            <span>Library</span>
+            <span>{t("Library")}</span>
           </Link>
           {collection && (
             <>
@@ -150,7 +156,7 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
                 style={{ background: "rgba(124,140,255,.22)" }}
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-periwinkle" />
-                Product detected
+                {t("Product detected")}
               </span>
             )}
           </div>}
@@ -160,8 +166,8 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
               type="button"
               data-tour="favorite"
               onClick={() => setFavorite(link.id, !link.favorite)}
-              aria-label={link.favorite ? "Remove from favorites" : "Add to favorites"}
-              title="Favorite"
+              aria-label={link.favorite ? t("Remove from favorites") : t("Add to favorites")}
+              title={t("Favorite")}
               className={`flex h-10 w-10 items-center justify-center rounded-full border border-rim/90 bg-surface/70 text-[15px] sm:h-9 sm:w-9 ${
                 link.favorite ? "text-signal" : "text-ink/35"
               }`}
@@ -172,12 +178,12 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
               type="button"
               data-tour="note"
               onClick={() => setNoteOpen((open) => !open)}
-              title="Note"
+              title={t("Note")}
               className={`flex h-10 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold sm:h-9 ${
                 link.note ? "text-ink" : "text-ink/70"
               }`}
             >
-              Note
+              {t("Note")}
             </button>}
             {!isNote && <button
               type="button"
@@ -205,7 +211,7 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
                 className="absolute right-0 top-11 z-10 w-56 overflow-hidden rounded-[16px] p-1.5"
                 style={{ background: "rgb(var(--surface-rgb) / .9)", boxShadow: "var(--shadow-popover)" }}
               >
-                <div className="px-2.5 py-1.5 text-eyebrow text-ink/40">Add to collection</div>
+                <div className="px-2.5 py-1.5 text-eyebrow text-ink/40">{t("Add to collection")}</div>
                 {collections
                   .filter((c) => c.id !== link.collectionId && !c.isSmart)
                   .map((c) => (
@@ -229,7 +235,7 @@ function LinkDetail({ link, onClose }: { link: LinkItem; onClose?: () => void })
               autoFocus
               defaultValue={link.note ?? ""}
               onBlur={(e) => setNote(link.id, e.target.value)}
-              placeholder="Why you saved this, what to do with it…"
+              placeholder={t("Why you saved this, what to do with it…")}
               rows={3}
               className="w-full resize-y rounded-[14px] border border-rim/90 bg-surface/70 px-3.5 py-2.5 text-body text-ink outline-none placeholder:text-ink/35"
             />

@@ -19,11 +19,13 @@ import { PANE_PX, useSplitView } from "@/lib/use-split-view";
 import { DetailPane } from "@/components/link-detail-view";
 import { ShareDialog } from "@/components/share-dialog";
 import { Icon } from "@/components/icon";
+import { useT } from "@/i18n/client";
 
 export function CollectionView({ collectionId }: { collectionId: string }) {
   const { links, collections, tags, moveLinks, tagLinks, archiveLinks, deleteLinks, reorderLinks, guest, demo } =
     useLibrary();
   const [sharing, setSharing] = useState(false);
+  const t = useT();
   const collection = collections.find((c) => c.id === collectionId);
 
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
 
   const availableTags = useMemo(() => {
     const set = new Set<string>();
-    scoped.forEach((l) => l.tags.forEach((t) => set.add(t)));
+    scoped.forEach((l) => l.tags.forEach((tag) => set.add(tag)));
     return Array.from(set);
   }, [scoped]);
 
@@ -63,13 +65,13 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
           <div data-tour="collection-header" className="flex items-center gap-3">
             <CollectionMarker color={collection.color} icon={collection.icon} size={14} />
             <h1 className="text-title min-w-0 truncate text-[26px]">{collection.name}</h1>
-            <span className="flex-none whitespace-nowrap text-meta text-ink/50">{linkCount(scoped.length)}</span>
+            <span className="flex-none whitespace-nowrap text-meta text-ink/50">{linkCount(scoped.length, t)}</span>
             {collection.isSmart && (
               <span className="rounded-full bg-ink/6 px-2.5 py-1 font-mono text-[11px] text-ink/55">
                 {collection.smartQuery}
               </span>
             )}
-            <span className="hidden text-meta text-ink/45 sm:inline">drag cards to arrange</span>
+            <span className="hidden text-meta text-ink/45 sm:inline">{t("drag cards to arrange")}</span>
             <span className="ml-auto flex flex-none items-center gap-2">
               {!collection.isSmart && !collection.isInbox && !guest && !demo && (
                 <button
@@ -78,7 +80,7 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
                   className="flex h-9 items-center gap-1.5 rounded-full border border-rim/90 bg-surface/70 px-3.5 text-meta font-semibold text-ink"
                 >
                   <Icon name={collection.shareToken ? "link" : "share"} size={13} />
-                  {collection.shareToken ? "Shared" : "Share"}
+                  {collection.shareToken ? t("Shared") : t("Share")}
                 </button>
               )}
               <SortSelect value={sort} onChange={setSort} />
@@ -94,11 +96,11 @@ export function CollectionView({ collectionId }: { collectionId: string }) {
           {/* Runs off the right edge on phones so it reads as scrollable. */}
           <div data-tour="collection-filters" className="-mr-4 flex min-w-0 items-center gap-2 overflow-x-auto pr-4 [scrollbar-width:none] [&>*]:flex-none sm:mr-0 sm:flex-wrap sm:overflow-visible sm:pr-0">
             <Chip active={tagFilter === null} onClick={() => setTagFilter(null)}>
-              All
+              {t("All")}
             </Chip>
-            {availableTags.map((t) => (
-              <Chip key={t} active={tagFilter === t} onClick={() => setTagFilter(tagFilter === t ? null : t)}>
-                {t}
+            {availableTags.map((tag) => (
+              <Chip key={tag} active={tagFilter === tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)}>
+                {tag}
               </Chip>
             ))}
           </div>

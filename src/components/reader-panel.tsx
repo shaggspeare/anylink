@@ -9,14 +9,16 @@ import type { ContentType, LinkItem, TemplateData } from "@/lib/types";
 import { clockLabel, hasProse, minutesLabel, readableParagraphs } from "@/lib/reader";
 import { videoEmbedUrl } from "@/lib/crawler/url";
 import { isPro } from "@/lib/plan";
+import { useLocale, useT } from "@/i18n/client";
+import { msg } from "@/i18n/translate";
 
 /** The generic layout's last line: what Pro shows for this type (ios/docs/04-screens.md S15). It opens the Pro
  * dialog. */
 const UPSELL: Partial<Record<ContentType, string>> = {
-  article: "Pro adds the summary, the author and the date here.",
-  video: "Pro plays the video right here.",
-  recipe: "Pro turns this into a recipe: ingredients to tick off, numbered steps and the times.",
-  product: "Pro tracks this price for you and charts its history.",
+  article: msg("Pro adds the summary, the author and the date here."),
+  video: msg("Pro plays the video right here."),
+  recipe: msg("Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."),
+  product: msg("Pro tracks this price for you and charts its history."),
 };
 
 function withHighlights(paragraph: string, quotes: string[]) {
@@ -57,6 +59,8 @@ export function ReaderPanel({
   const { links, addHighlight, plan, openPro } = useLibrary();
   const articleRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<{ x: number; y: number; text: string } | null>(null);
+  const t = useT();
+  const locale = useLocale();
 
   const handleMouseUp = () => {
     const selection = window.getSelection();
@@ -83,16 +87,16 @@ export function ReaderPanel({
   const paragraphs = readableParagraphs(link.articleText, link.excerpt);
 
   const pro = isPro(plan);
-  const t: TemplateData = link.templateData ?? {};
+  const tpl: TemplateData = link.templateData ?? {};
   const article = pro && link.contentType === "article";
-  const published = t.publishedAt ? new Date(t.publishedAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "";
-  const byline = article ? [t.author && `By ${t.author}`, published].filter(Boolean).join(" · ") : "";
+  const published = tpl.publishedAt ? new Date(tpl.publishedAt).toLocaleDateString(locale, { dateStyle: "medium" }) : "";
+  const byline = article ? [tpl.author && t("By {author}", { author: tpl.author }), published].filter(Boolean).join(" · ") : "";
   // With less than real prose the excerpt already is the body.
   const summary = article && hasProse(link.articleText) ? link.excerpt : "";
-  const player = pro && link.contentType === "video" ? videoEmbedUrl(t) : undefined;
-  const videoMeta = pro ? [t.channel, t.durationSeconds && clockLabel(t.durationSeconds)].filter(Boolean).join(" · ") : "";
-  const recipe = pro && link.contentType === "recipe" && Boolean(t.ingredients?.length || t.steps?.length);
-  const upsell = pro ? undefined : UPSELL[link.contentType];
+  const player = pro && link.contentType === "video" ? videoEmbedUrl(tpl) : undefined;
+  const videoMeta = pro ? [tpl.channel, tpl.durationSeconds && clockLabel(tpl.durationSeconds)].filter(Boolean).join(" · ") : "";
+  const recipe = pro && link.contentType === "recipe" && Boolean(tpl.ingredients?.length || tpl.steps?.length);
+  const upsell = pro ? undefined : UPSELL[link.contentType] && t(UPSELL[link.contentType]!);
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-6 sm:px-6 @3xl:flex-row @3xl:items-start">
@@ -120,7 +124,7 @@ export function ReaderPanel({
             {byline && <p className="text-[13px] text-ink/55">{byline}</p>}
             {summary && (
               <div className="rounded-[18px] bg-ink/6 px-5 py-4">
-                <span className="text-eyebrow text-ink/40">Summary</span>
+                <span className="text-eyebrow text-ink/40">{t("Summary")}</span>
                 <p className="mt-1.5 text-[15px] leading-[1.55] text-ink/80">{summary}</p>
               </div>
             )}
@@ -152,7 +156,7 @@ export function ReaderPanel({
                     <path d="M5 3v18l15-9L5 3z" />
                   </svg>
                   <p className="max-w-[360px] text-body text-ink/55">
-                    Video — open the original to watch. AnyLink stores the description and thumbnail only.
+                    {t("Video — open the original to watch. AnyLink stores the description and thumbnail only.")}
                   </p>
                 </div>
               )}
@@ -160,7 +164,7 @@ export function ReaderPanel({
               {pro && link.excerpt && <p className="mt-5">{link.excerpt}</p>}
             </>
           ) : recipe ? (
-            <RecipeCard data={t} />
+            <RecipeCard data={tpl} />
           ) : (
             paragraphs.map((p, i) => (
               <p key={i} className="mb-5">
@@ -190,33 +194,33 @@ export function ReaderPanel({
               style={{ left: popover.x, top: popover.y - 42, transform: "translateX(-50%)" }}
               className="absolute z-10 flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-[11.5px] font-semibold text-on-ink shadow-lg"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-lime" /> Highlight
+              <span className="h-1.5 w-1.5 rounded-full bg-lime" /> {t("Highlight")}
             </button>
           )}
         </div>
       </article>
 
       <aside className="flex w-full flex-none flex-col gap-4 @3xl:w-[320px]">
-        <RailSection title="Saved metadata">
-          <RailRow label="Domain" value={link.domain} />
-          <RailRow label="Saved" value={new Date(link.createdAt).toLocaleDateString()} />
-          {link.readingTimeMinutes && <RailRow label="Reading time" value={`${link.readingTimeMinutes} min`} />}
+        <RailSection title={t("Saved metadata")}>
+          <RailRow label={t("Domain")} value={link.domain} />
+          <RailRow label={t("Saved")} value={new Date(link.createdAt).toLocaleDateString(locale)} />
+          {link.readingTimeMinutes && <RailRow label={t("Reading time")} value={t("{count} min", { count: link.readingTimeMinutes })} />}
         </RailSection>
 
-        <RailSection title="Tags">
+        <RailSection title={t("Tags")}>
           <div className="flex flex-wrap gap-1.5">
-            {link.tags.map((t) => (
-              <Chip key={t} className="cursor-default">
-                {t}
+            {link.tags.map((tag) => (
+              <Chip key={tag} className="cursor-default">
+                {tag}
               </Chip>
             ))}
-            {link.tags.length === 0 && <span className="text-body text-ink/40">No tags yet.</span>}
+            {link.tags.length === 0 && <span className="text-body text-ink/40">{t("No tags yet.")}</span>}
           </div>
         </RailSection>
 
-        <RailSection title="Also in your library" action={<button onClick={onOpenCollection} className="text-[11.5px] font-semibold text-ink/50 hover:text-ink">See all</button>}>
+        <RailSection title={t("Also in your library")} action={<button onClick={onOpenCollection} className="text-[11.5px] font-semibold text-ink/50 hover:text-ink">{t("See all")}</button>}>
           <div className="flex flex-col gap-2">
-            {alsoInLibrary.length === 0 && <span className="text-body text-ink/40">Nothing else here yet.</span>}
+            {alsoInLibrary.length === 0 && <span className="text-body text-ink/40">{t("Nothing else here yet.")}</span>}
             {alsoInLibrary.map((l) => (
               <Link
                 key={l.id}
@@ -242,11 +246,13 @@ export function ReaderPanel({
 /** Pro's recipe template: the times, a checklist of ingredients and the numbered steps. Ticks aren't saved. */
 function RecipeCard({ data }: { data: TemplateData }) {
   const [ticked, setTicked] = useState<number[]>([]);
+  const t = useT();
+  const locale = useLocale();
   const times = [
-    data.prepMinutes && `Prep ${minutesLabel(data.prepMinutes)}`,
-    data.cookMinutes && `Cook ${minutesLabel(data.cookMinutes)}`,
-    data.totalMinutes && `Total ${minutesLabel(data.totalMinutes)}`,
-    data.yield && `Makes ${data.yield}`,
+    data.prepMinutes && t("Prep {time}", { time: minutesLabel(data.prepMinutes, locale) }),
+    data.cookMinutes && t("Cook {time}", { time: minutesLabel(data.cookMinutes, locale) }),
+    data.totalMinutes && t("Total {time}", { time: minutesLabel(data.totalMinutes, locale) }),
+    data.yield && t("Makes {yield}", { yield: data.yield }),
   ].filter((time): time is string => Boolean(time));
   const toggle = (i: number) => setTicked((list) => (list.includes(i) ? list.filter((x) => x !== i) : [...list, i]));
 
@@ -263,7 +269,7 @@ function RecipeCard({ data }: { data: TemplateData }) {
       )}
       {data.ingredients?.length ? (
         <section>
-          <h2 className="mb-2 text-[15px] font-semibold text-ink">Ingredients</h2>
+          <h2 className="mb-2 text-[15px] font-semibold text-ink">{t("Ingredients")}</h2>
           <ul>
             {data.ingredients.map((item, i) => (
               <li key={i}>
@@ -278,7 +284,7 @@ function RecipeCard({ data }: { data: TemplateData }) {
       ) : null}
       {data.steps?.length ? (
         <section>
-          <h2 className="mb-2 text-[15px] font-semibold text-ink">Steps</h2>
+          <h2 className="mb-2 text-[15px] font-semibold text-ink">{t("Steps")}</h2>
           <ol className="flex list-decimal flex-col gap-3 pl-6 marker:font-semibold marker:text-ink/50">
             {data.steps.map((step, i) => (
               <li key={i}>{step}</li>

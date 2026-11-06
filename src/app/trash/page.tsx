@@ -7,10 +7,12 @@ import { linkCount } from "@/lib/format";
 import { Sidebar } from "@/components/sidebar";
 import { BottomTabBar } from "@/components/bottom-tab-bar";
 import { AmbientOrbs } from "@/components/ambient-orbs";
+import { useT } from "@/i18n/client";
 
 export default function TrashPage() {
   const { trashed, restoreLinks, purgeLinks } = useLibrary();
   const router = useRouter();
+  const t = useT();
   const [confirmingEmpty, setConfirmingEmpty] = useState(false);
   // Delete forever is the only one-click way to lose a link, so it asks first (iOS D13).
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -21,8 +23,8 @@ export default function TrashPage() {
       <Sidebar />
       <div className="relative lg:pl-[250px]">
         <header className="flex items-center gap-3.5 sm:items-end px-4 pb-4 pt-6 sm:px-5 lg:px-6.5">
-          <h1 className="text-hero text-[30px]">Trash</h1>
-          <span className="text-meta text-ink/50 sm:pb-1.5">{linkCount(trashed.length)}</span>
+          <h1 className="text-hero text-[30px]">{t("Trash")}</h1>
+          <span className="text-meta text-ink/50 sm:pb-1.5">{linkCount(trashed.length, t)}</span>
           {trashed.length > 0 && (
             <button
               type="button"
@@ -35,20 +37,20 @@ export default function TrashPage() {
               onBlur={() => setConfirmingEmpty(false)}
               className="ml-auto flex h-10 sm:mb-1 items-center rounded-full border border-rim/90 bg-surface/70 px-4 text-[12.5px] font-semibold text-ink"
             >
-              {confirmingEmpty ? "Delete them for good?" : "Empty trash"}
+              {confirmingEmpty ? t("Delete them for good?") : t("Empty trash")}
             </button>
           )}
         </header>
 
         {trashed.length > 0 && (
           <p className="-mt-2 px-4 pb-3 text-meta text-ink/50 sm:px-5 lg:px-6.5">
-            Links stay here until you delete them.
+            {t("Links stay here until you delete them.")}
           </p>
         )}
         <div className="flex flex-col gap-1.5 px-4 pb-10 sm:px-5 lg:px-6.5">
           {trashed.length === 0 && (
             <p className="py-16 text-center text-body text-ink/45">
-              Nothing here. Deleted links land in Trash until you empty it.
+              {t("Nothing here. Deleted links land in Trash until you empty it.")}
             </p>
           )}
           {trashed.map((link) => (
@@ -70,7 +72,7 @@ export default function TrashPage() {
                 onClick={() => restoreLinks([link.id])}
                 className="h-10 flex-none rounded-full bg-ink/6 px-3.5 text-[12.5px] font-semibold text-ink hover:bg-ink/10"
               >
-                Restore
+                {t("Restore")}
               </button>
               <button
                 type="button"
@@ -80,10 +82,10 @@ export default function TrashPage() {
                   setConfirmingId(null);
                 }}
                 onBlur={() => setConfirmingId(null)}
-                title="Delete forever"
+                title={t("Delete forever")}
                 className="h-10 flex-none rounded-full px-3 text-[12.5px] font-semibold text-red-500 hover:bg-red-500/10"
               >
-                {confirmingId === link.id ? "Delete forever?" : "Delete"}
+                {confirmingId === link.id ? t("Delete forever?") : t("Delete")}
               </button>
             </div>
           ))}

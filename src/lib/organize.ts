@@ -1,4 +1,6 @@
 import type { Collection, LinkItem } from "./types";
+// explicit extension so `node --test` resolves it without a bundler
+import { msg } from "../i18n/translate.ts";
 
 /** Ordering, tag suggestions and theme detection — the three things that decide how a
  * library arranges itself. Pure functions so `organize.test.ts` can run them on node. */
@@ -6,11 +8,11 @@ import type { Collection, LinkItem } from "./types";
 export type Sort = "newest" | "oldest" | "title" | "site" | "manual";
 
 export const SORT_LABELS: Record<Sort, string> = {
-  newest: "Newest first",
-  oldest: "Oldest first",
-  title: "Title A–Z",
-  site: "Site A–Z",
-  manual: "My order",
+  newest: msg("Newest first"),
+  oldest: msg("Oldest first"),
+  title: msg("Title A–Z"),
+  site: msg("Site A–Z"),
+  manual: msg("My order"),
 };
 
 const newestFirst = (a: LinkItem, b: LinkItem) => b.createdAt.localeCompare(a.createdAt);

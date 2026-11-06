@@ -3,6 +3,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { after } from "next/server";
+import { getT } from "@/i18n/server";
 import { db } from "./client";
 import * as schema from "./schema";
 import { currentPlan, currentUserId, fullCrawls } from "./current-user";
@@ -272,15 +273,16 @@ function toItem(row: typeof schema.links.$inferSelect): LinkItem {
   };
 }
 
-function cleanNoteText(text: unknown): string {
-  if (typeof text !== "string" || !text.trim()) throw new Error("A note needs some text.");
-  if (text.length > MAX_NOTE_CHARS) throw new Error("That note is too long.");
+async function cleanNoteText(text: unknown): Promise<string> {
+  const t = await getT();
+  if (typeof text !== "string" || !text.trim()) throw new Error(t("A note needs some text."));
+  if (text.length > MAX_NOTE_CHARS) throw new Error(t("That note is too long."));
   return text.trim();
 }
 
 export async function createNote(text: string, collectionId?: string, source = "manual"): Promise<LinkItem> {
   const uid = await currentUserId();
-  const body = cleanNoteText(text);
+  const body = await cleanNoteText(text);
   const [row] = await db
     .insert(schema.links)
     .values({
@@ -300,7 +302,7 @@ export async function createNote(text: string, collectionId?: string, source = "
 /** A note's text is the note, so editing it re-derives the title too. */
 export async function setNoteText(id: string, text: string) {
   const uid = await currentUserId();
-  const body = cleanNoteText(text);
+  const body = await cleanNoteText(text);
   await db
     .update(schema.links)
     .set({ title: noteTitle(body), excerpt: body, updatedAt: new Date() })
@@ -316,7 +318,8 @@ export async function createImage(
   source = "manual"
 ): Promise<LinkItem> {
   const uid = await currentUserId();
-  if (typeof base64 !== "string" || !base64) throw new Error("No image to save.");
+  const t = await getT();
+  if (typeof base64 !== "string" || !base64) throw new Error(t("No image to save."));
   const bytes = Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64");
   const title = caption?.trim() || "Image";
   const [row] = await db
@@ -421,7 +424,8 @@ export async function setPinned(id: string, pinned: boolean): Promise<{ ok: bool
     const [link] = await tx.select().from(schema.links)
       .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid))).for("update");
     if (!link || (pinned && (link.deletedAt || link.archivedAt))) {
-      throw new Error("This link is no longer in your library.");
+      const t = await getT();
+      throw new Error(t("This link is no longer in your library."));
     }
     if (pinned && !link.pinned) {
       const existing = await tx.select({ id: schema.links.id }).from(schema.links)
@@ -526,14 +530,15 @@ export async function deleteCollection(id: string): Promise<{ trashedIds: string
     .from(schema.collections)
     .where(and(eq(schema.collections.id, id), eq(schema.collections.userId, uid)));
   if (!collection) return { trashedIds: [] };
-  if (collection.isInbox) throw new Error("The inbox can't be deleted.");
+  const t = await getT();
+  if (collection.isInbox) throw new Error(t("The inbox can't be deleted."));
 
   if (!collection.isSmart) {
     const [inbox] = await db
       .select({ id: schema.collections.id })
       .from(schema.collections)
       .where(and(eq(schema.collections.userId, uid), eq(schema.collections.isInbox, true)));
-    if (!inbox) throw new Error("No Unsorted collection to move the links into.");
+    if (!inbox) throw new Error(t("No Unsorted collection to move the links into."));
     await db
       .update(schema.links)
       .set({ collectionId: inbox.id, updatedAt: new Date() })
@@ -569,7 +574,8 @@ export async function setCollectionShared(
       )
     )
     .returning({ shareToken: schema.collections.shareToken });
-  if (!row) throw new Error("Only your own collections can be shared — not Unsorted or a filter.");
+  const t = await getT();
+  if (!row) throw new Error(t("Only your own collections can be shared — not Unsorted or a filter."));
   return { shareToken: row.shareToken };
 }
 
@@ -590,10 +596,11 @@ export async function saveFromShare(
 ): Promise<{ links: LinkItem[]; collection?: Collection }> {
   const uid = await currentUserId();
   const shared = await sharedCollectionRows(token);
-  if (!shared) throw new Error("This collection isn't shared any more.");
+  const t = await getT();
+  if (!shared) throw new Error(t("This collection isn't shared any more."));
   const wanted = Array.isArray(linkIds) ? new Set(linkIds) : null;
   const rows = wanted ? shared.rows.filter((r) => wanted.has(r.id)) : shared.rows;
-  if (wanted && rows.length === 0) throw new Error("That link isn't in this collection any more.");
+  if (wanted && rows.length === 0) throw new Error(t("That link isn't in this collection any more."));
 
   let collection: Collection | undefined;
   if (!wanted) {
@@ -805,7 +812,8 @@ export async function uploadLibrary(upload: { collections: UploadedCollection[];
   const uid = await currentUserId();
   if (!isPro(await currentPlan())) return PRO_REQUIRED;
   if (!Array.isArray(upload?.links) || upload.links.length > UPLOAD_BATCH) {
-    throw new Error(`Send up to ${UPLOAD_BATCH} links at a time.`);
+    const t = await getT();
+    throw new Error(t("Send up to {count} links at a time.", { count: UPLOAD_BATCH }));
   }
   const items = upload.links.map(cleanUploadedLink);
   const inboxId = await ensureInbox();

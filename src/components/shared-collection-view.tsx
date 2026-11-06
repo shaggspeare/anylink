@@ -9,6 +9,7 @@ import { CollectionMarker } from "@/components/collection-marker";
 import { HeroArt } from "@/components/card";
 import { Logo } from "@/components/logo";
 import type { LinkItem, SharedCollection } from "@/lib/types";
+import { useLocale, useT } from "@/i18n/client";
 
 /** `?save=all` means the whole collection, any other value a link id. */
 const ALL = "all";
@@ -20,6 +21,7 @@ export function SharedCollectionView({ token, shared, iOS }: { token: string; sh
   const signedIn = !guest && !demo;
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   const save = async (key: string) => {
     if (!signedIn) {
@@ -34,11 +36,11 @@ export function SharedCollectionView({ token, shared, iOS }: { token: string; sh
       setSaved((prev) => new Set(prev).add(key));
       showToast(
         collection
-          ? `Saved “${collection.name}” — ${linkCount(links.length)}`
-          : `Saved to ${inbox?.name ?? "Unsorted"}`
+          ? t("Saved “{name}” — {links}", { name: collection.name, links: linkCount(links.length, t) })
+          : t("Saved to {name}", { name: inbox?.name ?? t("Unsorted") })
       );
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Couldn't save. Try again.");
+      showToast(e instanceof Error ? e.message : t("Couldn't save. Try again."));
     } finally {
       setBusy(false);
     }
@@ -63,15 +65,15 @@ export function SharedCollectionView({ token, shared, iOS }: { token: string; sh
           <CollectionMarker color={shared.color} icon={shared.icon} size={14} />
           <h1 className="text-title min-w-0 truncate text-[26px]">{shared.name}</h1>
           <span className="text-meta text-ink/50">
-            {linkCount(shared.links.length)}
-            {shared.ownerName && ` · shared by ${shared.ownerName}`}
+            {linkCount(shared.links.length, t)}
+            {shared.ownerName && ` · ${t("shared by {name}", { name: shared.ownerName })}`}
           </span>
           {iOS && (
             <a
               href={`anylink://s/${token}`}
               className="flex h-10 items-center rounded-full border border-rim/90 bg-surface/70 px-5 text-body font-semibold text-ink sm:ml-auto"
             >
-              Open in app
+              {t("Open in app")}
             </a>
           )}
           {shared.links.length > 0 && (
@@ -81,13 +83,13 @@ export function SharedCollectionView({ token, shared, iOS }: { token: string; sh
               onClick={() => save(ALL)}
               className="ml-auto flex h-10 items-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink disabled:opacity-50"
             >
-              {saved.has(ALL) ? "Saved to your library" : "Save collection"}
+              {saved.has(ALL) ? t("Saved to your library") : t("Save collection")}
             </button>
           )}
         </header>
 
         {shared.links.length === 0 ? (
-          <p className="text-body text-ink/60">Nothing here yet.</p>
+          <p className="text-body text-ink/60">{t("Nothing here yet.")}</p>
         ) : (
           <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {shared.links.map((link) => (
@@ -104,7 +106,7 @@ export function SharedCollectionView({ token, shared, iOS }: { token: string; sh
 
         <Link href="/" className="flex items-center gap-2 self-center pt-4 text-meta text-ink/55 hover:text-ink">
           <Logo className="h-5 w-5" />
-          Made with AnyLink
+          {t("Made with AnyLink")}
         </Link>
       </div>
     </div>
@@ -122,6 +124,8 @@ function SharedCard({
   disabled: boolean;
   onSave: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const isNote = link.contentType === "note";
   const price = link.product?.price;
   // A note has no page to open; an image opens the stored file.
@@ -149,8 +153,8 @@ function SharedCard({
         {price !== undefined && (
           <p className="text-[17px] font-semibold text-ink">
             {link.product!.currency}
-            {price.toLocaleString()}
-            {link.product!.inStock === false && <span className="ml-2 text-meta font-normal text-ink/50">Out of stock</span>}
+            {price.toLocaleString(locale)}
+            {link.product!.inStock === false && <span className="ml-2 text-meta font-normal text-ink/50">{t("Out of stock")}</span>}
           </p>
         )}
         {link.note && <p className="rounded-[12px] bg-ink/5 px-3 py-2 text-body text-ink/80">{link.note}</p>}
@@ -160,7 +164,7 @@ function SharedCard({
           onClick={onSave}
           className="mt-auto self-start rounded-full border border-rim/90 bg-surface/70 px-4 py-1.5 text-meta font-semibold text-ink disabled:opacity-50"
         >
-          {saved ? "Saved" : "Save"}
+          {saved ? t("Saved") : t("Save")}
         </button>
       </div>
     </article>

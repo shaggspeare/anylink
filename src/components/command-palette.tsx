@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLibrary } from "@/lib/store";
 import { searchLinks } from "@/lib/search";
+import { useT } from "@/i18n/client";
 
 type ResultKind = "link" | "tag" | "collection" | "query";
 type Result = { kind: ResultKind; id: string; label: string; sub?: string };
@@ -24,6 +25,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 export function CommandPalette() {
   const { paletteOpen, closePalette, links, tags, collections, saveSmartCollection } = useLibrary();
   const router = useRouter();
+  const t = useT();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,8 +48,8 @@ export function CommandPalette() {
   // works here without the palette knowing what any of those operators mean.
   const matches = useMemo(() => searchLinks(links, q), [links, q]);
   const linkResults: Result[] = useMemo(
-    () => matches.slice(0, 6).map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain || (l.contentType === "note" ? "Note" : "Image") })),
-    [matches]
+    () => matches.slice(0, 6).map((l) => ({ kind: "link" as const, id: l.id, label: l.title, sub: l.domain || (l.contentType === "note" ? t("Note") : t("Image")) })),
+    [matches, t]
   );
 
   const tagResults: Result[] = useMemo(() => {
@@ -66,7 +68,7 @@ export function CommandPalette() {
 
   const allResults: Result[] =
     q && matches.length > linkResults.length
-      ? [{ kind: "query", id: "all", label: `Show all ${matches.length} matches` }]
+      ? [{ kind: "query", id: "all", label: t("Show all {count} match|Show all {count} matches", { count: matches.length }) }]
       : [];
 
   const flat = [...linkResults, ...allResults, ...tagResults, ...collectionResults];
@@ -107,7 +109,7 @@ export function CommandPalette() {
     } else if (e.key === "s" && (e.metaKey || e.ctrlKey) && q) {
       e.preventDefault();
       // Named on the way in — a saved filter you can't recognise in the sidebar is dead weight.
-      const name = window.prompt("Name this filter", q);
+      const name = window.prompt(t("Name this filter"), q);
       if (name === null) return;
       saveSmartCollection(q, name);
       closePalette();
@@ -141,14 +143,14 @@ export function CommandPalette() {
                 setActiveIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search links, #tags…"
+              placeholder={t("Search links, #tags…")}
               className="flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink/40"
             />
           </div>
 
           <div className="max-h-[50vh] overflow-y-auto px-2 py-2">
             {linkResults.length > 0 && (
-              <ResultGroup label="Links">
+              <ResultGroup label={t("Links")}>
                 {linkResults.map((r) => (
                   <ResultRow
                     key={r.id}
@@ -170,11 +172,11 @@ export function CommandPalette() {
                 onClick={() => openResult(r)}
               >
                 <span className="text-ink/70">{r.label}</span>
-                <span className="ml-auto flex-none text-meta text-ink/40">in the library</span>
+                <span className="ml-auto flex-none text-meta text-ink/40">{t("in the library")}</span>
               </ResultRow>
             ))}
             {(tagResults.length > 0 || collectionResults.length > 0) && (
-              <ResultGroup label="Tags & collections">
+              <ResultGroup label={t("Tags & collections")}>
                 {tagResults.map((r) => (
                   <ResultRow
                     key={`tag-${r.id}`}
@@ -197,23 +199,23 @@ export function CommandPalette() {
               </ResultGroup>
             )}
             {flat.length === 0 && (
-              <div className="px-4 py-8 text-center text-body text-ink/45">No matches.</div>
+              <div className="px-4 py-8 text-center text-body text-ink/45">{t("No matches.")}</div>
             )}
           </div>
 
           <div className="hidden items-center gap-4 border-t border-rim/60 px-5 py-3 text-meta text-ink/45 pointer-fine:flex">
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate
+              <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd> {t("navigate")}
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">↵</kbd> open
+              <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">↵</kbd> {t("open")}
             </span>
             <span className="flex items-center gap-1.5">
-              <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘↵</kbd> open original
+              <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘↵</kbd> {t("open original")}
             </span>
             {q && (
               <span className="ml-auto flex items-center gap-1.5">
-                <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘S</kbd> save as a custom filter
+                <kbd className="rounded-[5px] bg-ink/6 px-1.5 py-0.5 font-mono text-[10px]">⌘S</kbd> {t("save as a custom filter")}
               </span>
             )}
           </div>

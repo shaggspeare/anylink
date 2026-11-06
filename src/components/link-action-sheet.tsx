@@ -6,6 +6,7 @@ import { CollectionMarker } from "@/components/collection-marker";
 import { Icon } from "@/components/icon";
 import { useLibrary } from "@/lib/store";
 import type { LinkItem } from "@/lib/types";
+import { useT } from "@/i18n/client";
 
 const SHEET_ROW = "flex h-12 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-[15px] font-medium text-ink active:bg-ink/8";
 const MENU_ROW = "flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-ink hover:bg-ink/6";
@@ -29,6 +30,7 @@ export function LinkActionSheet({
   const isNote = link.contentType === "note";
   const { collections, moveLinks, setFavorite, setPinned, deleteLinks, showToast } = useLibrary();
   const [moving, setMoving] = useState(false);
+  const t = useT();
   const targets = collections.filter((c) => !c.isSmart && c.id !== link.collectionId);
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
 
@@ -50,14 +52,14 @@ export function LinkActionSheet({
       className={`fixed inset-0 z-[55] flex ${at ? "" : "items-end"}`}
       role="dialog"
       aria-modal
-      aria-label={`Actions for ${link.title}`}
+      aria-label={t("Actions for {title}", { title: link.title })}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.stopPropagation()}
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t("Close")}
         onClick={onClose}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -94,14 +96,14 @@ export function LinkActionSheet({
           </span>
           <div className="min-w-0">
             <div className="truncate text-[14px] font-semibold text-ink">{link.title}</div>
-            <div className="truncate text-meta text-ink/50">{link.domain || (isNote ? "Note" : "Image")}</div>
+            <div className="truncate text-meta text-ink/50">{link.domain || (isNote ? t("Note") : t("Image"))}</div>
           </div>
         </div>
 
         {moving ? (
           <div className="flex max-h-[50dvh] flex-col overflow-y-auto">
             <button type="button" onClick={() => setMoving(false)} className={`${ROW} text-ink/55`}>
-              <Icon name="arrow-left" size={14} /> Move to…
+              <Icon name="arrow-left" size={14} /> {t("Move to…")}
             </button>
             {targets.map((c) => (
               <button
@@ -121,7 +123,7 @@ export function LinkActionSheet({
           <div className="flex flex-col">
             {!isNote && (
               <a href={link.url} target="_blank" rel="noreferrer noopener" onClick={onClose} className={ROW}>
-                <Icon name="arrow-up-right" size={15} /> {link.contentType === "image" ? "Open full size" : "Open original"}
+                <Icon name="arrow-up-right" size={15} /> {link.contentType === "image" ? t("Open full size") : t("Open original")}
               </a>
             )}
             {canShare && (
@@ -132,35 +134,35 @@ export function LinkActionSheet({
                 )}
                 className={ROW}
               >
-                <Icon name="share" size={15} /> Share…
+                <Icon name="share" size={15} /> {t("Share…")}
               </button>
             )}
             <button
               type="button"
               onClick={run(() =>
                 navigator.clipboard?.writeText(isNote ? link.excerpt : link.url).then(
-                  () => showToast(isNote ? "Text copied" : "Link copied"),
-                  () => showToast("Couldn't copy that")
+                  () => showToast(isNote ? t("Text copied") : t("Link copied")),
+                  () => showToast(t("Couldn't copy that"))
                 )
               )}
               className={ROW}
             >
-              <Icon name={isNote ? "note" : "link"} size={15} /> {isNote ? "Copy text" : "Copy link"}
+              <Icon name={isNote ? "note" : "link"} size={15} /> {isNote ? t("Copy text") : t("Copy link")}
             </button>
             {targets.length > 0 && (
               <button type="button" onClick={() => setMoving(true)} className={ROW}>
-                <Icon name="folder" size={15} /> Move to collection
+                <Icon name="folder" size={15} /> {t("Move to collection")}
               </button>
             )}
             <button type="button" onClick={run(() => { void setPinned(link.id, !link.pinned); })} className={ROW}>
-              <Icon name="pin" size={15} /> {link.pinned ? "Unpin" : "Pin to top"}
+              <Icon name="pin" size={15} /> {link.pinned ? t("Unpin") : t("Pin to top")}
             </button>
             <button type="button" onClick={run(() => setFavorite(link.id, !link.favorite))} className={ROW}>
               <span className="text-signal"><Icon name="star" size={15} /></span>
-              {link.favorite ? "Remove from favorites" : "Add to favorites"}
+              {link.favorite ? t("Remove from favorites") : t("Add to favorites")}
             </button>
             <button type="button" onClick={run(() => deleteLinks([link.id]))} className={`${ROW} text-red-500`}>
-              <Icon name="trash" size={15} /> Move to Trash
+              <Icon name="trash" size={15} /> {t("Move to Trash")}
             </button>
           </div>
         )}

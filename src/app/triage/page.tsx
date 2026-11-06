@@ -10,6 +10,7 @@ import { Icon } from "@/components/icon";
 import { suggestCollection } from "@/lib/organize";
 import { swipeDirection } from "@/lib/geometry";
 import type { LinkItem } from "@/lib/types";
+import { useT } from "@/i18n/client";
 
 const MAX_ALTERNATIVES = 5;
 
@@ -23,6 +24,7 @@ export default function TriagePage() {
   const [later, setLater] = useState<Set<string>>(new Set());
   const [dragX, setDragX] = useState(0);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const t = useT();
 
   const byId = new Map(links.map((l) => [l.id, l]));
   const remaining = queue
@@ -35,6 +37,8 @@ export default function TriagePage() {
     .sort((a, b) => countForCollection(b.id) - countForCollection(a.id))
     .slice(0, MAX_ALTERNATIVES);
   const done = queue.length - remaining.length;
+  // The name is bold, so the sentence is split around it.
+  const [looksBefore, looksAfter = ""] = t("Looks like {name}").split("{name}");
 
   const accept = (target: LinkItem) => {
     if (!suggestion) return;
@@ -83,13 +87,13 @@ export default function TriagePage() {
         <div className="mx-auto flex max-w-[520px] flex-col gap-4 px-4 pb-10 pt-[max(24px,env(safe-area-inset-top))]">
           {/* Phones: a pushed screen like iOS — no tab bar over the buttons, a way back instead. */}
           <Link href="/app" className="-mb-2 flex items-center gap-1 self-start text-[15px] font-semibold text-ink lg:hidden">
-            <Icon name="arrow-left" size={14} /> Library
+            <Icon name="arrow-left" size={14} /> {t("Library")}
           </Link>
           <header className="flex items-end gap-3">
-            <h1 className="text-hero text-[30px]">Sort Unsorted</h1>
+            <h1 className="text-hero text-[30px]">{t("Sort Unsorted")}</h1>
             {link && (
               <span className="pb-1.5 text-meta text-ink/50">
-                {Math.min(done + 1, queue.length)} of {queue.length}
+                {t("{current} of {total}", { current: Math.min(done + 1, queue.length), total: queue.length })}
               </span>
             )}
           </header>
@@ -108,7 +112,7 @@ export default function TriagePage() {
                   className="self-start rounded-full px-3 py-1.5 text-[12.5px] text-ink"
                   style={{ background: "rgba(124,140,255,.18)" }}
                 >
-                  ✦ Looks like <b>{suggestion.name}</b>
+                  ✦ {looksBefore}<b>{suggestion.name}</b>{looksAfter}
                 </span>
               )}
 
@@ -144,7 +148,7 @@ export default function TriagePage() {
                 </div>
                 <div className="flex flex-col gap-1.5 px-2 pb-3 pt-3">
                   <span className="truncate text-meta text-ink/50">
-                    {[link.domain, link.readingTimeMinutes && `${link.readingTimeMinutes} min read`]
+                    {[link.domain, link.readingTimeMinutes && t("{count} min read", { count: link.readingTimeMinutes })]
                       .filter(Boolean)
                       .join(" · ")}
                   </span>
@@ -159,9 +163,9 @@ export default function TriagePage() {
                   {link.excerpt && <p className="line-clamp-3 text-body text-ink/60">{link.excerpt}</p>}
                   {link.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {link.tags.slice(0, 4).map((t) => (
-                        <span key={t} className="rounded-full bg-ink/6 px-2.5 py-1 text-[12px] text-ink/75">
-                          #{t}
+                      {link.tags.slice(0, 4).map((tag) => (
+                        <span key={tag} className="rounded-full bg-ink/6 px-2.5 py-1 text-[12px] text-ink/75">
+                          #{tag}
                         </span>
                       ))}
                     </div>
@@ -171,7 +175,7 @@ export default function TriagePage() {
 
               {alternatives.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-meta text-ink/55">{suggestion ? "Or:" : "File into:"}</span>
+                  <span className="text-meta text-ink/55">{suggestion ? t("Or:") : t("File into:")}</span>
                   {alternatives.map((c, i) => (
                     <button
                       key={c.id}
@@ -192,8 +196,8 @@ export default function TriagePage() {
                 <button
                   type="button"
                   onClick={() => kill(link)}
-                  aria-label="Move to Trash"
-                  title="Move to Trash (←)"
+                  aria-label={t("Move to Trash")}
+                  title={t("Move to Trash (←)")}
                   className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-full bg-ink text-on-ink"
                 >
                   <Icon name="trash" size={18} />
@@ -201,16 +205,16 @@ export default function TriagePage() {
                 <button
                   type="button"
                   onClick={() => skip(link)}
-                  title="Later (L)"
+                  title={t("Later (L)")}
                   className="h-[52px] flex-none rounded-full border border-rim/90 bg-surface/70 px-5 text-body font-semibold text-ink"
                 >
-                  Later
+                  {t("Later")}
                 </button>
                 {suggestion && (
                   <button
                     type="button"
                     onClick={() => accept(link)}
-                    title={`File into ${suggestion.name} (→)`}
+                    title={t("File into {name} (→)", { name: suggestion.name })}
                     className="h-[52px] min-w-0 flex-1 truncate rounded-full bg-signal px-5 text-body font-semibold text-on-accent"
                   >
                     {suggestion.name} →
@@ -218,8 +222,8 @@ export default function TriagePage() {
                 )}
               </div>
               <p className="hidden text-center text-meta text-ink/40 lg:block">
-                ← Trash{suggestion && ` · → ${suggestion.name}`} · L later
-                {alternatives.length > 0 && ` · ${alternatives.length > 1 ? `1–${alternatives.length}` : "1"} pick one`}
+                ← {t("Trash")}{suggestion && ` · → ${suggestion.name}`} · L {t("later")}
+                {alternatives.length > 0 && ` · ${alternatives.length > 1 ? `1–${alternatives.length}` : "1"} ${t("pick one")}`}
               </p>
             </>
           ) : (
@@ -227,15 +231,15 @@ export default function TriagePage() {
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-lime text-on-accent">
                 <Icon name="check" size={26} />
               </span>
-              <h2 className="text-title">Unsorted is clear</h2>
+              <h2 className="text-title">{t("Unsorted is clear")}</h2>
               <p className="max-w-[340px] text-lead text-ink/60">
-                Everything has a home. New links will land here again until you sort them.
+                {t("Everything has a home. New links will land here again until you sort them.")}
               </p>
               <Link
                 href="/app"
                 className="mt-2 flex h-11 items-center rounded-full bg-ink px-5 text-body font-semibold text-on-ink"
               >
-                Back to library
+                {t("Back to library")}
               </Link>
             </div>
           )}
