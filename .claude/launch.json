@@ -4,8 +4,23 @@
     {
       "name": "app-store-screens",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4319", "--directory", "/Users/slava/Projects/anylink"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4319",
+        "--directory",
+        "/Users/slava/Projects/anylink"
+      ],
       "port": 4319
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
     }
   ]
 }

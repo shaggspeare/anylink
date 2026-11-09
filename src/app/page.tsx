@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Caveat, Instrument_Serif } from "next/font/google";
 import "./landing.css";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSelect } from "@/components/language-select";
 import { AppDemo } from "@/components/app-demo";
 import { UrlPreview } from "@/components/url-preview";
 import { SearchDemo } from "@/components/search-demo";
@@ -12,7 +13,7 @@ import { TiltSection } from "@/components/tilt-section";
 import { TourButton } from "@/components/tour";
 import { APP_STORE_URL, PRO_BENEFITS } from "@/lib/pro";
 import { linkCount } from "@/lib/format";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import { msg } from "@/i18n/translate";
 import appIcon from "../../public/images/landing/app-icon.webp";
 import chain from "../../public/images/landing/chain.webp";
@@ -152,6 +153,12 @@ const PHONE = (
     <path d="M10.5 18.5h3" />
   </svg>
 );
+const GLOBE = (
+  <svg className="ic" viewBox="0 0 24 24" aria-hidden>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" />
+  </svg>
+);
 const STAR = (
   <svg className="mq-star ic fill" viewBox="0 0 24 24">
     <path d="M12 2.5l2 6.5 6.5 2-6.5 2-2 6.5-2-6.5-6.5-2 6.5-2z" />
@@ -162,13 +169,14 @@ function Brand(props: React.ComponentProps<"a">) {
   return (
     <a className="brand" href="#top" {...props}>
       <Image src={appIcon} alt="" sizes="32px" />
-      AnyLink
+      <span>AnyLink</span>
     </a>
   );
 }
 
 export default async function LandingPage() {
   const t = await getT();
+  const locale = await getLocale();
   return (
     <div className={`al ${serif.variable} ${hand.variable}`}>
       <header className="nav">
@@ -182,6 +190,12 @@ export default async function LandingPage() {
             ))}
           </nav>
           <div className="nav-cta">
+            {/* The native select sits invisibly over the globe, so the picker is the platform's own. */}
+            <label className="lang">
+              {GLOBE}
+              <span>{locale.split("-")[0].toUpperCase()}</span>
+              <LanguageSelect />
+            </label>
             <ThemeToggle />
             <Link className="signin" href="/login">
               {t("Sign in")}
@@ -196,7 +210,6 @@ export default async function LandingPage() {
       <TiltSection className="hero" id="top">
         <div className="scene">
           <div className="flare flare-glow hero-glow" aria-hidden />
-          <div className="flare flare-body hero-flare" aria-hidden />
           <div className="wrap hero-grid">
             <div className="hero-copy">
               <span className="eyebrow">

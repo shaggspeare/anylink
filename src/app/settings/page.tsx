@@ -15,9 +15,8 @@ import { useLocalSetting } from "@/lib/use-local-setting";
 import { DEFAULT_COLLECTION_KEY, useDefaultCollection } from "@/lib/use-default-collection";
 import { applyTheme, THEME_KEY, type Theme } from "@/lib/theme";
 import { isPro } from "@/lib/plan";
-import { useRouter } from "next/navigation";
-import { useLocale, useT } from "@/i18n/client";
-import { languageName, LOCALE_COOKIE, LOCALES, type Locale } from "@/i18n/locales";
+import { useT } from "@/i18n/client";
+import { LanguageSelect } from "@/components/language-select";
 import { msg } from "@/i18n/translate";
 
 const THEMES: { id: Theme; label: string }[] = [
@@ -46,8 +45,6 @@ export default function SettingsPage() {
   const folders = collections.filter((c) => !c.isSmart);
   const live = links.filter((l) => !l.archived).length;
   const t = useT();
-  const locale = useLocale();
-  const router = useRouter();
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -182,21 +179,7 @@ export default function SettingsPage() {
           </Section>
 
           <Section title={t("Language")}>
-            <select
-              aria-label={t("Language")}
-              value={locale}
-              onChange={(e) => {
-                document.cookie = `${LOCALE_COOKIE}=${e.target.value}; path=/; max-age=31536000; samesite=lax`;
-                router.refresh();
-              }}
-              className="h-10 min-w-0 self-start rounded-full border border-rim/90 bg-surface/70 px-3.5 text-body text-ink"
-            >
-              {LOCALES.map((l: Locale) => (
-                <option key={l} value={l}>
-                  {languageName(l)}
-                </option>
-              ))}
-            </select>
+            <LanguageSelect className="h-10 min-w-0 self-start rounded-full border border-rim/90 bg-surface/70 px-3.5 text-body text-ink" />
           </Section>
 
           <Section title={t("Keyboard")}>
