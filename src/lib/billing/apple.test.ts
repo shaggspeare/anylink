@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { VerificationException, VerificationStatus } from "@apple/app-store-server-library";
 import { appleVerifier, handleNotification, PRODUCTS, purchaseEvent, type Verifier } from "./apple.ts";
-import { isPro, planAfter, type PlanEvent, type StoredPlan } from "../plan.ts";
+import { isPro, planAfter, PRO_FOR_EVERYONE, type PlanEvent, type StoredPlan } from "../plan.ts";
 
 const USER = "0b6f4a1e-9c2d-4f7a-8e3b-5d1c2a9f7e60";
 const OTHER = "7f3e2d1c-0b9a-4c8d-9e7f-6a5b4c3d2e1f";
@@ -201,7 +201,8 @@ function account() {
   };
 }
 
-test("end to end (H1): a refunded lifetime's old receipt never brings Pro back", async () => {
+// While Pro is parked every account reads as Pro, so a refund can't show; nothing is sold then either.
+test("end to end (H1): a refunded lifetime's old receipt never brings Pro back", { skip: PRO_FOR_EVERYONE && "Pro is parked" }, async () => {
   const a = account();
   const receipt = lifetimeTx();
   await a.post(receipt);

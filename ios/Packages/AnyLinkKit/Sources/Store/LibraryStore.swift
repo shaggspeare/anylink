@@ -18,7 +18,10 @@ public final class LibraryStore {
     public private(set) var displayName: String? { didSet { scheduleSave() } }
     /// "pro" or "free", from the server's last library. Nil reads as free.
     public private(set) var plan: String? { didSet { scheduleSave() } }
-    public var isPro: Bool { plan == "pro" }
+    /// Set by the app while Pro is parked: Pro's layouts and controls for everyone, a local library too. What needs an
+    /// account still answers `.proRequired` there, and the app asks them to sign in.
+    public var proForEveryone = false
+    public var isPro: Bool { proForEveryone || plan == "pro" }
     /// Calls waiting for the network, oldest first. Persisted with the cache.
     public private(set) var outbox: [OutboxItem] = []
     /// Set by the app: a 401 signs the user out.

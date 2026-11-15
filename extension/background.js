@@ -1,3 +1,4 @@
+// TODO: the Chrome extension is parked, not in the first release (see README.md).
 import { API, SUPABASE_KEY, SUPABASE_URL } from "./config.js";
 
 // The service worker owns the session. The popup closes as soon as a sign-in window takes focus, so sign-in

@@ -5,11 +5,17 @@ export type Plan = "free" | "pro";
 /** The plan as `users` stores it. `planExpiresAt` is when Pro ends; none means lifetime. */
 export type PlanRow = { plan: string | null; planExpiresAt?: Date | null };
 
+/** Pro is parked for the first release: every account gets everything Pro has, and nothing is sold. The gating, billing
+ * and paywall all stay wired up; set this to false to bring Pro back. iOS twin: `AppConfig.proForEveryone`. */
+export const PRO_FOR_EVERYONE = true;
+
 /** The one rule for who gets Pro: plan "pro", and either no expiry (lifetime, grandfathered) or one still ahead.
  * Anything else is free: no account, no row, an unknown value, a lapsed subscription. A bare plan string, like the
- * "pro" the library sends the apps, already had the expiry applied. SQL twin: `proAccounts` in db/plan.ts. */
+ * "pro" the library sends the apps, already had the expiry applied. SQL twin: `proAccounts` in db/plan.ts.
+ * While `PRO_FOR_EVERYONE`, every account is Pro; no account still isn't. */
 export function isPro(plan: PlanRow | string | null | undefined, now = new Date()): boolean {
   if (typeof plan === "string" || !plan) return plan === "pro";
+  if (PRO_FOR_EVERYONE) return true;
   return plan.plan === "pro" && (!plan.planExpiresAt || plan.planExpiresAt > now);
 }
 

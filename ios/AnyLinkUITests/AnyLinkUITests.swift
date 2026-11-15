@@ -8,6 +8,7 @@ final class AnyLinkUITests: XCTestCase {
     }
 
     @MainActor
+    /// Pro is parked (`AppConfig.proForEveryone`), so tests of its gating pass `-pro-gating` to turn it back on.
     private func launch(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing"] + extra
@@ -90,7 +91,7 @@ final class AnyLinkUITests: XCTestCase {
     /// Under -ui-testing the paywall shows fixed prices: no test ever reaches the App Store.
     @MainActor
     func testFreeOpensThePaywallFromSettingsAndSignsInFirst() throws {
-        let app = launch(["-signed-out"])                        // a local library: Free, and no account yet
+        let app = launch(["-signed-out", "-pro-gating"])                        // a local library: Free, and no account yet
         app.tabBars.buttons["Profile"].tap()
         let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'AnyLink Pro'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 3))
@@ -179,7 +180,7 @@ final class AnyLinkUITests: XCTestCase {
         XCTAssertTrue(noodles.isSelected)
         app.terminate()
 
-        let free = launch(["-free"])
+        let free = launch(["-free", "-pro-gating"])
         free.buttons["tile-ramen"].tap()
         // The upsell line is a button that opens the paywall (S19).
         let upsell = free.buttons["Pro turns this into a recipe: ingredients to tick off, numbered steps and the times."]
@@ -300,7 +301,7 @@ final class AnyLinkUITests: XCTestCase {
     /// library (S20), and the app switches to it.
     @MainActor
     func testSignInFromSettingsOpensTheProLibrary() throws {
-        let app = launch(["-signed-out"])
+        let app = launch(["-signed-out", "-pro-gating"])
         read("www.theverge.com/2026/10/one", in: app)
         let save = app.buttons["Save to Unsorted"]
         XCTAssertTrue(save.waitForExistence(timeout: 5))
@@ -322,7 +323,7 @@ final class AnyLinkUITests: XCTestCase {
     /// Settings shows Pro. Under -ui-testing the purchase skips the App Store.
     @MainActor
     func testBuyingProMovesTheLocalLibrary() throws {
-        let app = launch(["-free"])
+        let app = launch(["-free", "-pro-gating"])
         XCTAssertTrue(app.buttons["tile-nasa"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Profile"].tap()
         XCTAssertTrue(app.staticTexts["iCloud sync"].waitForExistence(timeout: 3), "a free account's library is on this iPhone")
@@ -341,7 +342,7 @@ final class AnyLinkUITests: XCTestCase {
     /// with a notice once.
     @MainActor
     func testProEndingKeepsTheLibraryOnThisIPhone() throws {
-        let app = launch(["-pro-ends"])
+        let app = launch(["-pro-ends", "-pro-gating"])
         let nasa = app.buttons["tile-nasa"]
         XCTAssertTrue(nasa.waitForExistence(timeout: 5))
         let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))

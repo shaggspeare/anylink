@@ -14,7 +14,7 @@ import { linkCount } from "@/lib/format";
 import { useLocalSetting } from "@/lib/use-local-setting";
 import { DEFAULT_COLLECTION_KEY, useDefaultCollection } from "@/lib/use-default-collection";
 import { applyTheme, THEME_KEY, type Theme } from "@/lib/theme";
-import { isPro } from "@/lib/plan";
+import { isPro, PRO_FOR_EVERYONE } from "@/lib/plan";
 import { useT } from "@/i18n/client";
 import { LanguageSelect } from "@/components/language-select";
 import { msg } from "@/i18n/translate";
@@ -65,7 +65,7 @@ export default function SettingsPage() {
             ) : (
               <>
                 <p className="text-body text-ink">{email}</p>
-                <div className="flex flex-col gap-0.5">
+                {!PRO_FOR_EVERYONE && <div className="flex flex-col gap-0.5">
                   <p className="text-body text-ink">{t("Plan: {plan}", { plan: isPro(plan) ? "Pro" : t("Free") })}</p>
                   {isPro(plan) ? (
                     <p className="text-meta text-ink/60">{t("Manage your subscription in the iOS app.")}</p>
@@ -74,7 +74,7 @@ export default function SettingsPage() {
                       {t("See what Pro adds")}
                     </button>
                   )}
-                </div>
+                </div>}
                 <label className="flex items-center justify-between gap-4">
                   <span className="text-body text-ink">{t("Name on shared collections")}</span>
                   <input

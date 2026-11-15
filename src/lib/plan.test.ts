@@ -6,6 +6,7 @@ import {
   isPro,
   LIFETIME_FAIR_USE,
   planAfter,
+  PRO_FOR_EVERYONE,
   PRO_REQUIRED,
   proAware,
   type PlanEvent,
@@ -16,8 +17,10 @@ import {
 const now = new Date("2026-11-15T12:00:00Z");
 const later = new Date("2026-12-15T12:00:00Z");
 const earlier = new Date("2026-10-15T12:00:00Z");
+// While Pro is parked every account is Pro, so the rules below have nothing to tell apart.
+const parked = { skip: PRO_FOR_EVERYONE && "Pro is parked (PRO_FOR_EVERYONE)" };
 
-test("isPro: plan 'pro' with no expiry or one still ahead", () => {
+test("isPro: plan 'pro' with no expiry or one still ahead", parked, () => {
   const table: [PlanRow | string | null | undefined, boolean, string][] = [
     [{ plan: "pro", planExpiresAt: null }, true, "lifetime or grandfathered"],
     [{ plan: "pro" }, true, "no expiry column read"],
@@ -38,7 +41,7 @@ test("isPro: plan 'pro' with no expiry or one still ahead", () => {
   for (const [plan, expected, why] of table) assert.equal(isPro(plan, now), expected, why);
 });
 
-test("fullCrawl: Pro gets AI and the browser, except lifetime past its fair use this month", () => {
+test("fullCrawl: Pro gets AI and the browser, except lifetime past its fair use this month", parked, () => {
   const table: [PlanRow | null, number, boolean, string][] = [
     [null, 0, false, "signed out"],
     [{ plan: "free" }, 0, false, "free"],
@@ -154,5 +157,5 @@ test("planAfter: purchases and App Store news, each scenario a run of events", (
   assert.equal(planAfter(row("pro", "lifetime", null, "L", [log("L", "reversed", 9)]), refunded("L", 5)), null);
   // The refunded lifetime's old receipt grants nothing, even after a monthly purchase moved the account on.
   const lapsedMonthly = [refunded("L", 5), sub("m9", 3, 2), lifetime()].reduce((r, e) => planAfter(r, e) ?? r, onLifetime);
-  assert.equal(isPro(lapsedMonthly, day(10)), false);
+  if (!PRO_FOR_EVERYONE) assert.equal(isPro(lapsedMonthly, day(10)), false);
 });

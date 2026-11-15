@@ -1,5 +1,9 @@
 # AnyLink for Chrome
 
+> **TODO: parked (2026-11-15).** The extension isn't in the first release. The code stays and its tests still run with
+> `npm test`. Before it ships: the Supabase redirect URLs, the Chrome Web Store listing and the steps under "Check by
+> hand" in `docs/pro-progress.md` § Phase 8.
+
 Saves the current tab to a collection in your AnyLink library. Manifest V3, plain JavaScript, no build step.
 
 | File | What it does |

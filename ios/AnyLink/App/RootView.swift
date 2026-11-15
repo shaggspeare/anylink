@@ -120,7 +120,7 @@ struct RootView: View {
             env = .make(.server)
             plan = "pro"
             await env.store.refresh()
-            if moved > 0 { env.store.toasts.show("Your library is on AnyLink Pro") }
+            if moved > 0 { env.store.toasts.show(AppConfig.proForEveryone ? "Your library now syncs with the web" : "Your library is on AnyLink Pro") }
         } catch AppError.unauthorized {
             signedIn = false
         } catch AppError.proRequired {

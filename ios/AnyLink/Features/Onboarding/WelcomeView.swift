@@ -30,10 +30,16 @@ struct WelcomeView: View {
                     pillar("Organise", "collections build themselves")
                     pillar("Find", "even inside the article text")
                 }
-                Text("Have Pro? Sign in to see the same library here and on the web.")
-                    .font(AL.Font.lead)
-                    .foregroundStyle(AL.ink.opacity(AL.Ink.a75))
-                    .fixedSize(horizontal: false, vertical: true)
+                Group {
+                    if AppConfig.proForEveryone {
+                        Text("Have an account? Sign in to see the same library here and on the web.")
+                    } else {
+                        Text("Have Pro? Sign in to see the same library here and on the web.")
+                    }
+                }
+                .font(AL.Font.lead)
+                .foregroundStyle(AL.ink.opacity(AL.Ink.a75))
+                .fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 12) {
                     SignInButtons(onSignedIn: onSignedIn)
                     if let onClose {

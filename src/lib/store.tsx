@@ -9,7 +9,7 @@ import type { Priorities } from "./rank/group-links";
 import type { CardSize, Collection, LinkItem } from "./types";
 import { noteTitle } from "./linkify";
 import { IMAGE_IDENTITY, NOTE_IDENTITY } from "./card-identity";
-import { isPro, isProRefusal, proAware, type Plan } from "./plan";
+import { isPro, isProRefusal, PRO_FOR_EVERYONE, proAware, type Plan } from "./plan";
 import { AuthDialog } from "@/components/auth-panel";
 import { useT } from "@/i18n/client";
 import { ProDialog } from "@/components/pro-dialog";
@@ -188,7 +188,7 @@ export function LibraryProvider({
   guest = false,
   email = null,
   displayName: initialDisplayName = null,
-  plan = "free",
+  plan: serverPlan = "free",
 }: {
   children: ReactNode;
   initialLinks: LinkItem[];
@@ -202,6 +202,8 @@ export function LibraryProvider({
   email?: string | null;
 }) {
   const t = useT();
+  // While Pro is parked, guests and the demo get its layouts too.
+  const plan: Plan = PRO_FOR_EVERYONE ? "pro" : serverPlan;
   const [proOpen, setProOpen] = useState(false);
   // Every Pro refusal opens the Pro dialog, whichever call site it came from.
   const api = useMemo(() => proAware(demo || guest ? LOCAL_ACTIONS : actions, () => setProOpen(true)), [demo, guest]);
@@ -625,7 +627,8 @@ export function LibraryProvider({
     <LibraryContext.Provider value={value}>
       {children}
       {signUpOpen && <AuthDialog onClose={() => setSignUpOpen(false)} />}
-      {proOpen && <ProDialog onClose={() => setProOpen(false)} />}
+      {/* While Pro is parked every account has it, so a Pro gate only means there's no account yet. */}
+      {proOpen && (PRO_FOR_EVERYONE ? <AuthDialog onClose={() => setProOpen(false)} /> : <ProDialog onClose={() => setProOpen(false)} />)}
       {toast && (
         <div
           key={toast.key}

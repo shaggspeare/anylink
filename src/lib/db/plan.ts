@@ -1,10 +1,12 @@
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "./client";
 import { users } from "./schema";
-import { planAfter, type PlanEvent } from "../plan";
+import { planAfter, PRO_FOR_EVERYONE, type PlanEvent } from "../plan";
 
 /** `isPro` (../plan.ts) in SQL over `users`, for queries that pick accounts in bulk: the crons and share links. */
-export const proAccounts = and(eq(users.plan, "pro"), or(isNull(users.planExpiresAt), gt(users.planExpiresAt, sql`now()`)));
+export const proAccounts = PRO_FOR_EVERYONE
+  ? sql`true`
+  : and(eq(users.plan, "pro"), or(isNull(users.planExpiresAt), gt(users.planExpiresAt, sql`now()`)));
 
 /** Records a verified App Store event on the account (`planAfter`). The row is locked, so the app's post and Apple's
  * notification about the same purchase can't interleave. An unknown account changes nothing. */

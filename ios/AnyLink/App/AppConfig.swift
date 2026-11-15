@@ -23,6 +23,12 @@ enum AppConfig {
     static var isUITesting: Bool {
         CommandLine.arguments.contains("-ui-testing")
     }
+    /// Pro is parked for the first release: every account gets everything Pro has, and nothing is sold. The gating,
+    /// the paywall and StoreKit stay wired up; make this `false` to bring Pro back. Web twin: `PRO_FOR_EVERYONE` in
+    /// src/lib/plan.ts. Meanwhile UI tests pass `-pro-gating` to keep testing the gating.
+    static var proForEveryone: Bool {
+        !(isUITesting && CommandLine.arguments.contains("-pro-gating"))
+    }
     /// UI tests and screenshots: the sample library as a free account, kept on this device.
     static var isFree: Bool {
         CommandLine.arguments.contains("-free")

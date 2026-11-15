@@ -12,6 +12,7 @@ import { PhoneArc } from "@/components/landing-phones";
 import { TiltSection } from "@/components/tilt-section";
 import { TourButton } from "@/components/tour";
 import { APP_STORE_URL, PRO_BENEFITS } from "@/lib/pro";
+import { PRO_FOR_EVERYONE } from "@/lib/plan";
 import { linkCount } from "@/lib/format";
 import { getLocale, getT } from "@/i18n/server";
 import { msg } from "@/i18n/translate";
@@ -54,8 +55,8 @@ const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["nor
 const hand = Caveat({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-caveat" });
 
 /** Pricing sells Pro, so production shows it only once the App Store listing exists. Development always shows it, as a
- * preview. */
-const SHOW_PRICING = APP_STORE_URL !== null || process.env.NODE_ENV !== "production";
+ * preview. Nowhere while Pro is parked. */
+const SHOW_PRICING = !PRO_FOR_EVERYONE && (APP_STORE_URL !== null || process.env.NODE_ENV !== "production");
 
 const NAV = [
   { label: msg("Features"), href: "#features" },
@@ -126,6 +127,7 @@ const FREE = [
   msg("Reader view, search and smart collections"),
   msg("Import your bookmarks, grouped by AI"),
   msg("Share sheet, widgets, Shortcuts and Spotlight"),
+  // TODO: the Chrome extension is parked (not in the first release); drop this line if pricing ships before it does.
   msg("Save from Chrome, with a web account"),
   msg("Title, image and reading time on every save"),
 ];

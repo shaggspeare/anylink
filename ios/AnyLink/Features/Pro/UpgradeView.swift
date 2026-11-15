@@ -17,10 +17,19 @@ struct UpgradeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Spacer()
-            Text("AnyLink Pro").font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
-                .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+            // While Pro is parked, this is what signing in does: the library moves to the account.
+            if !AppConfig.proForEveryone {
+                Text("AnyLink Pro").font(AL.Font.eyebrow).tracking(1.47).textCase(.uppercase)
+                    .foregroundStyle(AL.ink.opacity(AL.Ink.a50))
+            }
             Group {
-                if phase == .failed { Text("Your library didn't finish moving") } else { Text("Moving your library to AnyLink Pro…") }
+                if phase == .failed {
+                    Text("Your library didn't finish moving")
+                } else if AppConfig.proForEveryone {
+                    Text("Moving your library to your account…")
+                } else {
+                    Text("Moving your library to AnyLink Pro…")
+                }
             }
             .font(AL.Font.sheetHero).tracking(-1.2)
             .foregroundStyle(AL.ink)

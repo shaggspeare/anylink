@@ -65,14 +65,16 @@ struct SettingsView: View {
         List {
             Section { account }
             if mode == .local { iCloudSync }
-            Section {
-                proRow("AnyLink Pro", value: pro ? "Pro" : "Free", systemImage: "sparkles")
-                proRow("Sync with web", value: pro ? "On" : "Pro", systemImage: "arrow.triangle.2.circlepath")
-                if pro {
-                    Button { managingSubscription = true } label: { row("Manage Subscription", systemImage: "creditcard") }
+            if !AppConfig.proForEveryone {
+                Section {
+                    proRow("AnyLink Pro", value: pro ? "Pro" : "Free", systemImage: "sparkles")
+                    proRow("Sync with web", value: pro ? "On" : "Pro", systemImage: "arrow.triangle.2.circlepath")
+                    if pro {
+                        Button { managingSubscription = true } label: { row("Manage Subscription", systemImage: "creditcard") }
+                    }
+                } header: {
+                    header("AnyLink Pro")
                 }
-            } header: {
-                header("AnyLink Pro")
             }
             Section {
                 TipView(ShareSheetTip())

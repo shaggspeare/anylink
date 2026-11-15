@@ -327,6 +327,7 @@ export default function PrivacyPolicyPage() {
           </Ul>
         </Section>
 
+        {/* TODO: the Chrome extension is parked (not in the first release). Keep this section only if it ships. */}
         <Section title="10. The Chrome extension">
           <P>The AnyLink extension for Chrome saves the tab you&apos;re on to your library. It needs an AnyLink account.</P>
           <Ul>
