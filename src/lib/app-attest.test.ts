@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  acceptsKey,
   APPLE_ROOT_CA,
   challengeIsFresh,
   checkAssertion,
@@ -25,6 +26,13 @@ test("Apple's development and production attestations register, each with its en
   assert.equal(dev.environment, "development");
   assert.match(dev.publicKey, /^-----BEGIN PUBLIC KEY-----/);
   assert.equal(attest(production).environment, "production");
+});
+
+test("production takes only production keys; elsewhere both", () => {
+  assert.equal(acceptsKey("production", true), true);
+  assert.equal(acceptsKey("development", true), false);
+  assert.equal(acceptsKey("development", false), true);
+  assert.equal(acceptsKey("production", false), true);
 });
 
 test("an attestation is refused for another challenge, key, app or root", () => {

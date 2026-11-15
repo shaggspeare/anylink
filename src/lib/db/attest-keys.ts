@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "./client";
 import { appAttestDaily, appAttestKeys } from "./schema";
-import { checkAssertion, DAILY_GROUPS_ALL_KEYS, spend, type UsageKind } from "../app-attest";
+import { acceptsKey, checkAssertion, DAILY_GROUPS_ALL_KEYS, spend, type UsageKind } from "../app-attest";
 
 /** Calls from an iOS install without an account (docs/adr/0002) carry `X-AnyLink-Key` and `X-AnyLink-Assertion`: an
  * App Attest assertion over the SHA-256 of the body, from a key registered at /api/attest/register. A refusal is a 403
@@ -46,6 +46,8 @@ export async function verifyAssertion(
 
   const [key] = await db.select().from(appAttestKeys).where(eq(appAttestKeys.keyId, keyId));
   if (!key) return refuse("unknown-key");
+  // Development keys registered before production refused them stop here too.
+  if (!acceptsKey(key.environment)) return refuse("development-key");
 
   let counter: number;
   try {

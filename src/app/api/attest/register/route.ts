@@ -1,4 +1,4 @@
-import { challengeIsFresh, checkAttestation } from "@/lib/app-attest";
+import { acceptsKey, challengeIsFresh, checkAttestation } from "@/lib/app-attest";
 import { db } from "@/lib/db/client";
 import { appAttestKeys } from "@/lib/db/schema";
 
@@ -25,6 +25,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.warn("App Attest registration refused:", error instanceof Error ? error.message : error);
     return Response.json({ error: "This device couldn't be verified.", reason: "invalid" }, { status: 403 });
+  }
+
+  if (!acceptsKey(key.environment)) {
+    return Response.json({ error: "Debug builds can't use this server.", reason: "development-key" }, { status: 403 });
   }
 
   // A key registers once: replaying its registration can't wind the counter back.
