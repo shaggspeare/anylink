@@ -1,7 +1,91 @@
-# App Store listing (draft)
+# App Store release 1.0: what's left, and the listing
 
-Copy for App Store Connect, for you to approve or edit. The voice follows `ios/docs/04-screens.md` and the landing
-page: short, plain, second person. Character counts are in brackets, against Apple's limits.
+The first section is the release checklist. The rest is the copy for App Store Connect, for you to approve or edit. The
+voice follows `ios/docs/04-screens.md` and the landing page: short, plain, second person. Character counts are in
+brackets, against Apple's limits.
+
+## What's left for 1.0
+
+Pro and the Chrome extension are **parked** for 1.0 (decided 2026-11-15):
+- Every account gets everything Pro has, and nothing is sold.
+- The extension isn't released.
+- The code for both stays. § Parked says how to bring them back.
+
+Do these in order. Steps marked *(Claude)* are code or deploys: ask for them.
+
+1. [ ] **Deploy the parked-Pro change** *(Claude)*. Until it's live, the server still treats new accounts as free.
+2. [ ] **Vercel → Production: set `APP_ATTEST_SECRET`**, then redeploy.
+   - Use any long random string, e.g. from `openssl rand -base64 48`.
+   - Without it, iPhones without an account can't check imported links or group them, and get a lower preview limit.
+3. [ ] **Apple Developer → Identifiers → `com.shaggspeare.anylink`:** turn on App Attest, iCloud (container
+   `iCloud.com.shaggspeare.anylink`) and Push Notifications. Automatic signing may add them on the first device build.
+4. [ ] **App Store Connect: create the app record** for `com.shaggspeare.anylink`. A free app with no purchases needs
+   no Paid Apps agreement, tax or banking.
+5. [ ] **CloudKit: deploy the schema to Production** before the first TestFlight build. The steps are in
+   `docs/pro-qa.md` § Launch hardening checklist → Before the TestFlight run.
+6. [ ] **Rewrite the privacy policy for parked Pro** *(Claude drafts, you approve)*.
+   - It says AI summaries, sync with the web, link checks, share links and export come "with Pro", and it describes
+     purchases. Now every account gets them, and nothing is sold.
+   - It has to be accurate, and deployed, before App Review reads it.
+   - Its Chrome extension section is marked TODO; drop it unless the extension ships first.
+7. [ ] **Build for TestFlight and run § TestFlight QA** below.
+8. [ ] **Refuse development App Attest keys in production** *(Claude)*, right before submitting.
+   - Details: `docs/pro-qa.md` § Right before submitting.
+   - After it, a Debug build on a real iPhone can't use production without an account. TestFlight builds still can.
+9. [ ] **Finish the listing:**
+   - Approve the copy and the App Privacy answers below, and enter them.
+   - Settle § Before you submit: support URL, iPad, age rating and the app preview.
+   - Take the screenshots.
+10. [ ] **Create the demo account** for App Review on production, and put it in § App Review notes.
+11. [ ] **Submit.**
+12. [ ] **Once the app is live:** set `APP_STORE_URL` in `src/lib/pro.ts` and deploy *(Claude)*. "Get the iPhone app"
+    on the landing page then goes to the App Store. The pricing section stays hidden while Pro is parked.
+
+### TestFlight QA (about 30 minutes)
+
+On a real iPhone, with the TestFlight build:
+- [ ] A fresh install has no sign-in wall, and Profile has no AnyLink Pro section.
+- [ ] Save three links from Safari's share sheet. Each gets a title, an image and a reading time.
+- [ ] A second device on the same Apple Account shows the same links (Profile → iCloud sync is On).
+- [ ] Import Safari bookmarks. The links are grouped into collections, and dead ones are flagged.
+- [ ] Without an account, try to share a collection. Sign in should open.
+- [ ] Sign in with Apple:
+  - It shows "Moving your library to your account…", then "Your library now syncs with the web".
+  - anylink.space shows the same library, with no duplicates.
+- [ ] Signed in, save a new link. It gets an AI summary and tags.
+- [ ] Recipe, video, article and product pages show their own layouts, and a price alert can be set.
+- [ ] Share a collection, and open the link in a private browser window.
+- [ ] Export HTML, JSON and CSV from Profile.
+- [ ] Sign out: the iPhone library comes back.
+- [ ] Sign in with an email account, then delete it from Profile.
+- [ ] On the web, Settings shows no plan line and the landing page has no pricing section.
+
+### Parked
+
+**Pro.** Two switches control it:
+- `PRO_FOR_EVERYONE` in `src/lib/plan.ts`, for the server and the web.
+- `AppConfig.proForEveryone` in `ios/AnyLink/App/AppConfig.swift`, for iOS.
+
+While they're on:
+- Every account counts as Pro, and so do web guests.
+- An iPhone without an account gets Pro's layouts. Anything that needs an account asks it to sign in.
+- The billing code, the paywall and the Pro tests stay as they are. iOS UI tests pass `-pro-gating` to test the
+  gating.
+
+To bring Pro back:
+1. Decide about the accounts made while Pro was parked. They're `free` in the database, so turning the switches off
+   lapses them: their iPhones go back to a local library, and their share links pause.
+   - To keep them on Pro, grandfather them with a migration like `20261102000000_grandfather_pro.sql`.
+   - Otherwise, let them lapse.
+2. Turn both switches off, deploy, and ship an app update. Builds with the switch on never show the paywall.
+3. Put back the Pro parts of this doc: the description, What's New, the Purchases privacy row, the review notes and
+   the in-app purchases. Update the privacy policy to match.
+4. Then follow the App Store Connect and test steps in `docs/pro-progress.md` § Waiting on you.
+
+**Chrome extension.** It's marked TODO in `extension/README.md`. To ship it:
+- Add the Supabase redirect URLs.
+- Create the Chrome Web Store listing.
+- Run the checks in `docs/pro-progress.md` § Phase 8.
 
 ## Name and subtitle
 
@@ -47,29 +131,25 @@ FIND
 
 READ
 • A clean reader view, without the clutter
+• Layouts for articles, videos, recipes and products
 
 FREE, WITH NO ACCOUNT
 Your library lives on your iPhone and syncs to your other Apple devices through your own iCloud. It isn't stored on our servers.
 
-ANYLINK PRO
-One library on your iPhone and the web, and more:
+SIGN IN FOR MORE, STILL FREE
+Sign in, and your library is one library on your iPhone and the web, with:
 • AI summaries and tags on every save
 • A second read in a full browser when a page won't load
-• Layouts for products, articles, videos and recipes
 • Price history and price alerts
 • Link health checks
 • Share links to your collections
 • Export as HTML, JSON or CSV
 
-Pro is a monthly or yearly subscription, or a one-time lifetime purchase. Subscriptions renew automatically until you cancel in Settings › Apple Account › Subscriptions. Lifetime includes about 1,000 AI saves a month.
-
-Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Privacy Policy: https://www.anylink.space/privacy-policy
 ```
 
-(1,787 of 4,000.) Apple asks for the Terms of Use link in the description (or a custom EULA) whenever an app sells
-subscriptions, so keep the last two lines. Prices aren't in the text, because they differ by country and the App Store
-shows them.
+(1,530 of 4,000.) There's no Terms of Use link, because 1.0 sells nothing. Apple asks for one once the app sells
+subscriptions, so add it back with Pro: `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`.
 
 ## Keywords
 
@@ -86,14 +166,14 @@ later,reader,collection,organizer,article,recipe,price,tracker,wishlist,notes,hi
 The first App Store release of AnyLink.
 • Save links from any app, with their title, image and reading time
 • A free library on your iPhone, synced through iCloud, with no account
-• AnyLink Pro: one library on your iPhone and the web, AI summaries, layouts for products, articles, videos and recipes, share links and export
+• Sign in, free, for one library on your iPhone and the web, with AI summaries, price alerts, share links and export
 ```
 
 If App Store Connect doesn't show this field for a first version, use the text as TestFlight's "What to Test".
 
 ## App Privacy ("nutrition label")
 
-From the code as of Phase 9. The privacy policy (`src/app/privacy-policy/page.tsx`) says the same in longer form.
+From the code as of 1.0, with Pro parked. The privacy policy (`src/app/privacy-policy/page.tsx`) says the same in longer form.
 
 **Do you or your third-party partners collect data from this app?** Yes.
 
@@ -104,15 +184,14 @@ brokers or ad networks. Answer "No" to every "used for tracking" question.
 | --- | --- | --- | --- | --- |
 | Contact Info | Email Address | Yes | App Functionality | The account's sign-in email |
 | Contact Info | Name | Yes | App Functionality | The name Apple or Google may share at sign-in, and the display name on shared collections |
-| User Content | Photos or Videos | Yes | App Functionality | Images saved to a library on the server (an account's library, or Pro on iPhone) |
+| User Content | Photos or Videos | Yes | App Functionality | Images saved to an account's library on the server |
 | User Content | Emails or Text Messages | Yes | App Functionality | A Telegram or WhatsApp import keeps the words around each link (`links.import_meta`) |
 | User Content | Other User Content | Yes | App Functionality | Links, notes, highlights, tags and collections in a server library; page text and titles sent for previews, link checks and AI grouping |
-| Identifiers | User ID | Yes | App Functionality | The account id, also sent to Apple as the purchase's `appAccountToken` |
+| Identifiers | User ID | Yes | App Functionality | The account id |
 | Identifiers | Device ID | No | App Functionality | The App Attest key id of an install without an account (`app_attest_keys`), used against abuse |
-| Purchases | Purchase History | Yes | App Functionality | The plan, the Pro product and its expiry (`users.plan*`) |
 | Usage Data | Product Interaction | Yes | Product Personalization | `user_signals`: moves, and accepted or changed groupings, plus onboarding answers, kept to improve grouping |
 
-Not collected: health, financial info (Apple takes the payment), location, sensitive info, contacts, browsing
+Not collected: purchases (1.0 sells nothing; add Purchase History back with Pro), health, financial info, location, sensitive info, contacts, browsing
 history, search history, diagnostics, and any other data. The app has no analytics or crash-reporting SDK.
 
 Judgment calls, so you can decide differently:
@@ -125,25 +204,24 @@ Judgment calls, so you can decide differently:
 
 ## App Review notes
 
-Fill in the two accounts before submitting. Both should be created on production: the free one as a normal sign-up,
-the Pro one set to `plan = 'pro'` with no expiry.
+Fill in the demo account before submitting. Create it on production as a normal email sign-up: while Pro is parked,
+every account has everything.
 
 ```
-AnyLink works without an account: add a link with the + button, or share one to AnyLink from Safari.
+AnyLink works without an account: add a link with the + button, or share one to AnyLink from Safari. That library stays on the iPhone and in the user's iCloud.
 
-Pro is the in-app purchase.
-• Open the paywall from the Profile tab › AnyLink Pro. Trying a Pro feature opens it too: share a collection, set a price alert on a product, or export the library. On the free plan, each link page also ends with a line that opens it.
-• Buying needs an account, so the paywall asks you to sign in first. Use the free demo account below, Sign in with Apple, or a new email account.
-• Products: Pro Monthly and Pro Yearly (auto-renewable, group "AnyLink Pro"), and Pro Lifetime (non-consumable). Restore purchases is on the paywall.
-• The account turns Pro within a few seconds of buying. To see the same library on the web, sign in at https://www.anylink.space with the same account.
+Signing in is optional and free. It moves the library into the user's AnyLink account, so the same library is on the web at https://www.anylink.space. It also adds AI summaries and tags, price alerts, share links and export. Sign in from the Profile tab, with Sign in with Apple or the demo account below. Without an account, sharing a collection asks you to sign in.
 
-Demo account, free (to try buying): <email> / <password>
-Demo account, already Pro: <email> / <password>
+The app has no in-app purchases.
+
+Demo account: <email> / <password>
 
 Delete account is in the Profile tab when signed in.
 ```
 
 ## In-app purchases
+
+**Parked: none in 1.0.** Kept for when Pro comes back (§ Parked).
 
 The subscription group's display name is **AnyLink Pro**, and the app name shown with it is **AnyLink**.
 

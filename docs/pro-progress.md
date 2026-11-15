@@ -5,6 +5,11 @@ only the user can do.
 
 ## Waiting on you
 
+> **Parked for 1.0 (2026-11-15).** Pro and the Chrome extension don't ship in the first release. Every account gets
+> everything Pro has, and nothing is sold. The release checklist is now `docs/app-store-listing.md` § What's left for
+> 1.0. It includes how to bring Pro back. Most steps below (App Store Connect purchases, sandbox, the extension) wait
+> for that. The steps that still apply to 1.0 are copied into that checklist.
+
 All nine phases are built, merged into `main`, deployed, and their migrations are applied. These steps are the ones
 only you can do, in order.
 
