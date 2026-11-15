@@ -8,7 +8,9 @@ export const metadata = {
   description: "What AnyLink collects, why, who processes it, and how to delete it.",
 };
 
-const UPDATED = "November 1, 2026";
+// Pro is parked (PRO_FOR_EVERYONE in src/lib/plan.ts): every account has its features, and nothing is sold. When Pro
+// comes back, restore the "AnyLink Pro" and "Purchases" text from the November 1, 2026 version in git history.
+const UPDATED = "November 15, 2026";
 const CONTACT = "privacy@anylink.space";
 
 /** Plain, specific and true to the code: Google's OAuth review and the App Store both read it. */
@@ -35,8 +37,8 @@ export default function PrivacyPolicyPage() {
           <P>
             The short version: we collect what you need to sign in and what you choose to save. We use it only to run
             AnyLink for you. We don&apos;t sell it, we don&apos;t show ads, and we don&apos;t use analytics or tracking
-            tools. On iPhone you don&apos;t need an account at all: without Pro, your library stays on your devices and
-            in your own iCloud, not on our servers.
+            tools. On iPhone you don&apos;t need an account at all: without one, your library stays on your devices
+            and in your own iCloud, not on our servers.
           </P>
         </header>
 
@@ -63,7 +65,7 @@ export default function PrivacyPolicyPage() {
 
           <H3>Content you save</H3>
           <P>
-            With an account on the website, and on iPhone with Pro, your library is stored on our servers. It holds
+            With an account, on the website or signed in on iPhone, your library is stored on our servers. It holds
             what you put in it:
           </P>
           <Ul>
@@ -77,27 +79,17 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>price alert thresholds you set on product links.</li>
           </Ul>
-          <P>On iPhone without Pro, your library stays on your devices and in your iCloud instead (section 2).</P>
+          <P>On iPhone without an account, your library stays on your devices and in your iCloud instead (section 2).</P>
 
           <H3>Information we fetch about the links you save</H3>
           <P>
             When you save a link, our servers visit that public web page to build its card. For a library on our
             servers, we store what we read there: the title, the page&apos;s description, the article text, the main
             image (copied to our storage), the content type, and for products the price, availability and
-            specifications. With Pro, we also store an AI summary and suggested tags (section 3). When you import links,
-            we check each one once to see whether it still works. With Pro, we also re-check saved links periodically,
-            and re-check product pages to track price changes. These requests come from our servers, not from your
-            device.
-          </P>
-
-          <H3>Purchases</H3>
-          <P>
-            AnyLink Pro is bought in the iPhone app, and Apple handles the payment: we never see your card or any other
-            payment details. When you buy, the app attaches your AnyLink account ID to the purchase (Apple calls it an
-            &ldquo;app account token&rdquo;). The app then sends us Apple&apos;s signed record of the purchase, and
-            Apple tells us directly when it renews, ends or is refunded. Using that ID, we store on your account your
-            plan, the Pro product you bought (monthly, yearly or lifetime), and when Pro ends or last ended. We don&apos;t
-            keep Apple&apos;s records themselves.
+            specifications, along with an AI summary and suggested tags (section 3). When you import links, we check
+            each one once to see whether it still works. For a library on our servers, we also re-check saved links
+            periodically, and re-check product pages to track price changes. These requests come from our servers, not
+            from your device.
           </P>
 
           <H3>How you use AnyLink</H3>
@@ -135,7 +127,7 @@ export default function PrivacyPolicyPage() {
 
           <H3>On iPhone: your local library</H3>
           <P>
-            On iPhone you don&apos;t need an account. Without Pro, your library (links, collections, notes and images)
+            On iPhone you don&apos;t need an account. Without one, your library (links, collections, notes and images)
             is kept on your device and, if iCloud is on, in your own iCloud account, so it syncs between your Apple
             devices. That copy lives in the app&apos;s private iCloud database (CloudKit), which only your Apple Account
             can read: Apple stores it under its own privacy policy, and we can&apos;t see it. Our servers never store a
@@ -170,11 +162,14 @@ export default function PrivacyPolicyPage() {
           </P>
         </Section>
 
-        <Section title="3. AnyLink Pro">
-          <P>Pro joins your iPhone and the web into one library on our servers, and adds features that run there:</P>
+        <Section title="3. Signing in">
+          <P>
+            Signing in is free. It joins your iPhone and the web into one library on our servers, and adds features that
+            run there:
+          </P>
           <Ul>
             <li>
-              <b>One library:</b> when you go Pro on iPhone, the app uploads your local library to your AnyLink account
+              <b>One library:</b> when you sign in on iPhone, the app uploads your local library to your AnyLink account
               and merges it with anything already there. From then on, it&apos;s stored like any library on our servers
               (section 1). The copy on your device and in iCloud isn&apos;t deleted.
             </li>
@@ -191,32 +186,31 @@ export default function PrivacyPolicyPage() {
               pages for price changes.
             </li>
             <li>
-              <b>Videos:</b> YouTube and Vimeo videos play in place, in YouTube&apos;s privacy-enhanced mode or with
-              Vimeo&apos;s do-not-track setting. The player loads from YouTube or Vimeo, under their own privacy
-              policies. On iPhone, it loads only when you tap play, and keeps no cookies.
-            </li>
-            <li>
               <b>Share links:</b> anyone with a collection&apos;s share link can see its name, its links with their
               titles, images and notes, and your display name if you set one. Turning sharing off breaks the link for
-              good. While you&apos;re not on Pro, it reads as not found.
+              good.
             </li>
             <li>
               <b>Export:</b> you can download your whole library as a file.
             </li>
           </Ul>
           <P>
-            If Pro ends, nothing on our servers is deleted. Your iPhone goes back to a local library, copied from your
-            account, and the website keeps working as before.
+            With or without an account, YouTube and Vimeo videos play in place, in YouTube&apos;s privacy-enhanced mode
+            or with Vimeo&apos;s do-not-track setting. The player loads from YouTube or Vimeo, under their own privacy
+            policies. On iPhone, it loads only when you tap play, and keeps no cookies.
+          </P>
+          <P>
+            If you sign out on iPhone, nothing on our servers is deleted, and the app goes back to the library on your
+            device.
           </P>
         </Section>
 
         <Section title="4. How we use information">
           <Ul>
             <li>To create and secure your account and sign you in.</li>
-            <li>To store your library and, with Pro, keep it in sync between the website and the iOS app.</li>
+            <li>To store your library and, when you sign in on iPhone, keep it in sync between the website and the iOS app.</li>
             <li>To build link previews, summaries and reader views, to check links for breakage, and to track prices you asked us to watch.</li>
             <li>To suggest collections when you import or tidy a large set of links.</li>
-            <li>To record your Pro purchase and keep your plan up to date.</li>
             <li>To send sign-in emails. We do not send marketing emails.</li>
             <li>To prevent abuse (for example, with the device checks in section 2), keep the service running and fix problems.</li>
           </Ul>
@@ -256,8 +250,9 @@ export default function PrivacyPolicyPage() {
               <b>Vercel</b> hosts the website and the servers that respond to the web and iOS apps.
             </li>
             <li>
-              <b>Anthropic</b>, with Pro, receives the text of web pages you save, so it can write a summary, suggest tags
-              and structure the card. When you ask AnyLink to group your links, on any plan, Anthropic also receives the
+              <b>Anthropic</b> receives the text of web pages you save to a library on our servers, so it can write a
+              summary, suggest tags and structure the card. When you ask AnyLink to group your links, with or without an
+              account, Anthropic also receives the
               titles, domains and folder names of those links (for a chat, the words written around each link), and
               your answers about what matters to you. Your notes, images and account details are not sent to Anthropic.
               Under Anthropic&apos;s commercial terms, data sent through the API is not used to train its models.
@@ -270,8 +265,8 @@ export default function PrivacyPolicyPage() {
               <b>Resend</b> delivers sign-in emails, so it receives your email address.
             </li>
             <li>
-              <b>Google</b> and <b>Apple</b> handle the sign-in, if you choose them. <b>Apple</b> also handles payments
-              for AnyLink Pro, and the App Attest device checks (section 2).
+              <b>Google</b> and <b>Apple</b> handle the sign-in, if you choose them. <b>Apple</b> also handles the App
+              Attest device checks (section 2).
             </li>
           </Ul>
           <P>
@@ -317,11 +312,11 @@ export default function PrivacyPolicyPage() {
               Shortcuts can find them. This index stays on the device.
             </li>
             <li>
-              <b>Local library:</b> without Pro, your library lives on the device and in your iCloud (section 2).
+              <b>Local library:</b> without an account, your library lives on the device and in your iCloud (section 2).
             </li>
             <li>
-              <b>Offline copy:</b> with Pro, a copy of your library and your images is kept on the device, so the app
-              works offline. Signing out clears the library from the app; deleting the app removes everything it
+              <b>Offline copy:</b> when you&apos;re signed in, a copy of your library and your images is kept on the
+              device, so the app works offline. Signing out clears that copy; deleting the app removes everything it
               stored.
             </li>
           </Ul>
@@ -352,10 +347,8 @@ export default function PrivacyPolicyPage() {
           <P>
             We keep your account and library for as long as you have an account. Items you delete go to Trash, where
             they stay until you empty it or delete them permanently. When you delete your account, your account, your
-            plan details, your entire library and your stored images are permanently deleted straight away. Deleting
-            your account doesn&apos;t cancel a Pro subscription: Apple keeps billing it until you cancel it in your
-            Apple Account&apos;s subscription settings. Our hosting provider&apos;s server logs and our database backups
-            expire within 30 days.
+            entire library and your stored images are permanently deleted straight away. Our hosting provider&apos;s
+            server logs and our database backups expire within 30 days.
           </P>
           <P>
             A local library stays on your devices and in your iCloud until you delete it. Deleting the app removes it
@@ -375,7 +368,7 @@ export default function PrivacyPolicyPage() {
               <b>Settings → Delete account</b> on the website or in the iOS app, or email us.
             </li>
             <li>
-              <b>Export:</b> with Pro, export your library as HTML, JSON or CSV from Settings. On any plan, email us and
+              <b>Export:</b> with an account, export your library as HTML, JSON or CSV from Settings. Or email us, and
               we will send you a copy of your data.
             </li>
             <li>

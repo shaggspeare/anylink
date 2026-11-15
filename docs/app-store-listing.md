@@ -13,32 +13,50 @@ Pro and the Chrome extension are **parked** for 1.0 (decided 2026-11-15):
 
 Do these in order. Steps marked *(Claude)* are code or deploys: ask for them.
 
-1. [ ] **Deploy the parked-Pro change** *(Claude)*. Until it's live, the server still treats new accounts as free.
-2. [ ] **Vercel → Production: set `APP_ATTEST_SECRET`**, then redeploy.
+1. [x] **Deploy the parked-Pro change** *(Claude)*. Until it's live, the server still treats new accounts as free.
+2. [x] **Vercel → Production: set `APP_ATTEST_SECRET`**, then redeploy.
    - Use any long random string, e.g. from `openssl rand -base64 48`.
    - Without it, iPhones without an account can't check imported links or group them, and get a lower preview limit.
-3. [ ] **Apple Developer → Identifiers → `com.shaggspeare.anylink`:** turn on App Attest, iCloud (container
+3. [x] **Apple Developer → Identifiers → `com.shaggspeare.anylink`:** turn on App Attest, iCloud (container
    `iCloud.com.shaggspeare.anylink`) and Push Notifications. Automatic signing may add them on the first device build.
-4. [ ] **App Store Connect: create the app record** for `com.shaggspeare.anylink`. A free app with no purchases needs
+4. [x] **App Store Connect: create the app record** for `com.shaggspeare.anylink`. A free app with no purchases needs
    no Paid Apps agreement, tax or banking.
 5. [ ] **CloudKit: deploy the schema to Production** before the first TestFlight build. The steps are in
    `docs/pro-qa.md` § Launch hardening checklist → Before the TestFlight run.
-6. [ ] **Rewrite the privacy policy for parked Pro** *(Claude drafts, you approve)*.
-   - It says AI summaries, sync with the web, link checks, share links and export come "with Pro", and it describes
-     purchases. Now every account gets them, and nothing is sold.
-   - It has to be accurate, and deployed, before App Review reads it.
-   - Its Chrome extension section is marked TODO; drop it unless the extension ships first.
-7. [ ] **Build for TestFlight and run § TestFlight QA** below.
-8. [ ] **Refuse development App Attest keys in production** *(Claude)*, right before submitting.
-   - Details: `docs/pro-qa.md` § Right before submitting.
-   - After it, a Debug build on a real iPhone can't use production without an account. TestFlight builds still can.
-9. [ ] **Finish the listing:**
-   - Approve the copy and the App Privacy answers below, and enter them.
-   - Settle § Before you submit: support URL, iPad, age rating and the app preview.
-   - Take the screenshots.
-10. [ ] **Create the demo account** for App Review on production, and put it in § App Review notes.
+6. [ ] **Rewrite the privacy policy for parked Pro** *(Claude drafted it, 2026-11-15; you approve, then deploy)*.
+   - What signing in adds is now described as "with an account", not "with Pro", and the purchases text is gone.
+   - It has to be deployed before App Review reads it.
+   - Its Chrome extension section stays, marked TODO: it's accurate for anyone who loads the extension.
+7. [ ] **Upload a new build from `main`, and attach it to version 1.0** *(Claude can attach it)*.
+   - Every build in App Store Connect (3–7) is from Oct 11–14. None of them has the local library, iCloud sync,
+     Pro parked or the translations, so the earlier TestFlight round tested an older app.
+   - Build 5 is attached now. The new listing describes the current app, so submitting build 5 would be refused.
+   - Run § TestFlight QA on the new build.
+8. [ ] **Refuse development App Attest keys in production** *(Claude did the code, 2026-11-15; live with the next
+   deploy)*.
+   - Production now answers 403 `development-key` at registration and on every call from a development key. That
+     includes keys registered earlier.
+   - After the deploy, a Debug build on a real iPhone can't use production without an account. TestFlight builds
+     still can.
+9. [ ] **Finish the listing.** *(Claude)* entered these through the API on 2026-11-15, in English and the 13 app
+   languages:
+   - name, subtitle, description, keywords and promotional text;
+   - the privacy policy, support and marketing URLs;
+   - price Free, and the review notes.
+
+   Already set by you: the age rating (17+) and the categories. Left for you:
+   - [ ] **App Privacy** answers, from § App Privacy. There's no API for them, so enter them on the website.
+   - [ ] **Copyright**, e.g. "2026 <your name>".
+   - [ ] **The content rights declaration.** AnyLink shows titles, images and text from the pages people save.
+   - [ ] **Availability:** which countries. China mainland needs an ICP filing, so most apps leave it out.
+   - [ ] **iPad**, see § Before you submit. If the new build supports iPad, it needs iPad screenshots.
+   - [ ] **Screenshots:** 9 iPhone 6.7" ones are uploaded in English, and the other languages reuse them. Check they
+     match the new build.
+10. [ ] **Create the demo account** for App Review on production. Enter it, with your contact details, in App Store
+    Connect → App Review Information. The notes are already there.
 11. [ ] **Submit.**
-12. [ ] **Once the app is live:** set `APP_STORE_URL` in `src/lib/pro.ts` and deploy *(Claude)*. "Get the iPhone app"
+12. [ ] **Once the app is live:** set `APP_STORE_URL` in `src/lib/pro.ts` to
+    `https://apps.apple.com/app/id6821579363`, and deploy *(Claude)*. "Get the iPhone app"
     on the landing page then goes to the App Store. The pricing section stays hidden while Pro is parked.
 
 ### TestFlight QA (about 30 minutes)
@@ -239,11 +257,10 @@ review screenshot: a screenshot of the paywall (S19) does for all three.
 - **Support URL** (required) has to reach a way to contact you. The site has no support page yet; the privacy policy
   ends with the contact email, so `https://www.anylink.space/privacy-policy` works until there is one.
 - **Privacy Policy URL:** `https://www.anylink.space/privacy-policy`.
-- **Category:** Productivity, with Utilities as the secondary.
+- **Category:** Productivity, with Lifestyle as the secondary (set).
 - **iPad:** `ios/project.yml` builds for iPhone and iPad (`TARGETED_DEVICE_FAMILY: "1,2"`), so App Store Connect will
   ask for iPad screenshots too. Make it `"1"` for 1.0 if iPad should wait for its own phase.
-- **Age rating:** the questionnaire asks about unrestricted web access. Links open in an in-app Safari view, which
-  can reach any site, and answering yes raises the rating. Decide how to answer before you fill it in.
+- **Age rating:** set to 17+. Unrestricted web access, user-generated content and social media are answered yes.
 - **App preview:** `design/app-store/anylink-promo-9x16.mp4` is 1080 × 1920, 20 s, H.264 at 30 fps. That size only
   fits the 5.5" iPhone slot; current iPhones take 886 × 1920, so it needs re-cutting. Apple also wants previews to be
   screen captures of the app, and this one is a designed animation, so it may be refused. Screenshots alone are fine.

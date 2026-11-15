@@ -45,3 +45,6 @@ next-env.d.ts
 
 # agent worktrees
 /.claude/worktrees/
+
+# App Store Connect API keys
+*.p8

@@ -91,6 +91,7 @@ only you can do, in order.
 | 2026-11-01 early | Production deploy of Phases 3, 4 (with its security fixes) and 9 (`main` at `5643460`) | Smoke test passed. Signed-out billing gets 403 `signed-out` and forged notifications get 403 `invalid`. The pricing section is hidden while `APP_STORE_URL` is null, and the new privacy policy is live |
 | 2026-11-01 early | Migration `20261106000000_upload_library.sql` applied | `links.client_id` (unique per user when set) and `links.ai_pending` added. 84 links, none pending |
 | 2026-11-01 early | Production deploy of Phase 5 (`main` at `51ff676`) | Smoke test passed. Signed-out `uploadLibrary` and `enrichLink` get 401 |
+| 2026-11-15 | Production deploy of parked Pro (`main` at `0428ec1`) | Smoke test passed: `/`, `/app` and `/privacy-policy` return 200, `/api/v1/library` returns 401, and there's no pricing section. `/api/attest/challenge` answers now that `APP_ATTEST_SECRET` is set |
 
 Vercel preview builds fail because the project has no Preview environment variables. Only production deploys work.
 An unknown share link renders the not-found page with HTTP 200 instead of 404 (a soft 404). That happens when the
