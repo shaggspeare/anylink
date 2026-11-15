@@ -763,5 +763,9 @@
  "…TO THIS": "…К ЭТОМУ",
  "…and anything else with a URL": "…и всё остальное, у чего есть URL",
  "← Back": "← Назад",
- "−{percent}% since saved": "−{percent}% с момента сохранения"
+ "−{percent}% since saved": "−{percent}% с момента сохранения",
+ "Image copied. Paste it anywhere.": "Изображение скопировано. Вставьте куда угодно.",
+ "Couldn't copy the image": "Не удалось скопировать изображение",
+ "Copy image": "Копировать изображение",
+ "Text read from the image": "Текст, считанный с изображения"
 }

@@ -7,6 +7,7 @@ import { Icon } from "@/components/icon";
 import { useLibrary } from "@/lib/store";
 import type { LinkItem } from "@/lib/types";
 import { useT } from "@/i18n/client";
+import { copyImage } from "@/lib/copy-image";
 
 const SHEET_ROW = "flex h-12 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-[15px] font-medium text-ink active:bg-ink/8";
 const MENU_ROW = "flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-ink hover:bg-ink/6";
@@ -33,6 +34,8 @@ export function LinkActionSheet({
   const t = useT();
   const targets = collections.filter((c) => !c.isSmart && c.id !== link.collectionId);
   const canShare = typeof navigator !== "undefined" && "share" in navigator;
+  // A saved image, or any page with a picture (a meme in an X post): the picture is what gets pasted elsewhere.
+  const copyableImage = link.contentType === "image" ? link.heroImage ?? link.url : link.heroImage;
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -149,6 +152,20 @@ export function LinkActionSheet({
             >
               <Icon name={isNote ? "note" : "link"} size={15} /> {isNote ? t("Copy text") : t("Copy link")}
             </button>
+            {copyableImage && (
+              <button
+                type="button"
+                onClick={run(() =>
+                  copyImage(copyableImage).then(
+                    () => showToast(t("Image copied. Paste it anywhere.")),
+                    () => showToast(t("Couldn't copy the image"))
+                  )
+                )}
+                className={ROW}
+              >
+                <Icon name="image" size={15} /> {t("Copy image")}
+              </button>
+            )}
             {targets.length > 0 && (
               <button type="button" onClick={() => setMoving(true)} className={ROW}>
                 <Icon name="folder" size={15} /> {t("Move to collection")}

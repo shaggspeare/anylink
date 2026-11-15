@@ -648,5 +648,9 @@
   "…TO THIS": "…こうなる",
   "…and anything else with a URL": "…ほか URL があるものなら何でも",
   "← Back": "← 戻る",
-  "−{percent}% since saved": "保存時から −{percent}%"
+  "−{percent}% since saved": "保存時から −{percent}%",
+  "Image copied. Paste it anywhere.": "画像をコピーしました。どこにでも貼り付けられます。",
+  "Couldn't copy the image": "画像をコピーできませんでした",
+  "Copy image": "画像をコピー",
+  "Text read from the image": "画像から読み取ったテキスト"
 }

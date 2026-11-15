@@ -9,8 +9,9 @@ public protocol AnyLinkAPI: Sendable {
     func library(since: Date?) async throws -> LibrarySnapshot
     func createLink(_ draft: LinkDraft) async throws -> LinkItem
     func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem
-    /// `data` is a prepared JPEG (`LocalImages.prepare`); the server re-encodes and stores it.
-    func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem
+    /// `data` is a prepared JPEG or GIF (`LocalImages.prepare`); the server re-encodes and stores it. `text` is what
+    /// Vision read off it (`LocalImages.text`): the server keeps it until its own model reads the image.
+    func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?, text: String?) async throws -> LinkItem
     func setNoteText(_ id: LinkItem.ID, _ text: String) async throws
     func updateLink(_ id: LinkItem.ID, _ patch: LinkPatch) async throws
     func bulk(_ action: BulkAction, ids: [LinkItem.ID]) async throws
@@ -47,7 +48,7 @@ public protocol AnyLinkAPI: Sendable {
 public extension AnyLinkAPI {
     // Defaults so test doubles that only care about links don't have to stub these.
     func createNote(_ text: String, collectionId: LinkCollection.ID?) async throws -> LinkItem { throw AppError.server(501) }
-    func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem { throw AppError.server(501) }
+    func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?, text: String?) async throws -> LinkItem { throw AppError.server(501) }
     func setNoteText(_ id: LinkItem.ID, _ text: String) async throws { throw AppError.server(501) }
     func setShared(_ id: LinkCollection.ID, _ shared: Bool) async throws -> String? { throw AppError.server(501) }
     func setDisplayName(_ name: String) async throws -> String? { throw AppError.server(501) }

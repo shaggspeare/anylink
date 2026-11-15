@@ -8,7 +8,8 @@ import { db } from "./client";
 import * as schema from "./schema";
 import { currentPlan, currentUserId, fullCrawls } from "./current-user";
 import { isPro, PRO_REQUIRED } from "../plan";
-import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage } from "../storage/upload-hero-image";
+import { reuploadHeroImage, deleteHeroImage, uploadImage, copyStoredImage, downloadPreview } from "../storage/upload-hero-image";
+import { describeImage, type ImageDescription } from "../describe-image";
 import { HERO_IMAGES_BUCKET, supabaseAdmin } from "../storage/client";
 import { noteTitle } from "../linkify";
 import { cleanUrl, domainFromUrl, titleFromUrl } from "../crawler/url";
@@ -212,6 +213,16 @@ export async function enrichLink(id: string): Promise<LinkItem | null | typeof P
     .from(schema.links)
     .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid)));
   if (!row?.aiPending || !(await fullCrawls())) return null;
+  if (row.contentType === "image") {
+    const preview = row.heroImage ? await downloadPreview(row.heroImage, row.id) : null;
+    const ai = preview ? await describeImage(preview) : null;
+    if (!ai) return null;
+    // A title the user typed stays; "Image" or the device's first OCR line gives way to the caption.
+    const keepTitle = row.title !== "Image" && row.title !== firstLine(row.excerpt);
+    await db.update(schema.links).set(describedFields(ai, keepTitle)).where(eq(schema.links.id, id));
+    await addTags(uid, id, ai.tags);
+    return getLink(id);
+  }
   if (!row.articleText?.length && !row.excerpt) {
     // Long enough to hold up every other action the web app sends meanwhile: they go one at a time.
     after(() => fillFromPage(uid, row.id, row.url, row.title, true));
@@ -309,19 +320,37 @@ export async function setNoteText(id: string, text: string) {
     .where(and(eq(schema.links.id, id), eq(schema.links.userId, uid), eq(schema.links.contentType, "note")));
 }
 
+/** The model's read of an image, as link columns. The title moves to its caption unless the user gave one. */
+function describedFields(ai: ImageDescription, keepTitle: boolean) {
+  return {
+    excerpt: ai.text,
+    ...(keepTitle || !ai.caption ? {} : { title: ai.caption }),
+    aiPending: false,
+    updatedAt: new Date(),
+  };
+}
+
+function firstLine(text: string): string {
+  return text.split("\n").map((l) => l.trim()).find(Boolean)?.slice(0, 120) ?? "";
+}
+
 /** Base64, not FormData: the iOS app reaches every action as a JSON array of arguments
- * (api/v1/actions), so one shape serves both clients. */
+ * (api/v1/actions), so one shape serves both clients. `text` is what the device already read off the
+ * image (iOS runs Vision on save); the model's read replaces it when it answers. */
 export async function createImage(
   base64: string,
   collectionId?: string,
   caption?: string,
-  source = "manual"
+  source = "manual",
+  text?: string
 ): Promise<LinkItem> {
   const uid = await currentUserId();
   const t = await getT();
   if (typeof base64 !== "string" || !base64) throw new Error(t("No image to save."));
   const bytes = Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64");
-  const title = caption?.trim() || "Image";
+  const ocr = typeof text === "string" ? text.trim().slice(0, 4_000) : "";
+  const given = caption?.trim() ?? "";
+  const title = given || firstLine(ocr) || "Image";
   const [row] = await db
     .insert(schema.links)
     .values({
@@ -330,18 +359,22 @@ export async function createImage(
       collectionId: await collectionOrInbox(collectionId),
       url: "",
       title: title.slice(0, 200),
+      excerpt: ocr,
       contentType: "image",
       source,
     })
     .returning();
   try {
-    const url = await uploadImage(bytes, row.id);
-    const [saved] = await db
+    const stored = await uploadImage(bytes, row.id);
+    // Inline, capped at 20s: the card lands searchable by what's written on it. If the model doesn't answer,
+    // the link waits for enrichLink the next time it opens.
+    const ai = (await fullCrawls()) ? await describeImage(stored.previewBytes) : null;
+    await db
       .update(schema.links)
-      .set({ url, heroImage: url })
-      .where(eq(schema.links.id, row.id))
-      .returning();
-    return toItem(saved);
+      .set({ url: stored.url, heroImage: stored.preview, ...(ai ? describedFields(ai, Boolean(given)) : { aiPending: true }) })
+      .where(eq(schema.links.id, row.id));
+    if (ai) await addTags(uid, row.id, ai.tags);
+    return (await getLink(row.id))!;
   } catch (err) {
     // No half-saved card: a row without its file would be a blank tile forever.
     await db.delete(schema.links).where(eq(schema.links.id, row.id));
@@ -615,11 +648,13 @@ export async function saveFromShare(
     rows.map(async (r) => {
       const id = randomUUID();
       const image = r.heroImage ? await copyStoredImage(r.heroImage, r.id, id) : undefined;
+      // An image item keeps its original (GIF, PNG) beside the preview: copy that one too.
+      const original = r.contentType === "image" && r.url !== r.heroImage ? await copyStoredImage(r.url, r.id, id) : undefined;
       return {
         id,
         userId: uid,
         collectionId,
-        url: r.contentType === "image" && image ? image : r.url,
+        url: r.contentType === "image" ? (original ?? image ?? r.url) : r.url,
         canonicalUrl: r.canonicalUrl,
         domain: r.domain,
         title: r.title,
@@ -978,8 +1013,9 @@ export async function uploadLibrary(upload: { collections: UploadedCollection[];
   await Promise.all([...fresh].map((id) => savePrice(id, copies.get(id)![0].product)));
   for (const { id, base64, created } of images) {
     try {
-      const url = await uploadImage(Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64"), id);
-      await db.update(schema.links).set({ url, heroImage: url }).where(eq(schema.links.id, id));
+      const stored = await uploadImage(Buffer.from(base64.replace(/^data:[^,]*,/, ""), "base64"), id);
+      // Read by the model the first time it opens, like every uploaded link.
+      await db.update(schema.links).set({ url: stored.url, heroImage: stored.preview, aiPending: true }).where(eq(schema.links.id, id));
     } catch (err) {
       // No half-saved card: the next upload of it starts this one again.
       if (created) await db.delete(schema.links).where(eq(schema.links.id, id));

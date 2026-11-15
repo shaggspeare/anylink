@@ -63,5 +63,11 @@ struct AnyLinkShortcuts: AppShortcutsProvider {
             shortTitle: "Save Link",
             systemImageName: "link"
         )
+        AppShortcut(
+            intent: CopyMemeIntent(),
+            phrases: ["Copy a meme from \(.applicationName)", "Find a meme in \(.applicationName)"],
+            shortTitle: "Copy Meme",
+            systemImageName: "photo.on.rectangle"
+        )
     }
 }

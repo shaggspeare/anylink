@@ -153,7 +153,7 @@ struct AddLinkSheet: View {
             }
             .buttonStyle(TilePressStyle())
             PhotosPicker(selection: $photo, matching: .images, photoLibrary: .shared()) {
-                KindTile(title: imageTitle, subtitle: "Screenshot or photo", systemImage: "photo", accent: AL.periwinkle, mark: AL.periwinkle)
+                KindTile(title: imageTitle, subtitle: String(localized: "Meme, screenshot or photo"), systemImage: "photo", accent: AL.periwinkle, mark: AL.periwinkle)
             }
             .buttonStyle(TilePressStyle())
             .disabled(savingImage)

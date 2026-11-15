@@ -763,5 +763,9 @@
  "…TO THIS": "…W TO",
  "…and anything else with a URL": "…i wszystko inne, co ma URL",
  "← Back": "← Wstecz",
- "−{percent}% since saved": "−{percent}% od zapisania"
+ "−{percent}% since saved": "−{percent}% od zapisania",
+ "Image copied. Paste it anywhere.": "Obraz skopiowany. Wklej go gdziekolwiek.",
+ "Couldn't copy the image": "Nie udało się skopiować obrazu",
+ "Copy image": "Kopiuj obraz",
+ "Text read from the image": "Tekst odczytany z obrazu"
 }

@@ -88,8 +88,8 @@ public final class LocalAPI: AnyLinkAPI {
     }
 
     /// The JPEG syncs with the link, as a CloudKit asset.
-    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem {
-        let link = LibraryRules.image(caption: caption, collectionId: collectionOrInbox(collectionId))
+    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?, text: String?) async throws -> LinkItem {
+        let link = LibraryRules.image(caption: caption, text: text, collectionId: collectionOrInbox(collectionId))
         store.save(link, image: data)
         return link
     }

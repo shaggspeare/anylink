@@ -184,7 +184,7 @@ struct NoAttest: AppAttesting {
 
     @Test func anImageFromAnotherDeviceGetsItsFile() async throws {
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xD9])
-        let image = try await api.createImage(jpeg, collectionId: nil, caption: "Receipt")
+        let image = try await api.createImage(jpeg, collectionId: nil, caption: "Receipt", text: nil)
         defer { LocalImages.remove(image.id) }
         LocalImages.remove(image.id)   // as on a device that only has the synced record
         _ = try await api.library(since: nil)

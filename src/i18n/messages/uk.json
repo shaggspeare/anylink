@@ -763,5 +763,9 @@
  "…TO THIS": "…ДО ЦЬОГО",
  "…and anything else with a URL": "…і все інше, що має URL",
  "← Back": "← Назад",
- "−{percent}% since saved": "−{percent}% від збереження"
+ "−{percent}% since saved": "−{percent}% від збереження",
+ "Image copied. Paste it anywhere.": "Зображення скопійовано. Вставте будь-де.",
+ "Couldn't copy the image": "Не вдалося скопіювати зображення",
+ "Copy image": "Копіювати зображення",
+ "Text read from the image": "Текст, зчитаний із зображення"
 }

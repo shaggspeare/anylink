@@ -48,6 +48,8 @@ targets:
         embed: true
       - target: AnyLinkWidgets
         embed: true
+      - target: AnyLinkKeyboard
+        embed: true
     info:
       path: AnyLink/Info.plist
       properties:
@@ -144,11 +146,12 @@ targets:
     platform: iOS
     sources:
       - Widgets
-      # The control's intent lives in the app too, so the system runs it there.
+      # The control's and the Memes widget's intents live in the app too, so the system runs them there.
       - AnyLink/Intents/OpenAddLinkIntent.swift
+      - AnyLink/Intents/CopyImageIntent.swift
     dependencies:
       - package: AnyLinkKit
-        products: [Models, DesignSystem, Fixtures]
+        products: [Models, DesignSystem, Fixtures, Persistence]
     info:
       path: Widgets/Info.plist
       properties:
@@ -163,6 +166,38 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.widgets
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+  # The Memes keyboard: a grid of saved images, a tap copies one. Full Access is what lets a keyboard read the
+  # App Group and write the clipboard.
+  AnyLinkKeyboard:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Keyboard
+    dependencies:
+      - package: AnyLinkKit
+        products: [Models, Persistence, DesignSystem]
+    info:
+      path: Keyboard/Info.plist
+      properties:
+        CFBundleDisplayName: AnyLink Memes
+        ITSAppUsesNonExemptEncryption: false
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.keyboard-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).KeyboardViewController
+          NSExtensionAttributes:
+            IsASCIICapable: false
+            PrefersRightToLeft: false
+            PrimaryLanguage: mul
+            RequestsOpenAccess: true
+    entitlements:
+      path: Keyboard/AnyLinkKeyboard.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.shaggspeare.anylink]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shaggspeare.anylink.keyboard
         TARGETED_DEVICE_FAMILY: "1,2"
 
   # Unit tests that need the app around them: ProStore under a StoreKitTest session.
@@ -201,6 +236,7 @@ schemes:
         AnyLink: all
         AnyLinkShare: all
         AnyLinkWidgets: all
+        AnyLinkKeyboard: all
     run:
       config: Debug
       # Local StoreKit testing: Pro's three products, bought without App Store Connect.

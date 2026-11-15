@@ -151,9 +151,9 @@ public struct LiveAPI: AnyLinkAPI {
     }
 
     /// Base64 in the JSON array, like every other action: one dispatcher for both clients.
-    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem {
+    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?, text: String?) async throws -> LinkItem {
         var r = await request("api/v1/actions/createImage", timeout: 120)
-        let args: [String] = [data.base64EncodedString(), collectionId ?? "", caption ?? "", "ios"]
+        let args: [String] = [data.base64EncodedString(), collectionId ?? "", caption ?? "", "ios", text ?? ""]
         r.httpBody = try JSONEncoder().encode(args)
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let body = try await send(r)

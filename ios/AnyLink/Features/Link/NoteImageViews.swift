@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
+import WebKit
 import DesignSystem
 import Models
 import Store
@@ -125,12 +127,19 @@ struct ImageDetailView: View {
     /// The local copy when this device has one, the uploaded file otherwise.
     private var source: URL? { LocalImages.existing(for: link.id) ?? link.heroImage.flatMap(URL.init(string:)) }
     private var remote: URL? { link.url.isEmpty ? nil : URL(string: link.url) }
+    /// A GIF plays from its original (local or uploaded) in a web view: SwiftUI's Image shows one frame.
+    private var gif: URL? { [LocalImages.existing(for: link.id), remote].compactMap { $0 }.first { $0.pathExtension.lowercased() == "gif" } }
 
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
                 AL.docShell
-                if let image {
+                if let gif {
+                    WebView(url: gif)
+                        .scrollDisabled(true)
+                        .accessibilityLabel(link.title)
+                        .accessibilityAddTraits(.isImage)
+                } else if let image {
                     Image(decorative: image, scale: displayScale)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -157,6 +166,17 @@ struct ImageDetailView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
             .background(AL.canvas)
+            if !link.excerpt.isEmpty {
+                // The words Vision (or the server's model) read off it: why search found this one.
+                ScrollView {
+                    Text(link.excerpt).font(AL.Font.meta).foregroundStyle(AL.ink.opacity(AL.Ink.a60))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20).padding(.bottom, 12)
+                        .accessibilityLabel(Text("Text read from the image: \(link.excerpt)"))
+                }
+                .frame(maxHeight: 96)
+                .background(AL.canvas)
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
@@ -165,6 +185,16 @@ struct ImageDetailView: View {
             // Full stored size (both copies are capped at 2400 px): enough to zoom into a screenshot's text.
             do { image = try await ImageLoader.shared.image(for: source, maxPixels: 2400) } catch { failed = true }
         }
+    }
+
+    /// The copy X, Threads and Messages paste: the GIF itself when it is one, the picture otherwise.
+    private func copy() {
+        if let gif, let data = try? Data(contentsOf: gif) {
+            UIPasteboard.general.setData(data, forPasteboardType: UTType.gif.identifier)
+        } else if let image {
+            UIPasteboard.general.image = UIImage(cgImage: image)
+        } else { return }
+        store.toasts.show(String(localized: "Image copied. Paste it anywhere."))
     }
 
     @ToolbarContentBuilder
@@ -183,11 +213,8 @@ struct ImageDetailView: View {
                 ShareLink(item: file) { Label("Share", systemImage: "square.and.arrow.up") }
             }
             Spacer()
-            if let image {
-                Button {
-                    UIPasteboard.general.image = UIImage(cgImage: image)
-                    store.toasts.show("Image copied")
-                } label: { Text("Copy").fontWeight(.semibold).foregroundStyle(AL.onAccent) }
+            if image != nil || gif != nil {
+                Button { copy() } label: { Text("Copy").fontWeight(.semibold).foregroundStyle(AL.onAccent) }
                 .buttonStyle(.glassProminent)
                 .tint(AL.periwinkle)
             }

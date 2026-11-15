@@ -85,7 +85,8 @@ public final class ShareSession {
         let pendingImage = PendingSave(url: "", imageFile: fileID)
         guard let api else { savePending(pendingImage); return }
         do {
-            let s = try await api.createImage(jpeg, collectionId: nil, caption: nil)
+            let text = await LocalImages.text(in: jpeg)
+            let s = try await api.createImage(jpeg, collectionId: nil, caption: nil, text: text.nilIfEmpty)
             LocalImages.rename(fileID, to: s.id)
             saved = s
             mode = .saved

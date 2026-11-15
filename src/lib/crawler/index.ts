@@ -1,6 +1,7 @@
 import { fetchHtml } from "./fetch-page";
 import { fetchHtmlWithBrowser } from "./fetch-page-browser";
 import { fetchMetadataFallback } from "./fetch-metadata-fallback";
+import { fetchTweet } from "./fetch-tweet";
 import { parseHtml } from "./parse-page";
 import { CrawlError } from "./errors";
 import { identityForDomain } from "../card-identity";
@@ -41,7 +42,10 @@ export async function crawlUrl(
   let microlink: Promise<CrawlResult | null> | undefined;
 
   try {
-    result = await fetchAndParse(url, browser, onStep, () => {
+    // A post on X never serves a crawler; its embed data does, picture included.
+    result = await fetchTweet(url);
+    if (result) onStep("fetch");
+    result ??= await fetchAndParse(url, browser, onStep, () => {
       microlink ??= fetchMetadataFallback(url);
     });
   } catch (err) {

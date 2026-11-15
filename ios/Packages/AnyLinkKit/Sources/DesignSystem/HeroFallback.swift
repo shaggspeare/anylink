@@ -35,6 +35,9 @@ public struct HeroImage: View {
     public let url: URL?
     public let tint: Color
     public let stripe: Color
+    /// `.fill` for a page's hero, which is decoration; `.fit` for a saved image, which is the content — a meme
+    /// cropped to its middle loses the joke.
+    public var contentMode: ContentMode = .fill
 
     public init(url: URL?, tint: Color, stripe: Color) {
         self.url = url; self.tint = tint; self.stripe = stripe
@@ -45,12 +48,13 @@ public struct HeroImage: View {
         self.url = (link.isImage ? LocalImages.existing(for: link.id) : nil) ?? link.heroImage.flatMap(URL.init(string:))
         self.tint = Color(hex: UInt32(link.tint.dropFirst(), radix: 16) ?? 0x9AA3AD)
         self.stripe = Color(hex: UInt32(link.stripe.dropFirst(), radix: 16) ?? 0xFFFFFF)
+        self.contentMode = link.isImage ? .fit : .fill
     }
 
     public var body: some View {
         if let url {
             GeometryReader { g in
-                LoadedImage(url: url, size: g.size, tint: tint, stripe: stripe)
+                LoadedImage(url: url, size: g.size, tint: tint, stripe: stripe, contentMode: contentMode)
             }
         } else {
             HeroFallback(tint: tint, stripe: stripe)
@@ -64,14 +68,16 @@ private struct LoadedImage: View {
     let size: CGSize
     let tint: Color
     let stripe: Color
+    let contentMode: ContentMode
     @Environment(\.displayScale) private var scale
     @State private var image: CGImage?
     @State private var failed = false
 
     var body: some View {
         ZStack {
+            if contentMode == .fit { AL.docShell }
             if let image {
-                Image(decorative: image, scale: scale).resizable().aspectRatio(contentMode: .fill)
+                Image(decorative: image, scale: scale).resizable().aspectRatio(contentMode: contentMode)
             } else if failed {
                 HeroFallback(tint: tint, stripe: stripe)
             } else {

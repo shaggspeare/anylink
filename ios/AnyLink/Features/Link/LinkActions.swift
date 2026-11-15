@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import DesignSystem
 import Models
 import Store
@@ -70,6 +71,10 @@ struct LinkMenuItems: View {
                 store.toasts.show(url == nil ? "Couldn't copy the link" : "Link copied")
             }
         }
+        // A saved image, or a page with a picture (a meme in a post on X): the picture is what gets pasted elsewhere.
+        if link.isImage || link.heroImage != nil {
+            Button("Copy Image", systemImage: "photo.on.rectangle") { Task { await copyImage() } }
+        }
         if !inDetail {
             Divider()
             Menu {
@@ -91,6 +96,24 @@ struct LinkMenuItems: View {
             store.trash([link.id])
             if inDetail { router.setPath(router.tab, router.path(router.tab).dropLast()) }
         }
+    }
+}
+
+extension LinkMenuItems {
+    /// This device's file first (a GIF stays a GIF), the uploaded original or the page's picture otherwise.
+    @MainActor
+    func copyImage() async {
+        let file = link.isImage ? LocalImages.existing(for: link.id) : nil
+        let source = file ?? URL(string: link.isImage && !link.url.isEmpty ? link.url : link.heroImage ?? "")
+        guard let source else { return store.toasts.show(String(localized: "Couldn't copy the image")) }
+        if source.pathExtension.lowercased() == "gif", let data = try? Data(contentsOf: source) {
+            UIPasteboard.general.setData(data, forPasteboardType: UTType.gif.identifier)
+        } else if let image = try? await ImageLoader.shared.image(for: source, maxPixels: 2400) {
+            UIPasteboard.general.image = UIImage(cgImage: image)
+        } else {
+            return store.toasts.show(String(localized: "Couldn't copy the image"))
+        }
+        store.toasts.show(String(localized: "Image copied. Paste it anywhere."))
     }
 }
 

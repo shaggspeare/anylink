@@ -648,5 +648,9 @@
   "…TO THIS": "…JADI INI",
   "…and anything else with a URL": "…dan apa pun yang punya URL",
   "← Back": "← Kembali",
-  "−{percent}% since saved": "−{percent}% sejak disimpan"
+  "−{percent}% since saved": "−{percent}% sejak disimpan",
+  "Image copied. Paste it anywhere.": "Gambar disalin. Tempel di mana saja.",
+  "Couldn't copy the image": "Tidak dapat menyalin gambar",
+  "Copy image": "Salin gambar",
+  "Text read from the image": "Teks yang dibaca dari gambar"
 }

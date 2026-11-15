@@ -192,9 +192,9 @@ public actor MockAPI: AnyLinkAPI {
     }
 
     /// No upload in the mock: the card keeps showing the local file the store wrote.
-    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?) async throws -> LinkItem {
+    public func createImage(_ data: Data, collectionId: LinkCollection.ID?, caption: String?, text: String?) async throws -> LinkItem {
         try maybeThrow(); await delay()
-        let link = LibraryRules.image(caption: caption, collectionId: collectionId ?? "unsorted")
+        let link = LibraryRules.image(caption: caption, text: text, collectionId: collectionId ?? "unsorted")
         links.insert(link, at: 0)
         return link
     }

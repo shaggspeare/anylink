@@ -809,5 +809,9 @@
   "…TO THIS": "…إلى هذا",
   "…and anything else with a URL": "…وأي شيء آخر له رابط",
   "← Back": "→ رجوع",
-  "−{percent}% since saved": "−{percent}% منذ الحفظ"
+  "−{percent}% since saved": "−{percent}% منذ الحفظ",
+  "Image copied. Paste it anywhere.": "تم نسخ الصورة. الصقها في أي مكان.",
+  "Couldn't copy the image": "تعذّر نسخ الصورة",
+  "Copy image": "نسخ الصورة",
+  "Text read from the image": "نص مقروء من الصورة"
 }

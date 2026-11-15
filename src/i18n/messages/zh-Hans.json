@@ -648,5 +648,9 @@
   "…TO THIS": "…变成这样",
   "…and anything else with a URL": "…以及任何带网址的内容",
   "← Back": "← 返回",
-  "−{percent}% since saved": "自保存以来 −{percent}%"
+  "−{percent}% since saved": "自保存以来 −{percent}%",
+  "Image copied. Paste it anywhere.": "图片已复制。可以粘贴到任何地方。",
+  "Couldn't copy the image": "无法复制图片",
+  "Copy image": "复制图片",
+  "Text read from the image": "从图片中读取的文字"
 }

@@ -14,6 +14,8 @@ public enum Spotlight {
         a.displayName = l.title
         a.keywords = [l.domain] + l.tags
         a.url = URL(string: l.url)
+        // A saved image shows itself in Spotlight: it's found by its words (excerpt) and recognised by its picture.
+        if l.isImage { a.thumbnailURL = LocalImages.existing(for: l.id) }
         return CSSearchableItem(uniqueIdentifier: l.id, domainIdentifier: domain, attributeSet: a)
     }
 

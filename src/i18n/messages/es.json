@@ -740,5 +740,9 @@
   "…TO THIS": "…A ESTO",
   "…and anything else with a URL": "…y cualquier otra cosa con una URL",
   "← Back": "← Atrás",
-  "−{percent}% since saved": "−{percent}% desde que lo guardaste"
+  "−{percent}% since saved": "−{percent}% desde que lo guardaste",
+  "Image copied. Paste it anywhere.": "Imagen copiada. Pégala donde quieras.",
+  "Couldn't copy the image": "No se pudo copiar la imagen",
+  "Copy image": "Copiar imagen",
+  "Text read from the image": "Texto leído de la imagen"
 }

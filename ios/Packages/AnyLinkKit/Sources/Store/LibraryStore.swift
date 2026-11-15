@@ -411,13 +411,15 @@ public final class LibraryStore {
         let tempID = "local-\(UUID().uuidString)"
         LocalImages.write(jpeg, id: tempID)
         let caption = caption?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        // Read on the device before the card appears, so it's searchable at once, offline, on any plan.
+        let text = await LocalImages.text(in: jpeg)
         let temp = LinkItem(
-            id: tempID, url: "", domain: "", title: caption ?? "Image", excerpt: "",
+            id: tempID, url: "", domain: "", title: LocalImages.title(caption: caption, text: text), excerpt: text,
             tint: "#17181B", stripe: "#FFFFFF", initial: "▣", contentType: .image,
             collectionId: collectionId ?? inboxID, tags: [], size: .M, status: .crawling,
             createdAt: Date().formatted(.iso8601), source: "ios"
         )
-        let saved = await insert(temp) { try await self.api.createImage(jpeg, collectionId: collectionId, caption: caption) }
+        let saved = await insert(temp) { try await self.api.createImage(jpeg, collectionId: collectionId, caption: caption, text: text.nilIfEmpty) }
         if let saved { LocalImages.rename(tempID, to: saved.id) } else { LocalImages.remove(tempID) }
         return saved
     }

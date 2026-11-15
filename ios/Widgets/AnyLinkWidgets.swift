@@ -11,6 +11,7 @@ struct AnyLinkWidgets: WidgetBundle {
     var body: some Widget {
         UnsortedWidget()
         RecentWidget()
+        MemesWidget()
         AddLinkControl()
     }
 }
@@ -21,7 +22,8 @@ struct LibraryEntry: TimelineEntry {
     let summary: WidgetSummary?
     var thumbs: [LinkItem.ID: CGImage] = [:]
 
-    static let sample = LibraryEntry(date: .now, summary: WidgetSummary(unsorted: 4, recent: Fixtures.library.links))
+    static let sample = LibraryEntry(date: .now, summary: WidgetSummary(unsorted: 4, recent: Fixtures.library.links,
+                                                                        images: Fixtures.library.links.filter(\.isImage)))
     static let signedOut = LibraryEntry(date: .now, summary: nil)
     static let empty = LibraryEntry(date: .now, summary: WidgetSummary(unsorted: 0, recent: []))
 }

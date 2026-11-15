@@ -471,9 +471,9 @@ function NoteCardBody({ link, tile }: { link: LinkItem; tile: boolean }) {
  * (relative, sized) parent. */
 export function HeroArt({ link, sizes = "(min-width: 1280px) 25vw, 50vw" }: { link: LinkItem; sizes?: string }) {
   if (link.contentType === "image" && link.heroImage) {
-    // A saved image is the content, not decoration: no scrim, and pinned to the top so a
-    // tall screenshot shows its header rather than its middle.
-    return <Image src={link.heroImage} alt={link.title} fill sizes={sizes} className="object-cover object-top" />;
+    // A saved image is the content, not decoration: no scrim, and the whole of it — a meme cropped
+    // to its middle loses the joke.
+    return <Image src={link.heroImage} alt={link.title} fill sizes={sizes} className="object-contain" />;
   }
   return link.heroImage ? (
     <>

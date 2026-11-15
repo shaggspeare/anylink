@@ -62,6 +62,13 @@ public final class LocalStore {
         return try? LocalStore(url: base.appending(path: "Local.store"), cloudKit: cloudKitContainer)
     }
 
+    /// The same store, opened to read by a process that mustn't mirror it (the keyboard, an intent run outside the
+    /// app): CloudKit syncing belongs to the app alone.
+    public static func appGroupReader(_ group: String = LocalImages.group) -> LocalStore? {
+        guard let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else { return nil }
+        return try? LocalStore(url: base.appending(path: "Local.store"), cloudKit: nil)
+    }
+
     /// Whether this device has an iCloud account CloudKit can sync with. Without one, saves stay on the device and
     /// SwiftData syncs them once there is. Needs the app's iCloud entitlement: don't call it from tests or previews.
     public static func iCloudAvailable() async -> Bool {

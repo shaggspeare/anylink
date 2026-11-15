@@ -73,9 +73,10 @@ public enum LibraryRules {
     }
 
     /// An image's card; the picture itself is stored apart from it.
-    public static func image(caption: String?, collectionId: LinkCollection.ID) -> LinkItem {
+    /// `text` is what was read off the image; it's the excerpt, so search finds the picture by its words.
+    public static func image(caption: String?, text: String? = nil, collectionId: LinkCollection.ID) -> LinkItem {
         LinkItem(
-            id: UUID().uuidString, url: "", domain: "", title: caption.flatMap { $0.isEmpty ? nil : $0 } ?? "Image", excerpt: "",
+            id: UUID().uuidString, url: "", domain: "", title: LocalImages.title(caption: caption, text: text ?? ""), excerpt: text ?? "",
             tint: "#17181B", stripe: "#FFFFFF", initial: "▣", contentType: .image,
             collectionId: collectionId, tags: [], size: .M, status: .ready,
             createdAt: Date().formatted(.iso8601), source: "ios"

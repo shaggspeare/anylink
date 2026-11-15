@@ -6,6 +6,7 @@ import { useLibrary } from "@/lib/store";
 import type { LinkItem } from "@/lib/types";
 import { NoteText } from "./note-text";
 import { useLocale, useT } from "@/i18n/client";
+import { copyImage } from "@/lib/copy-image";
 
 function savedOn(link: LinkItem, locale: string) {
   return new Date(link.createdAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
@@ -82,10 +83,13 @@ export function NotePanel({ link }: { link: LinkItem }) {
   );
 }
 
-/** The image at its own aspect on a dark mat, with the caption under it. */
+/** The image at its own aspect on a dark mat, with the caption under it. A GIF shows from its original so
+ * it moves; anything else from the preview, which is sized for the screen. */
 export function ImagePanel({ link }: { link: LinkItem }) {
   const t = useT();
   const locale = useLocale();
+  const { showToast } = useLibrary();
+  const src = /\.gif(\?|$)/.test(link.url) ? link.url : link.heroImage;
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-4 px-4 py-6 sm:px-8 sm:py-8">
       <a
@@ -95,11 +99,11 @@ export function ImagePanel({ link }: { link: LinkItem }) {
         title={t("Open full size")}
         className="image-frame group relative block overflow-hidden rounded-[26px]"
       >
-        {link.heroImage && (
+        {src && (
           // Plain img: the stored file is already sized for the web, and next/image would
           // need dimensions we don't keep.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={link.heroImage} alt={link.title} className="mx-auto block max-h-[78dvh] w-auto max-w-full object-contain" />
+          <img src={src} alt={link.title} className="mx-auto block max-h-[78dvh] w-auto max-w-full object-contain" />
         )}
         <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-[11.5px] font-semibold text-white opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100">
           {t("Full size")} <Icon name="arrow-up-right" size={11} />
@@ -109,7 +113,26 @@ export function ImagePanel({ link }: { link: LinkItem }) {
         <Icon name="image" size={15} className="flex-none text-periwinkle" />
         <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold tracking-[-.035em] text-ink">{link.title}</h1>
         <span className="flex-none text-[12px] text-ink/45">{savedOn(link, locale)}</span>
+        {src && (
+          <button
+            type="button"
+            onClick={() =>
+              copyImage(link.heroImage ?? src).then(
+                () => showToast(t("Image copied. Paste it anywhere.")),
+                () => showToast(t("Couldn't copy the image"))
+              )
+            }
+            className="flex h-9 flex-none items-center gap-2 rounded-full bg-periwinkle px-4 text-[12.5px] font-semibold text-on-accent"
+          >
+            <Icon name="image" size={13} /> {t("Copy image")}
+          </button>
+        )}
       </div>
+      {link.excerpt && (
+        <p className="whitespace-pre-wrap px-1 text-[13.5px] leading-relaxed text-ink/60" title={t("Text read from the image")}>
+          {link.excerpt}
+        </p>
+      )}
     </div>
   );
 }

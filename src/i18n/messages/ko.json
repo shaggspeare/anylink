@@ -648,5 +648,9 @@
   "…TO THIS": "…이렇게",
   "…and anything else with a URL": "…그 밖에 URL이 있는 모든 것",
   "← Back": "← 뒤로",
-  "−{percent}% since saved": "저장 이후 −{percent}%"
+  "−{percent}% since saved": "저장 이후 −{percent}%",
+  "Image copied. Paste it anywhere.": "이미지를 복사했습니다. 어디에든 붙여넣으세요.",
+  "Couldn't copy the image": "이미지를 복사할 수 없습니다",
+  "Copy image": "이미지 복사",
+  "Text read from the image": "이미지에서 읽은 텍스트"
 }

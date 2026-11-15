@@ -7,6 +7,8 @@ let client: Anthropic | undefined;
 /** One Claude call that answers in JSON. Returns null on anything going wrong — no key, a
  * refusal, a timeout, unparseable output — because every caller has a non-LLM fallback and
  * none of them should fail a user action over this. */
+export type ImageInput = { data: Buffer; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" };
+
 export async function chatJson<T>(
   system: string,
   user: unknown,
@@ -14,7 +16,8 @@ export async function chatJson<T>(
     maxTokens = 16_000,
     timeoutMs = 25_000,
     effort,
-  }: { maxTokens?: number; timeoutMs?: number; effort?: "low" | "medium" | "high" } = {}
+    image,
+  }: { maxTokens?: number; timeoutMs?: number; effort?: "low" | "medium" | "high"; image?: ImageInput } = {}
 ): Promise<T | null> {
   if (!process.env.ANTHROPIC_API_KEY) return null;
   // The key isn't scoped to one workspace, so every request has to name it.
@@ -32,7 +35,19 @@ export async function chatJson<T>(
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
         system,
-        messages: [{ role: "user", content: typeof user === "string" ? user : JSON.stringify(user) }],
+        messages: [
+          {
+            role: "user",
+            content: image
+              ? [
+                  { type: "image", source: { type: "base64", media_type: image.mediaType, data: image.data.toString("base64") } },
+                  { type: "text", text: typeof user === "string" ? user : JSON.stringify(user) },
+                ]
+              : typeof user === "string"
+                ? user
+                : JSON.stringify(user),
+          },
+        ],
       },
       // Caps the whole call, the SDK's retries included.
       { signal: AbortSignal.timeout(timeoutMs) }

@@ -71,7 +71,9 @@ public struct DateSection: Identifiable, Equatable, Sendable {
 
 extension LibraryStore {
     public var widgetSummary: WidgetSummary {
-        WidgetSummary(unsorted: scopeCount(.unsorted), recent: Array(links(in: .all, sortedBy: .newest).prefix(WidgetSummary.limit)))
+        let newest = links(in: .all, sortedBy: .newest)
+        return WidgetSummary(unsorted: scopeCount(.unsorted), recent: Array(newest.prefix(WidgetSummary.limit)),
+                             images: Array(newest.lazy.filter(\.isImage).prefix(WidgetSummary.imageLimit)))
     }
 
     public func scopeCount(_ scope: LibraryScope) -> Int {
